@@ -54,7 +54,7 @@ key = jax.random.PRNGKey(0)
 U0 = jax.random.uniform(key, (N,), minval=-0.5, maxval=0.5)
 
 # Optimizer setup
-learning_rate = 0.01 # Suitable range between 0.02-0.005
+learning_rate = 0.01 # Suitable range between 0.005-0.02
 optimizer = optax.adam(learning_rate) # Using the Adam optimizer
 opt_state = optimizer.init(U0) # Initializes the optimizer state
 
@@ -63,10 +63,10 @@ def step(U, opt_state):
     loss, grads = jax.value_and_grad(objective)(U, x0, dt) # Calculate cost function and gradient
     updates, opt_state = optimizer.update(grads, opt_state) # Update parameters using optimizer
     U = optax.apply_updates(U, updates) # Apply updates to vector U
-    
+
     # Project onto constraints
     U, _ = project_constraints(U, x0, dt) # Enforces the constraints on U
-    
+
     return U, opt_state, loss
 
 # Optimization loop
@@ -76,6 +76,8 @@ loss_history = [] # Initialize list to store loss history over time
 for i in range(num_iterations): # Calculate loss history over time and store it
     U, opt_state, loss = step(U, opt_state)
     loss_history.append(loss)
+    if i % 50 == 0:
+       print(f"Iteration {i}, Loss: {loss:.6f}")
 
 # Simulate the system with the optimal control
 x1_sol = [x0[0]]
