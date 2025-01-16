@@ -14,21 +14,21 @@ dt = T/N  # Time step
 x2_lb = -0.25  # Lower bound for x2
 
 # Initial conditions
-x0 = jnp.array([0.0, 1.0], dtype=jnp.float64)  # Initial state
+x0 = jnp.array([0.0, 1.0])  # Initial state
 
 # Function to integrate the next state
 def next_state(Xk, Uk, dt):
     x1, x2 = Xk
     x1_dot = (1 - x2**2)*x1 - x2 + Uk  # Dynamics
     x2_dot = x1
-    return Xk + dt*jnp.array([x1_dot, x2_dot], dtype=jnp.float64)
+    return Xk + dt*jnp.array([x1_dot, x2_dot])
 
 @jax.jit
 def objective(U, X0, dt):
-    X = jnp.zeros((2, len(U)+1), dtype=jnp.float64)
+    X = jnp.zeros((2, len(U)+1))
     X = X.at[:,0].set(X0)  # Initial state
 
-    L = jnp.zeros(len(U), dtype=jnp.float64)  # Lagrange term of integrand
+    L = jnp.zeros(len(U))  # Lagrange term of integrand
     J = 0.0  # Cost function
 
     for idx, Uk in enumerate(U):
@@ -40,7 +40,7 @@ def objective(U, X0, dt):
 
 @jax.jit
 def space_constraint(U, X0, dt):
-    X = jnp.zeros((2, len(U)+1), dtype=jnp.float64)
+    X = jnp.zeros((2, len(U)+1))
     X = X.at[:,0].set(X0)  # Initial state
 
     for idx, Uk in enumerate(U):
@@ -50,7 +50,7 @@ def space_constraint(U, X0, dt):
 
 # Initialize control input
 key = jax.random.PRNGKey(0)
-U0 = jax.random.uniform(key, shape=(N,), dtype=jnp.float64, minval=-1, maxval=1)
+U0 = jax.random.uniform(key, shape=(N,), minval=-1, maxval=1)
 
 # Define constraints
 ctrl_constraint = LinearConstraint(np.eye(N), lb=-1, ub=1)
@@ -68,7 +68,7 @@ res = minimize(
 U_opt = res.x
 
 # Simulate the system with the optimal control
-X = jnp.zeros((2, N+1), dtype=jnp.float64)
+X = jnp.zeros((2, N+1))
 X = X.at[:,0].set(x0)
 
 for idx, Uk in enumerate(U_opt):
