@@ -53,8 +53,8 @@ key = jax.random.PRNGKey(0)
 U0 = jax.random.uniform(key, shape=(N,), minval=-1, maxval=1)
 
 # Define constraints
-ctrl_constraint = LinearConstraint(np.eye(N), lb=-1, ub=1)
-spc_constraint = NonlinearConstraint(lambda U: np.array(space_constraint(U, x0, dt)), lb=x2_lb, ub=np.inf)
+ctrl_constraint = LinearConstraint(jnp.eye(N), lb=-1, ub=1)
+spc_constraint = NonlinearConstraint(lambda U: jnp.array(space_constraint(U, x0, dt)), lb=x2_lb, ub=jnp.inf)
 
 # Minimize the objective function
 res = minimize(
