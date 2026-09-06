@@ -9,6 +9,7 @@
 
 # package imports
 import jax.numpy as jnp
+
 from flowtangent.library import Component, Dimensions
 
 # Flowtangent imports
@@ -24,7 +25,7 @@ class NacelleDiameters(Dimensions):
 
 
 class Nacelle(Component):
-    tag: str = field("Nacelle", static=True)
+    name: str = field("Nacelle", static=True)
     flow_through: bool = field(False, static=True)
     fuselage_integrated: bool = field(False, static=True)
     has_pylon: bool = field(True)

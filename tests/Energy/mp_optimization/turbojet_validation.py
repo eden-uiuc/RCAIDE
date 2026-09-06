@@ -134,7 +134,7 @@ def system_setup():
         )                
     )
 
-    line = TurbojetLine(tag="Line", subcomponents=(des_engine,),)
+    line = TurbojetLine(name="Line", subcomponents=(des_engine,),)
     
     net_design = JetNetDesign(
         altitude=0.0,
@@ -144,7 +144,7 @@ def system_setup():
     
     net = TurbojetNetwork(subcomponents=(line,), design_parameters=net_design)
     
-    sys = Aircraft(tag="Simple Turbojet System", subcomponents=(net,))
+    sys = Aircraft(name="Simple Turbojet System", subcomponents=(net,))
 
     return sys
 
@@ -227,7 +227,7 @@ def validate_design_point(pycycle_json_path, Flowtangent_state, point_name: str=
         'nozz.Fl_O':   'network.line.engine.core_nozzle'
     }
     
-    # 3. Map PyCycle properties to Flowtangent tags
+    # 3. Map PyCycle properties to Flowtangent names
     property_map = {
         'W':     ('mass_flow_rate', units.lbm/units.s),
         'Pt':    ('stagnation_pressure', units.psi),
@@ -408,7 +408,7 @@ if __name__ == "__main__":
             d_params = {"Intake Area": A_i, "Throat Area": A_t, "Exit Area":A_x}
             real_params = {k:a for k, a in d_params.items() if a != 1.0}
             if any(real_params):
-                print(f"{comp.tag}:")
+                print(f"{comp.name}:")
                 for p in real_params:
                     print(f" - {p:<11}: {format_array(real_params[p])}")
     

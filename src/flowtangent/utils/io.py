@@ -126,7 +126,8 @@ def serialize_node(obj):
             has_default = False
 
         for k, v in obj.__dict__.items():
-            if k.startswith("__"): continue
+            if k.startswith("__"):
+                continue
 
             if has_default:
                 default_v = getattr(default_obj, k, None)

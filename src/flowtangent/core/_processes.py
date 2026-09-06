@@ -43,7 +43,7 @@ import jax.numpy as jnp
 import networkx as nx
 import numpy as np  # Used only for OptimizerInterface class w/ legacy optimizers
 
-from ..utils import MERMAID_STYLES, DataPath, compute_tree_delta, field, get_target, null_step
+from ..utils import MERMAID_STYLES, TreePath, compute_tree_delta, field, get_target, null_step
 from ._settings import Settings
 
 # Flowtangent imports
@@ -59,7 +59,7 @@ FlowtangentFunction: TypeAlias = Callable[[State, System, Settings], Tuple[State
 
 class ProcessStep(eqx.Module):
     function: FlowtangentFunction = field(null_step, static=True, as_value=True)
-    tag: str = field("Process Step", static=True)
+    name: str = field("Process Step", static=True)
 
     _state_delta: Optional[State] = field(None)
     _system_delta: Optional[System] = field(None)
@@ -67,7 +67,7 @@ class ProcessStep(eqx.Module):
 
     def __init__(
         self,
-        tag: str = "Process Step",
+        name: str = "Process Step",
         function: FlowtangentFunction | ProcessStep = null_step,
         _state_delta: Optional[State] = None,
         _system_delta: Optional[System] = None,
@@ -75,7 +75,7 @@ class ProcessStep(eqx.Module):
     ):
 
         self.function = function
-        self.tag = tag
+        self.name = name
         self._state_delta = _state_delta
         self._system_delta = _system_delta
         self._settings_delta = _settings_delta
@@ -87,10 +87,11 @@ class ProcessStep(eqx.Module):
         elif callable(step):
             step_name = getattr(step, "__name__", "Unnamed FlowtangentFunction")
             sig = inspect.signature(step)
-            if len(sig.parameters) != 3: raise ValueError(
-                f"Process functions must take and return (State, System, Settings). "
-                f"Found function '{step_name}' with signature '{sig}'.")
-            return cls(tag=step_name, function=step)
+            if len(sig.parameters) != 3:
+                raise ValueError(
+                    f"Process functions must take and return (State, System, Settings). "
+                    f"Found function '{step_name}' with signature '{sig}'.")
+            return cls(name=step_name, function=step)
         else:
             raise ValueError(f"Cannot create a ProcessStep from instance of '{type(step)}'.")
 
@@ -100,7 +101,7 @@ class ProcessStep(eqx.Module):
             assert(isinstance(self.function, Callable))
             jaxpr_obj = jax.make_jaxpr(self.function)(state, system, settings)
         except Exception as e:
-            return f" - {self.tag} | Could not trace ({e})"
+            return f" - {self.name} | Could not trace ({e})"
 
         source_counts = Counter()
 
@@ -140,7 +141,7 @@ class ProcessStep(eqx.Module):
                 source_counts["Unknown Source"] += 1
 
         total_ops = len(jaxpr_obj.jaxpr.eqns)
-        report = [f" - {self.tag} | Total Ops: {total_ops}"]
+        report = [f" - {self.name} | Total Ops: {total_ops}"]
         for loc, count in source_counts.most_common(top_n):
             pct = (count / total_ops) * 100
             report.append(f" - - {count:4d} ops ({pct:4.1f}%) : {loc}")
@@ -151,7 +152,7 @@ class ProcessStep(eqx.Module):
         if settings._DEV_MODE and settings.verbose:
             print(self._profile_complexity(state, system, settings))
         if not settings._DEV_MODE and settings.DEBUG_MODE:
-            print(f" - {self.tag}")
+            print(f" - {self.name}")
         # Default calling behavior, assumes function is callable.
         # String overwrite only for steps with __call__ override
         return self.function(state, system, settings)  # type: ignore
@@ -163,7 +164,7 @@ class ProcessStep(eqx.Module):
         return *self(state, system, settings), None
 
     def __repr__(self):
-        return self.tag
+        return self.name
 
     @property
     def inputs(self) -> set:
@@ -217,7 +218,7 @@ def array_barrier(state:State, system:System, settings:Settings):
 
 class Process(ProcessStep):
 
-    tag: str = field("Process", static=True)
+    name: str = field("Process", static=True)
     steps: tuple[ProcessStep, ...] = ()
 
     initialize: FlowtangentFunction = field(null_step, static=True)
@@ -236,7 +237,7 @@ class Process(ProcessStep):
     def __init__(
         self,
         steps: Sequence[ProcessStep | FlowtangentFunction] = (),
-        tag: str = "Process",
+        name: str = "Process",
         initialize: FlowtangentFunction = null_step,
         initial_step: int = 0,
         _initial_state: Optional[State] = None,
@@ -249,14 +250,14 @@ class Process(ProcessStep):
         # Initialize the parent ProcessStep
         super().__init__(
             function=null_step,
-            tag=tag,
+            name=name,
             _state_delta=None,
             _system_delta=None,
             _settings_delta=None,
         )
 
         # Standard field assignments
-        self.tag = tag
+        self.name = name
         self.initialize = initialize
         self.initial_step = initial_step
         self._initial_state = _initial_state
@@ -289,7 +290,7 @@ class Process(ProcessStep):
 
         #  Search the steps using tracer-safe logic
         for step in steps:
-            step_tag = step.tag
+            step_tag = step.name
             if not isinstance(step_tag, str) and hasattr(step_tag, "value"):
                 step_tag = step_tag.value
 
@@ -298,13 +299,13 @@ class Process(ProcessStep):
                 if key == formatted_tag:
                     return step
 
-        raise AttributeError(f"{self.__class__.__name__}: {self.tag} has no attribute '{key}'")
+        raise AttributeError(f"{self.__class__.__name__}: {self.name} has no attribute '{key}'")
 
     def __call__(self, state: State, system: System, settings: Settings) -> tuple[State, System, Settings]:
         if settings.DEBUG_MODE or settings._DEV_MODE:
 
             start_time = datetime.fromtimestamp(time.time()).strftime(settings.logging.date_format)
-            print(f"Beginning Process: '{self.tag}' | {start_time}")
+            print(f"Beginning Process: '{self.name}' | {start_time}")
 
         if settings.numerical.jacobian.calculate_jacobian:
             jac_map = settings.numerical.jacobian.mapping
@@ -320,7 +321,8 @@ class Process(ProcessStep):
 
                 final_st = eqx.tree_at(lambda s: s.process_jacobian, final_st, jacobian_matrix)
                 return final_st, final_sys, final_setts
-            else: warnings.warn(f"Process '{self.tag}' Jacobian called with no Jacbian Map set. Jacobian will not be calculated.")
+            else:
+                warnings.warn(f"Process '{self.name}' Jacobian called with no Jacbian Map set. Jacobian will not be calculated.")
 
         # Standard Execution Path
         for step in self.steps[self.initial_step :]:
@@ -328,13 +330,13 @@ class Process(ProcessStep):
 
         if settings.DEBUG_MODE or settings._DEV_MODE:
             end_time = datetime.fromtimestamp(time.time()).strftime(settings.logging.date_format)
-            print(f"Process '{self.tag}' Complete. | {end_time}")
+            print(f"Process '{self.name}' Complete. | {end_time}")
 
         return state, system, settings
 
     def _run_with_raw_history(self, state, system, settings):
         if settings.DEBUG_MODE or settings._DEV_MODE:
-            print(f"Beginning Process: '{self.tag}'")
+            print(f"Beginning Process: '{self.name}'")
         history = [(state, system, settings)]
 
         for step in self.steps[self.initial_step :]:
@@ -514,13 +516,13 @@ class Process(ProcessStep):
     def count(self, step: ProcessStep):
         return self.steps.count(step)
 
-    def _index_tag(self, tag: str):
-        tags = [step.tag for step in self.steps]
-        if tag not in tags:
-            tags = [t.replace(" ", "_").lower() for t in tags]
-        if tag not in tags:
-            raise AttributeError(f"Unable to locate step {tag} in steps of Process {self.tag}.")
-        index = tags.index(tag)
+    def _index_tag(self, name: str):
+        names = [step.name for step in self.steps]
+        if name not in names:
+            names = [n.replace(" ", "_").lower() for n in names]
+        if name not in names:
+            raise AttributeError(f"Unable to locate step {name} in steps of Process {self.name}.")
+        index = names.index(name)
 
         return index
 
@@ -549,8 +551,8 @@ class Process(ProcessStep):
         new_steps = self.steps[:index] + self.steps[index + 1 :]
         return eqx.tree_at(lambda p: p.steps, self, new_steps)
 
-    def _remove_tag(self, tag: str):
-        return self.pop(self._index_tag(tag))
+    def _remove_tag(self, name: str):
+        return self.pop(self._index_tag(name))
 
     def _remove_function(self, function: Callable):
         return self.pop(self._index_function(function))
@@ -589,7 +591,7 @@ class Process(ProcessStep):
         The prefix tracks the hierarchical origin (e.g., '0_InitializeVLM.2_ProcessGeometry').
         """
         for step in self.steps:
-            node_name = step.tag
+            node_name = step.name
 
             # Check if this step is itself a nested Process containing other steps
             if hasattr(step, "steps") and step.steps is not None:
@@ -612,7 +614,7 @@ class Process(ProcessStep):
         if recursive:
             step_iterator = self._get_flattened_steps()
         else:
-            step_iterator = ((f"{i}_{step.tag}", step) for i, step in enumerate(self.steps))
+            step_iterator = ((f"{i}_{step.name}", step) for i, step in enumerate(self.steps))
 
         # 2. Build the chronological DAG
         for step_node, step in step_iterator:
@@ -688,7 +690,7 @@ class Process(ProcessStep):
                 mermaid_lines.append(f"    {safe_id}([{node_name}])")
             else:
                 step_obj = G.nodes[node_name].get("step_obj")
-                display_label = step_obj.tag if step_obj else str(node_name)
+                display_label = step_obj.name if step_obj else str(node_name)
                 mermaid_lines.append(f"    {safe_id}[{display_label}]")
 
         # 4. Build edges and apply filters to the variable lists
@@ -878,17 +880,17 @@ class Process(ProcessStep):
     def details(self) -> str:
         steps = getattr(self, "steps", None)
         if not steps:
-            return f"{self.tag} (Empty Process)"
+            return f"{self.name} (Empty Process)"
 
         step_tags = []
         step_func_names = []
 
         for step in steps:
             # Handle tracer proxies safely
-            tag = step.tag
-            if not isinstance(tag, str) and hasattr(tag, "value"):
-                tag = tag.value
-            step_tags.append(str(tag))
+            name = step.name
+            if not isinstance(name, str) and hasattr(name, "value"):
+                name = name.value
+            step_tags.append(str(name))
 
             # Safely get the name whether it's a function or a class instance
             if isinstance(step, Process):
@@ -898,10 +900,10 @@ class Process(ProcessStep):
                 name = getattr(func, "__name__", func.__class__.__name__)
                 step_func_names.append(name)
 
-        # Handle edge case where process has steps but they have empty tags
+        # Handle edge case where process has steps but they have empty names
         max_tag_length = max([len(t) for t in step_tags]) if step_tags else 0
 
-        process_str = self.tag
+        process_str = self.name
         for idx in range(len(step_tags)):
             process_str += f"\n\t{idx + 1:>2}) {step_tags[idx]:<{max_tag_length}} : {step_func_names[idx]}"
 
@@ -923,7 +925,7 @@ class OptimizerInterface:
         base_system: System,
         base_settings: Settings,
         grad_map: JacobianMap,
-        objective_path: DataPath,
+        objective_path: TreePath,
         **kwargs,
     ):
 

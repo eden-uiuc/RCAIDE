@@ -39,7 +39,7 @@ class PACTNetwork(Process):
 
         for e_idx, network_ID in enumerate(net._execution_order):
             node = net.nodes[network_ID]
-            G.add_node(e_idx, name=node.tag, network_ID=node.network_ID)
+            G.add_node(e_idx, name=node.name, network_ID=node.network_ID)
             for input in node.inputs:
                 input_idx = net._execution_order.index(input.network_ID)
                 domain = input.domain
@@ -94,20 +94,20 @@ def build_analysis_from_network(network: GraphNetwork):
 
     node_steps = tuple(
             ProcessStep(
-                tag=f"{ID}",
+                name=f"{ID}",
                 function=make_node_function(ID)
             ) for ID in analysis_network._execution_order
         )
 
     net_step = ProcessStep(
-        tag=f"{analysis_network.network_ID}",
+        name=f"{analysis_network.network_ID}",
         function=make_network_function()
     )
 
     full_steps = node_steps + (net_step,)
 
     network_analysis = PACTNetwork(
-        tag=f"{network.tag} Analysis",
+        name=f"{network.name} Analysis",
         analysis_network=analysis_network,
         steps=full_steps,
     )

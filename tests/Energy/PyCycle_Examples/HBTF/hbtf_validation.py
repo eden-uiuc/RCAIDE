@@ -153,7 +153,7 @@ def system_setup():
     
     net = TurbofanNetwork(subcomponents=(line,), design_parameters=net_design)
     
-    sys = Aircraft(tag="HBTF System", subcomponents=(net,))
+    sys = Aircraft(name="HBTF System", subcomponents=(net,))
 
     save_data(sys, test_dir / "HBTF_template.trs")
 
@@ -230,7 +230,7 @@ if __name__ == "__main__":
                 d_params = {"Intake Area": A_i, "Throat Area": A_t, "Exit Area":A_x, "Area_Ratio":AR}
                 real_params = {k:a for k, a in d_params.items() if a != 1.0}
                 if any(real_params):
-                    print(f"{comp.tag}:")
+                    print(f"{comp.name}:")
                     for p in real_params:
                         print(f" - {p:<11}: {format_array(real_params[p])}")
         

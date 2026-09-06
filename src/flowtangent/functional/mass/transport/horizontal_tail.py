@@ -8,10 +8,13 @@
 #  Imports
 # ----------------------------------------------------------------------
 
+from __future__ import annotations
+
 import jax.numpy as np
 
-import flowtangent.framework as rcf
 from flowtangent.data import units
+
+from ... import Settings, State, System
 
 # -----------------------------------------------------------------------
 # Functional/Library Version
@@ -83,7 +86,7 @@ def func_horizontal_tail(
 # -----------------------------------------------------------------------
 
 
-def horizontal_tail(state: "rcf.state", system: "rcf.systems", settings: "rcf.settings"):
+def horizontal_tail(state: State, system: System, settings: Settings):
 
     h_tail = system.wings.horizontal_tail
 

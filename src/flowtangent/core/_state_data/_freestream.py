@@ -77,7 +77,7 @@ class Freestream(StateData):
     All attributes are initialized as zero arrays of shape (1, 1) by default.
     """
 
-    tag: str = field("Freestream", static=True)
+    name: str = field("Freestream", static=True)
     atmosphere: Atmosphere = field(USStandard1976)
     planet: Planet = field(Earth)
 

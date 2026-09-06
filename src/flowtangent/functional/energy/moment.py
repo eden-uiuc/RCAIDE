@@ -10,12 +10,11 @@
 # package imports
 
 # Flowtangent imports
-from typing import TYPE_CHECKING
+from __future__ import annotations
 
 import jax.numpy as np
 
-if TYPE_CHECKING:
-    import flowtangent.framework as rcf
+from ... import Settings, State, System
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Turbofan Moment
@@ -33,9 +32,9 @@ def func_propulsor_moment(
 
 
 def propulsor_moment(
-    state: "rcf.state",
-    system: "rcf.systems",
-    settings: "rcf.settings",
+    state: State,
+    system: System,
+    settings: Settings,
 ):
 
     vehicle_center_of_gravity = system.mass_properties.center_of_gravity

@@ -34,12 +34,12 @@ class NumericalTime(StateData):
 
 @register
 class Time(StateData):
-    tag: str = field("Time", static=True)
+    name: str = field("Time", static=True)
 
     N: int = field(1, static=True)
 
-    dimensionless: NumericalTime = field(lambda: NumericalTime(tag="Dimensionless Time"))
-    dimensional: NumericalTime = field(lambda: NumericalTime(tag="Dimensional Time"))
+    dimensionless: NumericalTime = field(lambda: NumericalTime(name="Dimensionless Time"))
+    dimensional: NumericalTime = field(lambda: NumericalTime(name="Dimensional Time"))
 
     def update_chebyshev_matrices(
         self,
@@ -83,7 +83,7 @@ class Time(StateData):
         I = jnp.append(jnp.zeros((n_cp, 1)), I, axis=1)
 
         updated_dimensionless = NumericalTime(
-            tag="Dimensionless Time",
+            name="Dimensionless Time",
             control_points=jnp.atleast_2d(x).T,
             differentiate=D,
             integrate=I

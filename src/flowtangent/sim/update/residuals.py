@@ -32,8 +32,8 @@ def flight_dynamics_residuals(
     """
 
     active_residuals = state.dynamics.get_active_residuals()
-    force_residuals = [res for res in active_residuals if "force" in res.tag]
-    moment_residuals = [res for res in active_residuals if "moment" in res.tag]
+    force_residuals = [res for res in active_residuals if "force" in res.name]
+    moment_residuals = [res for res in active_residuals if "moment" in res.name]
 
     FT = state.frames.inertial.total_force_vector
     MT = state.frames.inertial.total_moment_vector
@@ -45,11 +45,11 @@ def flight_dynamics_residuals(
 
     for force_res in force_residuals:
         force_res = eqx.tree_at(lambda f: f.value, force_res, FT[:, force_res.index] / m[:, 0] - a[:, force_res.index])
-        state = eqx.tree_at(lambda s: getattr(s.dynamics, force_res.tag), state, force_res)
+        state = eqx.tree_at(lambda s: getattr(s.dynamics, force_res.name), state, force_res)
     for moment_res in moment_residuals:
         if I[moment_res.index, moment_res.index] == 0:
             raise ValueError(
-                f"Moment of Inertia Matrix must be defined for residual: {moment_res.tag} at "
+                f"Moment of Inertia Matrix must be defined for residual: {moment_res.name} at "
                 f"I[{moment_res.index}, {moment_res.index}]"
             )
         moment_res = eqx.tree_at(
@@ -57,6 +57,6 @@ def flight_dynamics_residuals(
             moment_res,
             MT[:, moment_res.index] / I[moment_res.index, moment_res.index] - wdot[:, moment_res.index],
         )
-        state = eqx.tree_at(lambda s: getattr(s.dynamics, moment_res.tag), state, moment_res)
+        state = eqx.tree_at(lambda s: getattr(s.dynamics, moment_res.name), state, moment_res)
 
     return state, system, settings

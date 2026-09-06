@@ -6,12 +6,13 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #  IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 
 # package imports
 import equinox as eqx
 
 # Flowtangent imports
-import flowtangent.framework as rcf
+from ... import Settings, State, System
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Update Time Differentials
@@ -19,14 +20,14 @@ import flowtangent.framework as rcf
 
 
 def update_time_differentials(
-    state: "rcf.state",
-    system: "rcf.systems",
-    settings: "rcf.settings",
+    state: State,
+    system: System,
+    settings: Settings,
 ):
 
-    x = state.numerics.dimensionless.control_points
-    D = state.numerics.dimensionless.differentiate
-    I = state.numerics.dimensionless.integrate
+    x = state.time.dimensionless.control_points
+    D = state.time.dimensionless.differentiate
+    I = state.time.dimensionless.integrate
 
     time = state.frames.inertial.time
     T = time[-1] - time[0]

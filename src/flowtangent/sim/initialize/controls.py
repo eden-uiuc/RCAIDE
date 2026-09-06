@@ -36,7 +36,7 @@ def build_controls_from_system(state: State, system: System | Component, setting
     unbound_controls = []
 
     if settings.DEBUG_MODE:
-        print(f"Building controls from {system.tag}...")
+        print(f"Building controls from {system.name}...")
 
     for component in system.subcomponents:
         state, component, settings = build_controls_from_system(state, component, settings)
@@ -45,11 +45,11 @@ def build_controls_from_system(state: State, system: System | Component, setting
             if isinstance(component, Wing):
                 new_controls = state.controls.add_control_variable(
                     SurfaceControl(
-                        tag=component.tag + "_deflection",
+                        name=component.name + "_deflection",
                         surfaces=(system,),
                     )
                 )
-                surface_controls.append(component.tag + "_deflection")
+                surface_controls.append(component.name + "_deflection")
 
             else:
                 unbound = False
@@ -66,17 +66,17 @@ def build_controls_from_system(state: State, system: System | Component, setting
                     unbound = True
 
                 if unbound:
-                    unbound_controls.append(component.tag)
+                    unbound_controls.append(component.name)
 
                 new_controls = state.controls.add_control_variable(
                     Control(
-                        tag=component.tag,
+                        name=component.name,
                         state_path=path,
                         path_indices=indices,
                     )
                 )
                 if not unbound:
-                    direct_controls.append(component.tag)
+                    direct_controls.append(component.name)
 
             if settings.DEBUG_MODE:
                 if surface_controls:
@@ -92,7 +92,7 @@ def build_controls_from_system(state: State, system: System | Component, setting
 
     if settings.DEBUG_MODE:
         print(
-            f"Completed building controls from {system.tag}.\n"
+            f"Completed building controls from {system.name}.\n"
             f"Controls may be activated for mission segments by setting "
             f"segment.active_controls = ('control_variable', ...)"
         )

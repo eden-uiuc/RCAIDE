@@ -1,5 +1,4 @@
 # src/eden_trace/utils/base.py
-from functools import partial
 from typing import Any, dataclass_transform
 
 import equinox as eqx
@@ -23,8 +22,11 @@ def field(initializer: Any, as_value: bool = False, **kwargs):
         )
     return eqx.field(default=initializer, **kwargs)
 
-static_field = partial(field, static=True)
-method_field = partial(field, as_value=True, static=True)
+def static_field(*args, **kwargs):
+    return field(*args, static=True, **kwargs)
+
+def method_field(*args, **kwargs):
+    return field(*args, as_value=True, static=True, **kwargs)
 
 def empty_array(shape: tuple | int = 0, dtype: Any = float, **kwargs):
     """Syntactic sugar for an empty JAX array in an Equinox module."""
@@ -34,14 +36,28 @@ def empty_array(shape: tuple | int = 0, dtype: Any = float, **kwargs):
 @dataclass_transform(field_specifiers=(eqx.field, field, static_field, method_field))
 class Module(eqx.Module):
     """Base class for all FlowTangent modules to preserve IDE autocompletion."""
-    pass
+    name: str
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        if "name" not in cls.__dict__:
+            cls.name = cls.__name__
+
+        super().__init_subclass__(**kwargs)
+
+    def __repr__(self) -> str:
+        return f"{self.name}"
+
+    @property
+    def field_name(self):
+        return self.name.replace(" ", "_").lower()
 
 # Metaclass logic from earlier
 class StateDataMeta(type(eqx.Module)):
     def __new__(mcs, name, bases, namespace):
         annotations = namespace.get('__annotations__', {})
         for key, hint in annotations.items():
-            if key.startswith("__"): continue
+            if key.startswith("__"):
+                continue
 
             hint_str = str(hint)
             if ("ndarray" in hint_str or "Array" in hint_str) and key not in namespace:

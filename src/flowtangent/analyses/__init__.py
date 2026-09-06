@@ -8,4 +8,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 from .batched import BatchedAnalysis
+from .implicit import ImplicitAnalysis
+from .energy import PACT
 # from . import aero, energy, Mass

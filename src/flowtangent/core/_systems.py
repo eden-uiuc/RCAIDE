@@ -41,9 +41,9 @@ class VehicleEnvelope(eqx.Module):
 
 @register
 class System(Component):
-    tag: str = field("System", static=True)
+    name: str = field("System", static=True)
 
-    configurations: Component = field(lambda: Component(tag="Configurations"))
+    configurations: Component = field(lambda: Component(name="Configurations"))
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -79,7 +79,7 @@ class AircraftDesign(eqx.Module):
 
 @register
 class Aircraft[EnergyType: GraphNetwork](System):
-    tag: str = field("Aircraft", static=True)
+    name: str = field("Aircraft", static=True)
 
     mass_properties: AircraftMassProperties = field(AircraftMassProperties)  # type: ignore
     design_parameters: AircraftDesign = field(AircraftDesign)

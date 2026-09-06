@@ -10,9 +10,9 @@
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+
 from flowtangent.library import Component, Dimensions
 from flowtangent.library.components.airfoils import Airfoil
-
 from flowtangent.utils import empty_array, field
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -37,7 +37,7 @@ class Chords(WingDimensions):
 
 
 class WingSegment(Component):
-    tag: str = field("Wing Segment", static=True)
+    name: str = field("Wing Segment", static=True)
     airfoil: Airfoil | None = None
     control_surfaces: tuple = field(tuple)
 
@@ -70,7 +70,7 @@ class WingSegment(Component):
 
 
 class WingControlSurface(Component):
-    tag: str = field("Wing Control Surface", static=True)
+    name: str = field("Wing Control Surface", static=True)
 
     span_fraction_start: float = 0.0
     span_fraction_end: float = 0.0
@@ -97,7 +97,7 @@ class WingControlSurface(Component):
 
 
 class Wing(Component):
-    tag: str = field("Wing", static=True)
+    name: str = field("Wing", static=True)
     airfoil: Airfoil | None = None
 
     _bookkeeping: dict = field(lambda: {"control_surfaces": WingControlSurface}, static=True)
@@ -187,7 +187,7 @@ class Wing(Component):
             # All three provided: Validate mathematical consistency
             if abs(tip - (root * taper)) > 1e-2:
                 raise ValueError(
-                    f"Incompatible geometry for wing '{self.tag}': The provided tip chord ({tip}) "
+                    f"Incompatible geometry for wing '{self.name}': The provided tip chord ({tip}) "
                     f"does not match root * taper ({root * taper})."
                 )
 
@@ -346,7 +346,7 @@ class Wing(Component):
         root_sweeps = Sweeps(quarter_chord=self.sweeps.quarter_chord, leading_edge=self.sweeps.leading_edge)
 
         root_segment = WingSegment(
-            tag="root_segment",
+            name="root_segment",
             percent_span_location=0.0,
             twist=self.twists.root,
             root_chord_percent=1.0,
@@ -364,7 +364,7 @@ class Wing(Component):
         )
 
         tip_segment = WingSegment(
-            tag="tip_segment",
+            name="tip_segment",
             percent_span_location=1.0,
             twist=self.twists.tip,
             root_chord_percent=self.taper,

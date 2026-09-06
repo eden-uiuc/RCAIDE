@@ -13,8 +13,9 @@ from pathlib import Path
 
 # package imports
 import jax.numpy as jnp
-from flowtangent import Component
 from scipy.interpolate import PchipInterpolator
+
+from flowtangent import Component
 
 # Flowtangent imports
 from flowtangent.utils import empty_array, field
@@ -26,7 +27,7 @@ from flowtangent.utils.io import _ft_root
 
 
 class Airfoil(Component):
-    tag: str = field("Airfoil", static=True)
+    name: str = field("Airfoil", static=True)
 
     thickness_to_chord: float = 0.0
     max_thickness: float = 0.0
@@ -122,7 +123,7 @@ class Airfoil(Component):
         y = jnp.hstack((y_lo, y_up))
 
         return cls(
-            tag="NACA " + str(series_number),
+            name="NACA " + str(series_number),
             camber=camber,
             max_thickness=thickness,
             thickness_to_chord=thickness / (max(x) - min(x)),
@@ -246,7 +247,7 @@ class Airfoil(Component):
 
         # 10. Cast back to JAX arrays and return the initialized class
         return cls(
-            tag=file_path.stem,
+            name=file_path.stem,
             camber=jnp.array(camber),
             max_thickness=float(max_t),
             thickness_to_chord=float(t_c),

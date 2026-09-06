@@ -32,7 +32,7 @@ class PropellantTemperatures(eqx.Module):
 
 
 class Propellant(eqx.Module):
-    tag: str = field("Propellant", static=True)
+    name: str = field("Propellant", static=True)
 
     oxidizer: Gas = field(Gas)
 

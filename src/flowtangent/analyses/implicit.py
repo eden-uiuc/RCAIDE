@@ -7,10 +7,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #  IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, overload
-
-if TYPE_CHECKING:
-    from flowtangent.framework import Settings, State, System
+from __future__ import annotations
 
 import contextlib
 import io
@@ -21,27 +18,29 @@ import threading
 import time
 import warnings
 from collections import Counter
+from typing import Any, Callable, Literal, Optional, overload
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optimistix as optx
-from jax.core import Flowtangentr
+from jax.core import Tracer
 from scipy.optimize import root
 
-jax.config.update("jax_enable_x64", True)
-
-from ...utils import field, format_array, get_target, inspect_leaves, io_partition, scan_for_invalid_JAX_types
 from .. import Settings, State, System
-from ..processes import Process, array_barrier
-from ..state_data.controls import Control, Residual
+from .. import utils as ftu
+from ..core._processes import Process, array_barrier
+from ..core._state_data import Control, Residual
+from ..utils import Module
+
+jax.config.update("jax_enable_x64", True)
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Helper/Diagnostic Functions
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FlowtangentReadout:
+class Readout:
     def __init__(self, message="Tracing ...", enabled=True):
         self.spinner_chars = "|/-\\"
         self.message = message
@@ -53,7 +52,7 @@ class FlowtangentReadout:
         self.null_fd = None
         self.saved_stderr_fd = None
 
-    def spin(self):
+    def run(self):
         i = 0
         while self.running:
             if self.start_time:
@@ -87,7 +86,7 @@ class FlowtangentReadout:
 
             self.start_time = time.time()
             self.running = True
-            self.thread = threading.Thread(target=self.spin)
+            self.thread = threading.Thread(target=self.run)
             self.thread.start()
         return self
 
@@ -101,9 +100,9 @@ class FlowtangentReadout:
             if self.saved_stderr_fd is not None:
                 os.dup2(self.saved_stderr_fd, 2)
                 os.close(self.saved_stderr_fd)
-                os.close(self.null_fd)
+                os.close(self.null_fd) #type: ignore
 
-            elapsed = int(time.time() - self.start_time)
+            elapsed = int(time.time() - self.start_time) #type: ignore
             mins, secs = divmod(elapsed, 60)
             sys.stdout.write(f"\r{self.message} [{mins:02d}:{secs:02d}] Complete. \033[K\n")
             sys.stdout.flush()
@@ -120,7 +119,7 @@ def diff_args(args):
 
     dynamic_leaves = jax.tree_util.tree_leaves(dynamic)
     if len(dynamic_leaves) > 0:
-        if isinstance(dynamic_leaves[0], Flowtangentr):
+        if isinstance(dynamic_leaves[0], Tracer):
             print("  [EXECUTION MODE] TRACING (JAX Compiler / AD is active)")
         else:
             print("  [EXECUTION MODE] EAGER PYTHON (JIT is disabled, actual numbers flowing)")
@@ -151,7 +150,7 @@ def diff_args(args):
         else:
             for (path, old_val), (_, new_val) in zip(old_stat, new_stat):
                 # Check both value and exact type
-                if type(old_val) != type(new_val) or old_val != new_val:
+                if type(old_val) is not type(new_val) or old_val != new_val:
                     print(f"  [STATIC VALUE CHANGED] {jax.tree_util.keystr(path)}")
                     print(f"    Old: {type(old_val)} {old_val} | New: {type(new_val)} {new_val}")
                     differences_found = True
@@ -208,23 +207,135 @@ def analyze_compute_graph(func, *args):
     print(f"Total Nodes Analyzed: {total_nodes}")
 
 # ----------------------------------------------------------------------------------------------------------------------
-#  Residual Analysis Class
+#  Variables and Residuals
+# ----------------------------------------------------------------------------------------------------------------------
+
+class Variable(Module):
+    """
+    State variable scaled for root-finding and optimization solvers.
+
+    Scaling Methods:
+    - 'linear': Direct proportional scaling. Best for unconstrained, O(1) variables.
+    - 'log_bounded': Exponential sigmoid. Best for variables with strict upper/lower bounds.
+    - 'algebraic_bounded': Slower-decaying sigmoid. Best for tight bounds where gradient starvation is a risk.
+    - 'softplus': One-sided bound (y > 0). Best for mass, pressure, or physical properties without an upper limit.
+    - 'logarithmic': Base-10 scaling. Best for strictly positive variables spanning multiple orders of magnitude (e.g., Reynolds).
+    """
+
+    state_path: ftu.TreePath = ftu.static_field(ftu.TreePath)
+    initial_value: Optional[float | jax.Array] = None
+    bounds: tuple[float, float] = ftu.static_field((-1e6, 1e6))
+
+    scaling: Literal[
+        "linear",
+        "log_bounded",
+        "algebraic_bounded",
+        "softplus",
+        "logarithmic"
+    ] = ftu.static_field("log_bounded")
+
+    # ==========================================================================
+    # Unscaling (Solver space -> Physical space)
+    # ==========================================================================
+
+    def _linear_unscale(self, val):
+        return val * self.initial_value
+
+    def _log_bounded_unscale(self, val):
+        lb, ub = self.bounds
+        return lb + (ub - lb) * jax.nn.sigmoid(val)
+
+    def _algebraic_bounded_unscale(self, val):
+        lb, ub = self.bounds
+        # Algebraic sigmoid maps (-inf, inf) to (-0.5, 0.5)
+        alg_sig = (val / jnp.sqrt(1.0 + val**2)) / 2.0
+        return lb + (ub - lb) * (alg_sig + 0.5)
+
+    def _softplus_unscale(self, val):
+        return jax.nn.softplus(val)
+
+    def _logarithmic_unscale(self, val):
+        return 10.0 ** val
+
+    def unscale(self, val):
+        # Note: Fixed the bracket typo here!
+        func = getattr(self, f"_{self.scaling}_unscale")
+        return func(val)
+
+    # ==========================================================================
+    # Scaling (Physical space -> Solver space ~1.0)
+    # ==========================================================================
+
+    def _linear_scale(self, val):
+        return val / self.initial_value
+
+    def _log_bounded_scale(self, val):
+        lb, ub = self.bounds
+        norm = jnp.clip((val - lb) / (ub - lb), 1e-6, 1.0 - 1e-6)
+        return jnp.log(norm / (1.0 - norm))
+
+    def _algebraic_bounded_scale(self, val):
+        lb, ub = self.bounds
+        norm = jnp.clip((val - lb) / (ub - lb), 1e-6, 1.0 - 1e-6)
+        # Shift domain from [0, 1] to [-0.5, 0.5]
+        m = norm - 0.5
+        return (2.0 * m) / jnp.sqrt(1.0 - 4.0 * m**2)
+
+    def _softplus_scale(self, val):
+        # Inverse softplus: x = log(exp(y) - 1). Use expm1 for numerical stability.
+        val_safe = jnp.clip(val, 1e-6, None)
+        return jnp.log(jnp.expm1(val_safe))
+
+    def _logarithmic_scale(self, val):
+        val_safe = jnp.clip(val, 1e-6, None)
+        return jnp.log10(val_safe)
+
+    def scale(self, val):
+        func = getattr(self, f"_{self.scaling}_scale")
+        return func(val)
+
+    # ==========================================================================
+    # Initialization
+    # ==========================================================================
+
+    def __post_init__(self):
+        if self.bounds[0] > self.bounds[1]:
+            warnings.warn(f"Control '{self.name}' initialized with out-of-order bounds: {self.bounds}. Reversing...")
+            object.__setattr__(self, "bounds", (self.bounds[1], self.bounds[0]))
+
+        if self.initial_value is not None:
+            safe_init = jnp.clip(self.initial_value, self.bounds[0] * 1.10, self.bounds[1] * 0.90)
+            object.__setattr__(self, "initial_value", safe_init)
+
+            # --- Emit a warning if JAX clipped the value at runtime ---
+            needs_clip = jnp.any(safe_init != self.initial_value)
+            jax.lax.cond(
+                needs_clip,
+                lambda: jax.debug.print("Warning: initial_value for '{name}' was outside bounds and clipped.", name=self.name),
+                lambda: None
+            )
+
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+#  Implicit Analysis
 # ----------------------------------------------------------------------------------------------------------------------
 
 class ImplicitAnalysis(Process):
 
-    tag: str = field("Implicit Analysis")
+    name: str = ftu.field("Implicit Analysis")
 
-    analyze: Process = field(Process)
-    solver: Any | str = field(optx.LevenbergMarquardt, as_value=True, static=True)
-    solver_options: Optional[dict] = field(None, static=True)
+    analyze: Process = ftu.field(Process)
+    solver: Any | str = ftu.field(optx.LevenbergMarquardt, as_value=True, static=True)
+    solver_options: Optional[dict] = ftu.field(None, static=True)
 
-    controls: tuple[Control, ...] = field(tuple)
-    residuals: tuple[Residual, ...] = field(tuple)
+    controls: tuple[Control, ...] = ftu.field(tuple)
+    residuals: tuple[Residual, ...] = ftu.field(tuple)
 
     def __init__(
             self,
-            analyze: Process = Process(tag="Implicit Analysis Forward Pass"),
+            analyze: Process = Process(name="Implicit Analysis Forward Pass"),
             solver: Any | str = optx.LevenbergMarquardt,
             solver_options: Optional[dict] = None,
             controls: tuple[Control, ...] = (),
@@ -242,7 +353,7 @@ class ImplicitAnalysis(Process):
     def _report_results(self, f_ctrls: jax.Array, f_res: jax.Array, opt_stats=None):
 
         print(f"\n{'='*70}")
-        print(f"Final {self.tag} Solver State")
+        print(f"Final {self.name} Solver State")
         print(f"{'-'*70}")
 
         if opt_stats:
@@ -263,22 +374,22 @@ class ImplicitAnalysis(Process):
                 print(f"  ERROR: Optimizer state parsing error: {e} Printing raw results...")
                 print(opt_stats)
 
-        # Determine the maximum tag length
+        # Determine the maximum name length
         active_controls = self.controls
         active_residuals = self.residuals
 
-        all_tags = [c.tag for c in active_controls] + [r.tag for r in active_residuals]
-        # Default to 20 if empty, otherwise add 2 spaces of buffer to the longest tag
+        all_tags = [c.name for c in active_controls] + [r.name for r in active_residuals]
+        # Default to 20 if empty, otherwise add 2 spaces of buffer to the longest name
         pad = max((len(t) for t in all_tags), default=20) + 2
 
         # Run the forward pass one last time
         print("\n  Final Control Values:")
         for idx, ctrl in enumerate(active_controls):
-            print(f"    {ctrl.tag:<{pad}}: {format_array(ctrl.scale(f_ctrls[idx]))}")
+            print(f"    {ctrl.name:<{pad}}: {ftu.format_array(ctrl.scale(f_ctrls[idx]))}")
 
         print("\n  Final Residual Values:")
         for i, res in enumerate(self.residuals):
-            print(f"    {res.tag:<{pad}}: {format_array(f_res[i])}")
+            print(f"    {res.name:<{pad}}: {ftu.format_array(f_res[i])}")
 
         print(f"{'='*70}\n")
 
@@ -292,28 +403,28 @@ class ImplicitAnalysis(Process):
         if settings.verbose:
             print("\n")
             print("="*70)
-            print(f" {self.tag} Controls Setup")
+            print(f" {self.name} Controls Setup")
             print("-"*70)
 
             active_controls = self.controls
             active_residuals = self.residuals
 
-            all_tags = [c.tag for c in active_controls] + [r.tag for r in active_residuals]
-            # Default to 20 if empty, otherwise add 2 spaces of buffer to the longest tag
+            all_tags = [c.name for c in active_controls] + [r.name for r in active_residuals]
+            # Default to 20 if empty, otherwise add 2 spaces of buffer to the longest name
             pad = max((len(t) for t in all_tags), default=20) + 2
 
             print(f"\n{'Active Controls':<{pad+2}}| {'Init. Values':<13}| Bounds")
             print("-"*65)
             for control in active_controls:
-                print(f"- {control.tag:<{pad}}| {format_array(control.initial_value, width=12):>12} | {format_array(jnp.asarray(control.bounds))}")
+                print(f"- {control.name:<{pad}}| {ftu.format_array(control.initial_value, width=12):>12} | {ftu.format_array(jnp.asarray(control.bounds))}")
 
             print("\nActive Residuals")
             print("-"*65)
             for residual in active_residuals:
                 if residual.get_value.__name__ != "<lambda>":
-                    print(f"- {residual.tag}; func: {residual.get_value.__name__}")
+                    print(f"- {residual.name}; func: {residual.get_value.__name__}")
                 else:
-                    print(f"- {residual.tag}")
+                    print(f"- {residual.name}")
             print("="*70)
             print("\n")
 
@@ -332,7 +443,7 @@ class ImplicitAnalysis(Process):
                 solver_logit = control_values[ctrl_idx : ctrl_idx + N]
                 new_val = ctrl.scale(solver_logit[:N])
                 control_state = eqx.tree_at(
-                    lambda s: get_target(s, ctrl.state_path),
+                    lambda s: ftu.get_target(s, ctrl.state_path),
                     control_state,
                     jnp.atleast_2d(new_val).reshape((-1, 1)),
                 )
@@ -354,7 +465,7 @@ class ImplicitAnalysis(Process):
                         ctrl.normalize(ctrl.initial_value))
                     )
             else:
-                raise ValueError(f"Control {ctrl.tag} has no initial value: {ctrl.initial_value}."
+                raise ValueError(f"Control {ctrl.name} has no initial value: {ctrl.initial_value}."
                                 "Initial value must be a float or an array of size matching the number of analysis control points.")
 
         ctrl_state = self._update_controls(state, jnp.concatenate(control_values, axis=0), settings)
@@ -364,7 +475,7 @@ class ImplicitAnalysis(Process):
     def _get_control_array(self, state: State, settings:Settings) -> jnp.ndarray:
         ctrl_vals = []
         for ctrl in self.controls:
-            current_val = get_target(state, ctrl.state_path)
+            current_val = ftu.get_target(state, ctrl.state_path)
             logit_val = ctrl.normalize(current_val)
             if settings.numerical.sum_residuals:
                 logit_val = jnp.atleast_2d(logit_val[0]) # Only take a batch instance as the control value
@@ -411,7 +522,7 @@ class ImplicitAnalysis(Process):
         )
 
         if settings.DEBUG_MODE:
-            print(f"\n--- {self.tag.upper()} CLOSEOUT PASS ---")
+            print(f"\n--- {self.name.upper()} CLOSEOUT PASS ---")
         _, (f_st, f_sys) = get_residuals(jnp.array(results.x), args)
 
         return results.x, results, f_st, f_sys
@@ -463,12 +574,12 @@ class ImplicitAnalysis(Process):
             except Exception as e:
                 warnings.warn(f"Failed to evaluate IO dependency '{io_str}': {e}")
 
-        dyn_state, stat_state, state_mask = io_partition(state, active_ids)
-        dyn_system, stat_system, system_mask = io_partition(system, active_ids)
+        dyn_state, stat_state, state_mask = ftu.io_partition(state, active_ids)
+        dyn_system, stat_system, system_mask = ftu.io_partition(system, active_ids)
 
         if settings._DEV_MODE:
-            inspect_leaves(state, state_mask, settings, tree_name="state", depth=3)
-            inspect_leaves(system, system_mask, settings, tree_name="system", depth=3)
+            ftu.inspect_leaves(state, state_mask, settings, tree_name="state", depth=3)
+            ftu.inspect_leaves(system, system_mask, settings, tree_name="system", depth=3)
 
         # Residual closure defined in _run_solver scope to avoid tracing self argument if it were a bound method
         @eqx.filter_jit
@@ -483,10 +594,10 @@ class ImplicitAnalysis(Process):
                 global _analysis_stack, _trace_count
                 if len(_analysis_stack) > len(_trace_count):
                         _trace_count.append(0)
-                if _trace_count[_analysis_stack.index(self.tag)] > 1:
+                if _trace_count[_analysis_stack.index(self.name)] > 1:
                     diff_args((control_values, full_state, full_system, settings))
-                _trace_count[_analysis_stack.index(self.tag)] += 1
-                print(f"\n--- {self.tag.upper()} PASS {_trace_count[_analysis_stack.index(self.tag)]} ---")
+                _trace_count[_analysis_stack.index(self.name)] += 1
+                print(f"\n--- {self.name.upper()} PASS {_trace_count[_analysis_stack.index(self.name)]} ---")
 
             control_state = self._update_controls(full_state, control_values, settings)
             analysis_state, analysis_system, analysis_settings = self.analyze(control_state, full_system, settings)
@@ -558,7 +669,7 @@ class ImplicitAnalysis(Process):
             print("1. Tracing Forward Pass and Lowering to HLO...")
             t0 = time.time()
 
-            fwd_fn = lambda x: get_residuals(x, (dyn_state, dyn_system))
+            fwd_fn = lambda x: get_residuals(x, (dyn_state, dyn_system)) #noqa: E731
             fwd_lowered = eqx.filter_jit(fwd_fn).lower(control_values)
             print(f" - Forward Lowering Time: {time.time() - t0:.2f} seconds")
 
@@ -569,14 +680,14 @@ class ImplicitAnalysis(Process):
             print(" - Compiling Forward Pass ...")
             t0 = time.time()
             with track_jax_cache() as log_stream:
-                fwd_compiled = fwd_lowered.compile()
+                fwd_compiled = fwd_lowered.compile() #noqa: F841
             t_comp = time.time() - t0
             cache_status = get_cache_status(log_stream.getvalue())
             print(f" - Forwrd XLA Compile Time: {t_comp:.2f} seconds ({cache_status})")
 
             print("\n2. Tracing Jacobian & Lowering to HLO...")
             t0 = time.time()
-            jac_fn = lambda x: jax.jacrev(fwd_fn, has_aux=True)(x)
+            jac_fn = lambda x: jax.jacrev(fwd_fn, has_aux=True)(x) # noqa: E731
             jac_lowered = eqx.filter_jit(jac_fn).lower(control_values)
             print(f" - Jacobian Lowering Time: {time.time() - t0:.2f} seconds")
 
@@ -587,7 +698,7 @@ class ImplicitAnalysis(Process):
             print(" - Compiling Jacobian (Checking Cache)...")
             t0 = time.time()
             with track_jax_cache() as log_stream:
-                jac_compiled = jac_lowered.compile()
+                jac_compiled = jac_lowered.compile() #noqa: F841
             t_comp = time.time() - t0
             cache_status = get_cache_status(log_stream.getvalue())
             print(f" - XLA Compile Time: {t_comp:.2f} seconds ({cache_status})")
@@ -598,7 +709,7 @@ class ImplicitAnalysis(Process):
             else:
                 print("\n3. Tracing Full Optimistix Solver & Lowering...")
                 t0 = time.time()
-                run_fn = lambda c, st, sy: optx.root_find(
+                run_fn = lambda c, st, sy: optx.root_find(  #noqa: E731
                     fn=get_residuals,
                     solver=self.solver(**solver_options),
                     y0=c,
@@ -617,7 +728,7 @@ class ImplicitAnalysis(Process):
                     print(" - Compiling Solver (Checking Cache)...")
                     t0 = time.time()
                     with track_jax_cache() as log_stream:
-                        solver_compiled = solver_lowered.compile()
+                        solver_compiled = solver_lowered.compile() # noqa: F841
                     t_compile = time.time() - t0
 
                     cache_status = get_cache_status(log_stream.getvalue())
@@ -657,21 +768,21 @@ class ImplicitAnalysis(Process):
     def __call__(self, state: State, system: System, settings: Settings):
 
         global _analysis_stack, _last_static, _last_shapes, _trace_count
-        _analysis_stack.append(self.tag)
+        _analysis_stack.append(self.name)
         _last_static = None
         _last_shapes = None
 
         if settings.DEBUG_MODE or settings._DEV_MODE:
-            scan_for_invalid_JAX_types(state,  "Analysis State")
-            scan_for_invalid_JAX_types(system,  "Analysis System")
+            ftu.scan_for_invalid_JAX_types(state)
+            ftu.scan_for_invalid_JAX_types(system)
 
         # Get analysis control values
         self._check_controls_balance(settings)
         initial_control_values = self._get_control_array(state, settings)
 
         # Run Solver
-        with FlowtangentReadout(enabled=not settings.DEBUG_MODE and not settings._DEV_MODE and len(_analysis_stack) == 1,
-                     message=f"Tracing {self.tag}..."):
+        with Readout(enabled=not settings.DEBUG_MODE and not settings._DEV_MODE and len(_analysis_stack) == 1,
+                     message=f"Tracing {self.name}..."):
 
             f_ctrls, opt_state, f_st, f_sys = self._run_solver(
                 initial_control_values,
@@ -687,7 +798,7 @@ class ImplicitAnalysis(Process):
 
         if settings._DEV_MODE:
             print(f"\n{'='*70}")
-            print(f"Full {self.tag} Solver State")
+            print(f"Full {self.name} Solver State")
             print(f"{'-'*70}")
             from pprint import pprint
             pprint(opt_state)
@@ -720,7 +831,7 @@ class ImplicitAnalysis(Process):
             return self(state, system, settings)
 
         if settings.verbose:
-            print(f"Residual analysis '{self.tag}' called with track_history enabled. "
+            print(f"Residual analysis '{self.name}' called with track_history enabled. "
                   "History returned will be single forward pass with final input values.")
 
         r_st, r_sys, r_setts = self(state, system, settings)

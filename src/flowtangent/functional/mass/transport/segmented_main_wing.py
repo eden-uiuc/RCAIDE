@@ -7,10 +7,13 @@
 # ----------------------------------------------------------------------
 #  Imports
 # ----------------------------------------------------------------------
+from __future__ import annotations
 
 import jax.numpy as np
 
 from flowtangent.data import units
+
+from .... import Settings, State, System
 
 # -----------------------------------------------------------------------
 # Functional/Library Version
@@ -215,9 +218,9 @@ def func_segmented_main_wing(
 
 
 def segmented_main_wing(
-    state: "rcf.State",
-    system: "rcf.System",
-    settings: "rcf.Settings",
+    state: State,
+    system: System,
+    settings: Settings,
 ):
 
     wing = system.wings.main_wing

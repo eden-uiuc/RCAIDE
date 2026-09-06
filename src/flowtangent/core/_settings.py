@@ -24,7 +24,7 @@ import jax.numpy as jnp
 import numpy as np  # For calculating Jacobian shape on JAX array metadata
 
 # Flowtangent imports
-from flowtangent.utils import DataPath, field, get_all_parents, get_all_targets
+from flowtangent.utils import TreePath, field, get_all_parents, get_all_targets
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Settings
@@ -69,29 +69,29 @@ class AnalysisSettings[E_Type: EnergyAnalysisSettings](eqx.Module):
 #  Numerical Settings --------------------------------------------------------------------------------------------------
 
 class JacobianMap(eqx.Module):
-    inputs: tuple[DataPath, ...] = eqx.field(static=True)
-    outputs: tuple[DataPath, ...] = eqx.field(static=True)
+    inputs: tuple[TreePath, ...] = eqx.field(static=True)
+    outputs: tuple[TreePath, ...] = eqx.field(static=True)
 
-    state_inputs: tuple[DataPath, ...] = eqx.field(static=True)
-    state_outputs: tuple[DataPath, ...] = eqx.field(static=True)
+    state_inputs: tuple[TreePath, ...] = eqx.field(static=True)
+    state_outputs: tuple[TreePath, ...] = eqx.field(static=True)
 
-    system_inputs: tuple[DataPath, ...] = eqx.field(static=True)
-    system_outputs: tuple[DataPath, ...] = eqx.field(static=True)
+    system_inputs: tuple[TreePath, ...] = eqx.field(static=True)
+    system_outputs: tuple[TreePath, ...] = eqx.field(static=True)
 
     _n_st: int = eqx.field(static=True)
     _n_sys: int = eqx.field(static=True)
 
     def __init__(
         self,
-        inputs: tuple[DataPath | str | tuple, ...] = (),
-        outputs: tuple[DataPath | str | tuple, ...] = (),
+        inputs: tuple[TreePath | str | tuple, ...] = (),
+        outputs: tuple[TreePath | str | tuple, ...] = (),
         state_inputs: Optional[tuple] = None,
         state_outputs: Optional[tuple] = None,
         system_inputs: Optional[tuple] = None,
         system_outputs: Optional[tuple] = None,
     ):
-        self.inputs = tuple(DataPath(i) for i in inputs)
-        self.outputs = tuple(DataPath(o) for o in outputs)
+        self.inputs = tuple(TreePath(i) for i in inputs)
+        self.outputs = tuple(TreePath(o) for o in outputs)
 
         self.state_inputs = tuple(p for p in self.inputs if p.path[0].lower()=="state") if state_inputs is None else state_inputs
         self.system_inputs = tuple(p for p in self.inputs if p.path[0].lower()=="system") if system_inputs is None else system_inputs
@@ -294,7 +294,7 @@ class LoggingSettings(eqx.Module):
 #  Full Settings -------------------------------------------------------------------------------------------------------
 
 class Settings(eqx.Module):
-    tag: str = field("Settings", static=True)
+    name: str = field("Settings", static=True)
 
     report_units: Literal["SI", "Imperial"] = field("SI", static=True)
 

@@ -28,7 +28,7 @@ from flowtangent.utils import field
 
 
 class ConstantCourse(ProcessStep):
-    tag: str = field("Set Constant Course", static=True)
+    name: str = field("Set Constant Course", static=True)
 
     true_course: float = 0.0 * units.deg
 
@@ -45,7 +45,7 @@ CourseProfile = ConstantCourse
 
 
 class ConstantAltitude(ProcessStep):
-    tag: str = field("Set Constant Altitude", static=True)
+    name: str = field("Set Constant Altitude", static=True)
     altitude: float = 1.0 * units.km
 
     def __call__(self, state, system, settings):
@@ -63,7 +63,7 @@ class ConstantAltitude(ProcessStep):
 
 
 class AltitudeChange(ProcessStep):
-    tag: str = field("Set Altitude Change", static=True)
+    name: str = field("Set Altitude Change", static=True)
     initial_altitude: float = 1.0 * units.km
     final_altitude: float = 10.0 * units.km
 
@@ -89,7 +89,7 @@ PositionProfile = ConstantAltitude | AltitudeChange
 
 
 class ConstantSpeed(ProcessStep):
-    tag: str = field("Set Constant Speed", static=True)
+    name: str = field("Set Constant Speed", static=True)
     speed: float = 1.0 * units.m / units.s
 
     def __call__(self, state, system, settings):
@@ -105,7 +105,7 @@ class ConstantSpeed(ProcessStep):
 
 
 class ConstantMach(ProcessStep):
-    tag: str = field("Set Constant Mach Number", static=True)
+    name: str = field("Set Constant Mach Number", static=True)
 
     mach_number: float = 0.5
 
@@ -130,7 +130,7 @@ SpeedProfile = ConstantSpeed | ConstantMach
 
 
 class ConstantAltitudeChangeRate(ProcessStep):
-    tag: str = field("Set Constant Alt. Change Rate", static=True)
+    name: str = field("Set Constant Alt. Change Rate", static=True)
 
     change_rate: float = 0.0 * units.m / units.s
 
@@ -152,7 +152,7 @@ VelocityProfile = ConstantAltitudeChangeRate
 
 
 class FixedDistance(ProcessStep):
-    tag: str = field("Set Fixed Distance Duration", static=True)
+    name: str = field("Set Fixed Distance Duration", static=True)
     distance: float = 1.0 * units.km
 
     def __call__(self, state, system, settings):
@@ -170,7 +170,7 @@ class FixedDistance(ProcessStep):
 
 
 class FixedTime(ProcessStep):
-    tag: str = field("Set Fixed Time Duration", static=True)
+    name: str = field("Set Fixed Time Duration", static=True)
     time: float = 1.0 * units.s
 
     def __call__(self, state, system, settings):

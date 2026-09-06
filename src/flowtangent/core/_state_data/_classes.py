@@ -28,7 +28,7 @@ def _is_static_node(node):
         return hasattr(node, "__class__") and node.__class__.__name__ in STATIC_DATA
 
 class StateData(eqx.Module):
-    tag: str = field("Conditions", static=True)
+    name: str = field("Conditions", static=True)
 
     @property
     def subconditions(self) -> tuple:
@@ -144,5 +144,5 @@ class StateData(eqx.Module):
         return eqx.tree_at(lambda c: c.subconditions, self, new_subconditions)
 
     def __repr__(self):
-        repr_str = self.tag + " - Subconditions: [" + ", ".join([sc.tag for sc in self.subconditions]) + "]"
+        repr_str = self.name + " - Subconditions: [" + ", ".join([sc.name for sc in self.subconditions]) + "]"
         return repr_str

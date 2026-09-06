@@ -7,14 +7,15 @@
 # ----------------------------------------------------------------------
 #  Imports
 # ----------------------------------------------------------------------
+from __future__ import annotations
 
 # package imports
 import jax
 import jax.numpy as jnp
 
-import flowtangent.framework as rcf
-import flowtangent.library as rcl
 from flowtangent.data import units
+
+from .... import Aircraft, Component, Settings, State
 
 # -----------------------------------------------------------------------
 # Functional/Library Version
@@ -61,9 +62,9 @@ def func_operating_systems(
 
 
 def operating_systems(
-    state: "rcf.state",
-    system: "rcf.Aircraft",
-    settings: "rcf.settings",
+    state: State,
+    system: Aircraft,
+    settings: Settings,
 ):
 
     fixed_masses = []
@@ -72,19 +73,19 @@ def operating_systems(
     per_seat_masses = []
     per_seat_mass_names = []
 
-    adjustment = 1.0 - settings.mass_reduction_factors.systems
+    adjustment = 1.0 - settings.analysis.mass.reduction_factors.systems
 
     fixed_array = jnp.array(jax.tree_util.tree_leaves(system.ac_class.fixed_masses))
     per_seat_array = jnp.array(jax.tree_util.tree_leaves(system.ac_class.per_seat_masses))
 
     s_tail = 0.0
     for wing in system.wings:
-        if isinstance(wing, Horizontal_Tail) or isinstance(wing, Vertical_Tail):
+        if "tail" in wing.field_name:
             s_tail += wing.areas.reference
 
     if s_tail == 0:
         for wing in system.wings:
-            if isinstance(wing, Main_Wing):
+            if wing.field_name == "main_wing":
                 s_tail += wing.areas.reference * 0.01
 
     results = func_operating_systems(
@@ -96,29 +97,29 @@ def operating_systems(
     hp_mass = results[2] * adjustment
 
     if not hasattr(system, "operating_systems"):
-        system.add_subcomponent(rcl.component(tag="operating_systems"))
+        system.add_subcomponent(Component(name="operating_systems"))
 
     output = system.operating_systems.mass_properties
     output.total = total_opsys_mass
 
     if not hasattr(output, "flight_controls"):
-        output.add_subcomponent(rcl.component(tag="flight_controls"))
+        output.add_subcomponent(Component(name="flight_controls"))
 
     output.flight_controls.mass_properties.total = fc_mass
 
     if not hasattr(output, "hydraulics"):
-        output.add_subcomponent(rcl.component(tag="hydraulics"))
+        output.add_subcomponent(Component(name="hydraulics"))
 
     output.hydraulics.mass_properties.total = hp_mass
 
     for i in range(len(fixed_mass_names)):
         if not hasattr(output, fixed_mass_names[i]):
-            output.add_subcomponent(rcl.component(tag=fixed_mass_names[i]))
+            output.add_subcomponent(Component(name=fixed_mass_names[i]))
         output.__dict__[fixed_mass_names[i]].mass_properties.total = fixed_masses[i] * adjustment
 
     for i in range(len(per_seat_mass_names)):
         if not hasattr(output, per_seat_mass_names[i]):
-            output.add_subcomponent(rcl.component(tag=per_seat_mass_names[i]))
+            output.add_subcomponent(Component(name=per_seat_mass_names[i]))
         output.__dict__[per_seat_mass_names[i]].mass_properties.total = (
             per_seat_masses[i] * system.number_of_passengers * adjustment
         )

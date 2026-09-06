@@ -231,7 +231,7 @@ class FlowOpPoint(eqx.Module):
 @register
 class BleedFlow(GraphNode):
 
-    tag: str = field("Bleed Flow", static=True)
+    name: str = field("Bleed Flow", static=True)
     fractions_dict: dict[str, float | Callable] = field(dict)
 
     parent_ID: str = field('', static=True)
@@ -302,7 +302,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
 
         if add_mixer:
             parent_inputs = tuple(replace(i, network_ID="parent."+i.network_ID) for i in self.flow_inputs)
-            mixer = FlowNode(tag="Mixer", inputs=parent_inputs, add_mixer=False, design_parameters=FlowOpPoint(pressure_ratio=1.0))
+            mixer = FlowNode(name="Mixer", inputs=parent_inputs, add_mixer=False, design_parameters=FlowOpPoint(pressure_ratio=1.0))
 
             other_inputs = tuple(i for i in self.inputs if i not in self.flow_inputs)
             object.__setattr__(self, "inputs", other_inputs + (GraphInput(domain="flow", network_ID="self.mixer", primary=True),))
@@ -351,7 +351,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
                 p_FAR = self.get_primary_input_state(state, "flow", "fuel_air_ratio")
                 p_W = self.get_primary_input_state(state, "flow", "mass_flow_rate")
                 FAR = p_FAR * p_W / W_mix
-            except:
+            except Exception:
                 FAR = jnp.atleast_2d(0.0)
 
         return mixed_fluid, T_t, P_t, W_mix, FAR, M
@@ -553,7 +553,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
 
 @register
 class EnergyStore(GraphNode):
-    tag: str = field("Energy Store", static=True)
+    name: str = field("Energy Store", static=True)
 
     max_energy: float = 0.0
 
@@ -567,7 +567,7 @@ class EnergyStore(GraphNode):
 
 @register
 class FuelTank(EnergyStore):
-    tag: str = field("Fuel Tank", static=True)
+    name: str = field("Fuel Tank", static=True)
 
     selector_ratio: float = 1.0
     secondary_fuel_flow: float = 0.0
@@ -594,7 +594,7 @@ class RagoneParameters(eqx.Module):
 
 @register
 class Battery(EnergyStore):
-    tag: str = field("Battery", static=True)
+    name: str = field("Battery", static=True)
 
     max_energy: float = 0.0
     max_power: float = 0.0

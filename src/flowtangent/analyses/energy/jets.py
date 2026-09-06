@@ -23,7 +23,7 @@ import jax.numpy as jnp
 
 from flowtangent.data import units
 from flowtangent.library.components.energy.jets.classes import TurbofanDesign, TurbojetEngine, TurbojetOpPoint
-from flowtangent.utils import DataPath, field
+from flowtangent.utils import TreePath, field
 
 from ... import Aircraft, Process, ProcessStep, Settings, State, System
 from ...settings import EnergyAnalysisSettings
@@ -174,8 +174,8 @@ def build_turbojet_design(state: State, system: Aircraft, settings: Settings):
     des: TurbojetOpPoint = des_system.energy.line.engine.design_parameters
 
     mass_ctrl = Control(
-        tag="Mass Flow Rate",
-        state_path=DataPath(("energy", "mass_flow_rate")),
+        name="Mass Flow Rate",
+        state_path=TreePath(("energy", "mass_flow_rate")),
         initial_value=des.mass_flow_rate,
         bounds=(
             1e-3 * units.kg / units.s,
@@ -184,24 +184,24 @@ def build_turbojet_design(state: State, system: Aircraft, settings: Settings):
     )
 
     turb_ctrl = Control(
-        tag="Turbine Pressure Ratio",
-        state_path=DataPath(("energy", "turbine_PR")),
+        name="Turbine Pressure Ratio",
+        state_path=TreePath(("energy", "turbine_PR")),
         initial_value=des.turbine_PR,
         bounds=(1.001, 1e2),
     )
 
     d_thrust = Residual(
-        tag="Design Thrust",
+        name="Design Thrust",
         get_value=lambda s: s.energy.residual.thrust
     )
 
     d_power = Residual(
-        tag="Power Imbalance",
+        name="Power Imbalance",
         get_value=lambda s: s.energy.residual.power
     )
 
     design_analysis = ImplicitAnalysis(
-        tag="Turbojet Design",
+        name="Turbojet Design",
         analyze=base_analysis,
         controls=(mass_ctrl, turb_ctrl),
         residuals=(d_thrust, d_power),
@@ -218,8 +218,8 @@ def turbofan_design(state: State, system: Aircraft, settings: Settings) -> Impli
 
     # Controls Setup
     mass_ctrl = Control(
-        tag="Mass Flow Rate",
-        state_path=DataPath(("energy", "mass_flow_rate")),
+        name="Mass Flow Rate",
+        state_path=TreePath(("energy", "mass_flow_rate")),
         initial_value=des.mass_flow_rate,
         bounds=(
             1e-3 * units.kg / units.s,
@@ -228,37 +228,37 @@ def turbofan_design(state: State, system: Aircraft, settings: Settings) -> Impli
     )
 
     LPT_ctrl = Control(
-        tag="LPT Pressure Ratio",
-        state_path=DataPath(("energy", "lpt_PR")),
+        name="LPT Pressure Ratio",
+        state_path=TreePath(("energy", "lpt_PR")),
         initial_value=des.LPT_PR,
         bounds=(1.001, 1e2),
     )
 
     HPT_ctrl = Control(
-        tag="HPT Pressure Ratio",
-        state_path=DataPath(("energy", "hpt_PR")),
+        name="HPT Pressure Ratio",
+        state_path=TreePath(("energy", "hpt_PR")),
         initial_value=des.HPT_PR,
         bounds=(1.001, 1e2),
     )
 
     # Residuals Setup
     d_thrust = Residual(
-        tag="Design Thrust",
+        name="Design Thrust",
         get_value=lambda s: s.energy.residual.thrust
     )
 
     d_LP_power = Residual(
-        tag="LP Power Imbalance",
+        name="LP Power Imbalance",
         get_value=lambda s: s.energy.nodes['network.line.engine.lp_shaft'].residual.power
     )
 
     d_HP_power = Residual(
-        tag="HP Power Imbalance",
+        name="HP Power Imbalance",
         get_value=lambda s: s.energy.nodes['network.line.engine.hp_shaft'].residual.power
     )
 
     design_analysis = ImplicitAnalysis(
-        tag="Turbofan Design",
+        name="Turbofan Design",
         analyze=base_analysis,
         controls=(mass_ctrl, LPT_ctrl, HPT_ctrl),
         residuals=(d_thrust, d_LP_power, d_HP_power)
@@ -282,14 +282,8 @@ def build_turbojet_performance(
     comp =  network.line.engine.compressor
     c_map: CompressorMap = comp.map
 
-    Nc_bnds = (min(c_map.Nc_grid).item() * c_map.s_Nc * 0.5,
-               max(c_map.Nc_grid).item() * c_map.s_Nc * 1.5)
-
     R_bnds = (min(c_map.Rline_grid).item() * 0.5,
               max(c_map.Rline_grid).item() * 1.5)
-
-    Wc_bnds = (jnp.min(c_map.Wc_table).item() * c_map.s_Wc * 0.5,
-               jnp.max(c_map.Wc_table).item() * c_map.s_Wc * 1.5)
 
     # Turbine Map Bounds -------------------------------------------------------
 
@@ -300,9 +294,6 @@ def build_turbojet_performance(
     PR_bnds = (min(t_map.PR_grid).item() * 0.5,
                max(t_map.PR_grid).item() * 1.5)
 
-    Wp_bnds = (jnp.min(t_map.Wp_table).item(),
-               jnp.max(t_map.Wp_table).item(),)
-
     # Composite Bounds ---------------------------------------------------------
 
     FAR_bnds = (1e-4, 0.03)
@@ -310,40 +301,40 @@ def build_turbojet_performance(
     # Control Setup -----------------------------------------------------------
 
     Rline = Control(
-        tag="Rline",
-        state_path=DataPath(("energy", "compressor_Rline")),
+        name="Rline",
+        state_path=TreePath(("energy", "compressor_Rline")),
         initial_value=op.compressor_Rline,
         bounds=R_bnds,
         scaling='logistic'
     )
 
     turb_PR = Control(
-        tag="Turbine Pressure Ratio",
-        state_path=DataPath(("energy", "turbine_PR")),
+        name="Turbine Pressure Ratio",
+        state_path=TreePath(("energy", "turbine_PR")),
         initial_value=op.turbine_PR,
         bounds=PR_bnds,
         scaling='logistic'
     )
 
     N = Control(
-        tag="Rotation Speed",
-        state_path=DataPath(("energy", "rotation_speed")),
+        name="Rotation Speed",
+        state_path=TreePath(("energy", "rotation_speed")),
         initial_value=op.rotation_speed,
         bounds=(op.rotation_speed * 0.5, op.rotation_speed * 2.0),
         scaling='logistic'
     )
 
     W = Control(
-        tag="Mass Flow Rate",
-        state_path=DataPath(("energy", "mass_flow_rate")),
+        name="Mass Flow Rate",
+        state_path=TreePath(("energy", "mass_flow_rate")),
         initial_value=op.mass_flow_rate,
         bounds=(op.mass_flow_rate * 0.5, op.mass_flow_rate * 2.0),
         scaling='logistic'
     )
 
     FAR = Control(
-        tag="Fuel Air Ratio",
-        state_path=DataPath(("energy", "fuel_air_ratio")),
+        name="Fuel Air Ratio",
+        state_path=TreePath(("energy", "fuel_air_ratio")),
         initial_value=op.FAR,
         bounds=FAR_bnds,
         scaling='logistic'
@@ -351,17 +342,17 @@ def build_turbojet_performance(
 
     # Residual Setup -----------------------------------------------------------
 
-    d_m_nozz = Residual(tag="Mass Flow Rate", get_value=lambda s: s.energy.residual.mass_flow_rate)
+    d_m_nozz = Residual(name="Mass Flow Rate", get_value=lambda s: s.energy.residual.mass_flow_rate)
 
-    d_power = Residual(tag="Power Imbalance", get_value=lambda s: s.energy.residual.power)
+    d_power = Residual(name="Power Imbalance", get_value=lambda s: s.energy.residual.power)
 
-    d_thrust = Residual(tag="Thrust", get_value=lambda s: s.energy.residual.thrust)
+    d_thrust = Residual(name="Thrust", get_value=lambda s: s.energy.residual.thrust)
 
-    d_Wc = Residual(tag="Compressor Mass Flow", get_value=lambda s: s.energy.residual.compressor_Wc)
+    d_Wc = Residual(name="Compressor Mass Flow", get_value=lambda s: s.energy.residual.compressor_Wc)
 
-    d_Wp = Residual(tag="Turbine Mass Flow", get_value=lambda s: s.energy.residual.turbine_Wp)
+    d_Wp = Residual(name="Turbine Mass Flow", get_value=lambda s: s.energy.residual.turbine_Wp)
 
-    d_area = Residual(tag="Throat Area", get_value=lambda s: s.energy.residual.area)
+    d_area = Residual(name="Throat Area", get_value=lambda s: s.energy.residual.area)
 
     # Variable Setup -----------------------------------------------------------
 
@@ -376,7 +367,7 @@ def build_turbojet_performance(
     # Construct Analysis -------------------------------------------------------
 
     return ImplicitAnalysis(
-        tag="Turbojet Performance",
+        name="Turbojet Performance",
         analyze=build_analysis_from_network(network),
         controls=ctrls,
         residuals=res
@@ -397,22 +388,13 @@ def turbofan_performance(network: TurbofanNetwork):
     lpc =  network.line.engine.lpc
     lpc_map: CompressorMap = lpc.map
 
-    lpc_Nc_bnds = (min(lpc_map.Nc_grid).item() * lpc_map.s_Nc * 0.5,
-                   max(lpc_map.Nc_grid).item() * lpc_map.s_Nc * 1.5)
-
     lpc_R_bnds = (min(lpc_map.Rline_grid).item() * 0.5,
                   max(lpc_map.Rline_grid).item() * 1.5)
-
-    lpc_Wc_bnds = (jnp.min(lpc_map.Wc_table).item() * lpc_map.s_Wc * 0.5,
-                   jnp.max(lpc_map.Wc_table).item() * lpc_map.s_Wc * 1.5)
 
     # HPC Map Bounds -----------------------------------------------------------
 
     hpc =  network.line.engine.hpc
     hpc_map: CompressorMap = hpc.map
-
-    hpc_Nc_bnds = (min(hpc_map.Nc_grid).item() * hpc_map.s_Nc * 0.5,
-                   max(hpc_map.Nc_grid).item() * hpc_map.s_Nc * 1.5)
 
     hpc_R_bnds = (min(hpc_map.Rline_grid).item() * 0.5,
                   max(hpc_map.Rline_grid).item() * 1.5)
@@ -428,7 +410,7 @@ def turbofan_performance(network: TurbofanNetwork):
     # LPT Map Bounds -----------------------------------------------------------
 
     lpt =  network.line.engine.lpt
-    lpt_map: TurbineMap = hpt.map
+    lpt_map: TurbineMap = lpt.map
 
     lpt_PR_bnds = (min(lpt_map.PR_grid).item() * 0.5,
                    max(lpt_map.PR_grid).item() * 1.5)
@@ -436,99 +418,99 @@ def turbofan_performance(network: TurbofanNetwork):
     # Control Setup -----------------------------------------------------------
 
     FAN_Rline = Control(
-        tag="Fan Rline",
-        state_path=DataPath(("energy", "fan_Rline")),
+        name="Fan Rline",
+        state_path=TreePath(("energy", "fan_Rline")),
         initial_value=jnp.array([fan_map.Rline_des]).reshape((-1, 1)),
         bounds=fan_R_bnds,
     )
 
     LP_Rline = Control(
-        tag="LPC Rline",
-        state_path=DataPath(("energy", "lpc_Rline")),
+        name="LPC Rline",
+        state_path=TreePath(("energy", "lpc_Rline")),
         initial_value=jnp.array([lpc_map.Rline_des]).reshape((-1, 1)),
         bounds=lpc_R_bnds,
     )
 
     HP_Rline = Control(
-        tag="HPC Rline",
-        state_path=DataPath(("energy", "hpc_Rline")),
+        name="HPC Rline",
+        state_path=TreePath(("energy", "hpc_Rline")),
         initial_value=jnp.array([hpc_map.Rline_des]).reshape((-1, 1)),
         bounds=hpc_R_bnds,
     )
 
     HPT_PR = Control(
-        tag="HPT Pressure Ratio",
-        state_path=DataPath(("energy", "hpt_PR")),
+        name="HPT Pressure Ratio",
+        state_path=TreePath(("energy", "hpt_PR")),
         initial_value=network.line.engine.design_parameters.HPT_PR,
         bounds=hpt_PR_bnds,
     )
 
     LPT_PR = Control(
-        tag="LPT Pressure Ratio",
-        state_path=DataPath(("energy", "lpt_PR")),
+        name="LPT Pressure Ratio",
+        state_path=TreePath(("energy", "lpt_PR")),
         initial_value=network.line.engine.design_parameters.LPT_PR,
         bounds=lpt_PR_bnds,
     )
 
     LPN = Control(
-        tag="LP Rotation Speed",
-        state_path=DataPath(("energy", "LP_speed")),
+        name="LP Rotation Speed",
+        state_path=TreePath(("energy", "LP_speed")),
         initial_value=network.line.engine.design_parameters.lp_rotation_speed,
         bounds=(1000 * units.rev / units.mins, 10000 * units.rev / units.mins),
     )
 
     HPN = Control(
-        tag="HP Rotation Speed",
-        state_path=DataPath(("energy", "HP_speed")),
+        name="HP Rotation Speed",
+        state_path=TreePath(("energy", "HP_speed")),
         initial_value=network.line.engine.design_parameters.hp_rotation_speed,
         bounds=(3000 * units.rev / units.mins, 20000 * units.rev / units.mins),
     )
 
     W = Control(
-        tag="Mass Flow Rate",
-        state_path=DataPath(("energy", "mass_flow_rate")),
+        name="Mass Flow Rate",
+        state_path=TreePath(("energy", "mass_flow_rate")),
         initial_value=network.line.engine.design_parameters.mass_flow_rate,
         # bounds=lpc_Wc_bnds,
         scaling='linear'
     )
 
     FAR = Control(
-        tag="Fuel Air Ratio",
-        state_path=DataPath(("energy", "fuel_air_ratio")),
+        name="Fuel Air Ratio",
+        state_path=TreePath(("energy", "fuel_air_ratio")),
         initial_value=jnp.atleast_2d(0.01),
         bounds=(1e-4, 0.03),
     )
 
     BPR = Control(
-        tag="Bypass Ratio",
-        state_path=DataPath(("energy", "bypass_ratio")),
+        name="Bypass Ratio",
+        state_path=TreePath(("energy", "bypass_ratio")),
         initial_value=network.line.engine.design_parameters.bypass_ratio,
         bounds=(1.0, 20.0),
     )
 
     # Residual Setup -----------------------------------------------------------
-    d_fWc = Residual(tag="Fan Mass Flow", get_value=lambda s: s.energy.residual.fan_Wc)
-    d_lWc = Residual(tag="LPC Mass Flow", get_value=lambda s: s.energy.residual.lpc_Wc)
-    d_hWc = Residual(tag="HPC Mass Flow", get_value=lambda s: s.energy.residual.hpc_Wc)
+    d_fWc = Residual(name="Fan Mass Flow", get_value=lambda s: s.energy.residual.fan_Wc)
+    d_lWc = Residual(name="LPC Mass Flow", get_value=lambda s: s.energy.residual.lpc_Wc)
+    d_hWc = Residual(name="HPC Mass Flow", get_value=lambda s: s.energy.residual.hpc_Wc)
 
-    d_lWp = Residual(tag="LPT Mass Flow", get_value=lambda s: s.energy.residual.lpt_Wp)
-    d_hWp = Residual(tag="HPT Mass Flow", get_value=lambda s: s.energy.residual.hpt_Wp)
+    d_lWp = Residual(name="LPT Mass Flow", get_value=lambda s: s.energy.residual.lpt_Wp)
+    d_hWp = Residual(name="HPT Mass Flow", get_value=lambda s: s.energy.residual.hpt_Wp)
 
-    d_thrust = Residual(tag="Thrust",     get_value=lambda s: s.energy.residual.thrust)
+    d_thrust = Residual(name="Thrust",     get_value=lambda s: s.energy.residual.thrust)
 
     d_LP_power = Residual(
-        tag="LP Power Imbalance",
+        name="LP Power Imbalance",
         get_value=lambda s: s.energy.nodes['network.line.engine.lp_shaft'].residual.power)
 
     d_HP_power = Residual(
-        tag="HP Power Imbalance",
+        name="HP Power Imbalance",
         get_value=lambda s: s.energy.nodes['network.line.engine.hp_shaft'].residual.power)
 
     d_W_core = Residual(
-        tag="Core MFR",
+        name="Core MFR",
         get_value=lambda s: s.energy.nodes['network.line.engine.core_nozzle'].residual.mass_flow_rate)
     d_W_byp = Residual(
-        tag="Bypass MFR",
+        name="Bypass MFR",
         get_value=lambda s: s.energy.nodes['network.line.engine.fan_nozzle'].residual.mass_flow_rate)
 
     # Variable Setup -----------------------------------------------------------
@@ -551,7 +533,7 @@ def turbofan_performance(network: TurbofanNetwork):
     # Construct Analysis -------------------------------------------------------
 
     return ImplicitAnalysis(
-        tag="Turbofan Performance",
+        name="Turbofan Performance",
         analyze=build_analysis_from_network(network),
         controls=ctrls,
         residuals=res
@@ -595,17 +577,17 @@ def _design_update_batched(state: State, system: Aircraft, settings: Settings) -
     T_val   = jnp.array([d.turbine_intake_temperature for d in OD_points]).reshape((-1, 1))
 
     # State Values
-    alt     = DataPath("state.freestream.altitude", value=alt_val)
-    M0      = DataPath("state.freestream.mach_number", value=M0_val)
-    x       = DataPath("state.frames.inertial.position_vector", value=x_val)
-    v       = DataPath("state.frames.inertial.velocity_vector", value=v_val)
+    alt     = TreePath("state.freestream.altitude", value=alt_val)
+    M0      = TreePath("state.freestream.mach_number", value=M0_val)
+    x       = TreePath("state.frames.inertial.position_vector", value=x_val)
+    v       = TreePath("state.frames.inertial.velocity_vector", value=v_val)
 
     # Outer Loop Controls
-    F       = DataPath("state.energy.target_thrust", value=F_val)
-    T       = DataPath("state.energy.target_temperature", value=T_val)
+    F       = TreePath("state.energy.target_thrust", value=F_val)
+    T       = TreePath("state.energy.target_temperature", value=T_val)
 
     OD_analysis = BatchedAnalysis(
-        tag="Off-Design Analysis",
+        name="Off-Design Analysis",
         analyze=turbofan_performance(des_system.energy),
         state_inputs=(alt, M0, x, v, F, T,)
     )
@@ -631,14 +613,14 @@ def design_turbofan_mp(state: State, system: Aircraft, settings: Settings) -> tu
     OD_points = design_points[1:]
 
     F_ctrl = Control(
-        tag="Design Thrust",
-        state_path=DataPath(("energy", "target_thrust")),
+        name="Design Thrust",
+        state_path=TreePath(("energy", "target_thrust")),
         initial_value=design_guess.thrust,
         bounds=(1.0, 1e6)
     )
     T_ctrl = Control(
-        tag="Design TIT",
-        state_path=DataPath(("energy", "target_temperature")),
+        name="Design TIT",
+        state_path=TreePath(("energy", "target_temperature")),
         initial_value=design_guess.turbine_intake_temperature,
         bounds=(1.0, 3e3))
 
@@ -649,7 +631,7 @@ def design_turbofan_mp(state: State, system: Aircraft, settings: Settings) -> tu
 
     OD_TSFC = jnp.array([d.TSFC for d in OD_points]).reshape((-1, 1))
     d_TSFC = Residual(
-        tag="Off-Design TSFC",
+        name="Off-Design TSFC",
         get_value=lambda s: jnp.where(OD_TSFC, (s.energy.nodes['network.line.engine'].fuel.TSFC - OD_TSFC)/OD_TSFC, OD_TSFC))
 
     def split_residuals(swap_state, swap_system, swap_settings):
@@ -676,18 +658,18 @@ def design_turbofan_mp(state: State, system: Aircraft, settings: Settings) -> tu
         return swap_state, swap_system, des_settings
 
     MP_inner_loop = Process(
-        tag="Multi-Point Turbofan Analysis",
+        name="Multi-Point Turbofan Analysis",
         steps=(
-            ProcessStep(tag="Inner Residual Switch", function=split_residuals),
+            ProcessStep(name="Inner Residual Switch", function=split_residuals),
             des_analysis,
-            ProcessStep(tag="Design Handover", function=design_handover),
+            ProcessStep(name="Design Handover", function=design_handover),
             OD_analysis,
-            ProcessStep(tag="Outer Residual Switch", function=settings_reset),
+            ProcessStep(name="Outer Residual Switch", function=settings_reset),
         )
     )
 
     MP_outer_loop = ImplicitAnalysis(
-        tag="Multi-Point Turbofan Design",
+        name="Multi-Point Turbofan Design",
         analyze=MP_inner_loop,
         controls=(F_ctrl, T_ctrl),
         residuals=(d_F, d_TSFC),

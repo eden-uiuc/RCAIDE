@@ -1,6 +1,7 @@
-from flowtangent.framework import Process, ProcessStep
-from flowtangent.library.methods.mass import transport as Mass
 from flowtangent.utils import field
+
+from ... import Process, ProcessStep
+from ...functional.mass import transport as t_mass
 
 # from Flowtangent.Framework.Methods.Mass.Energy import tf_mass_from_SLS
 
@@ -8,17 +9,17 @@ from flowtangent.utils import field
 def _default_transport_steps() -> tuple[ProcessStep, ...]:
     """Builds the static pipeline of turbofan cycle analysis steps."""
     return (
-        # ProcessStep(tag="Propulsion Mass", function=tf_mass_from_SLS),
-        ProcessStep(tag="Passenger & Payload Mass", function=Mass.passenger_payload),
-        ProcessStep(tag="Operating System Mass", function=Mass.operating_systems),
-        ProcessStep(tag="Main Wing Mass", function=Mass.segmented_main_wing),
-        ProcessStep(tag="Horizontal Tail Mass", function=Mass.horizontal_tail),
-        ProcessStep(tag="Vertical Tail Mass", function=Mass.vertical_tail),
-        ProcessStep(tag="Fuselage Mass", function=Mass.fuselage),
-        ProcessStep(tag="Landing Gear", function=Mass.landing_gear),
+        # ProcessStep(name="Propulsion Mass", function=tf_mass_from_SLS),
+        ProcessStep(name="Passenger & Payload Mass", function=t_mass.passenger_payload),
+        ProcessStep(name="Operating System Mass", function=t_mass.operating_systems),
+        ProcessStep(name="Main Wing Mass", function=t_mass.segmented_main_wing),
+        ProcessStep(name="Horizontal Tail Mass", function=t_mass.horizontal_tail),
+        ProcessStep(name="Vertical Tail Mass", function=t_mass.vertical_tail),
+        ProcessStep(name="Fuselage Mass", function=t_mass.fuselage),
+        ProcessStep(name="Landing Gear", function=t_mass.landing_gear),
     )
 
 
 class Transport(Process):
-    tag: str = field("Transport Mass Analysis", static=True)
+    name: str = field("Transport Mass Analysis", static=True)
     steps: tuple[ProcessStep, ...] = field(_default_transport_steps)

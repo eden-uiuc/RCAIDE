@@ -190,7 +190,7 @@ def wing_generator(df_geometries):
     for row in df_geometries.itertuples(index=False):
 
         wing = Wing(
-            tag="W1 Wing",
+            name="W1 Wing",
             symmetric=True,
             taper=row.taper_ratio,
             dihedral=row.dihedral,
@@ -201,7 +201,7 @@ def wing_generator(df_geometries):
             origin=jnp.array([[0., 0., 0.]]),
         ).update_geometry(calculate_reference_area=True, calculate_wetted_area=True)
 
-        system = Aircraft(tag=f"W1_System", areas=wing.areas).add_subcomponent(wing)
+        system = Aircraft(name=f"W1_System", areas=wing.areas).add_subcomponent(wing)
         system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
         meta = {

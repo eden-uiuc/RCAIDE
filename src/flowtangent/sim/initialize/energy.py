@@ -34,10 +34,10 @@ def initialize_energy(state: State, system: System, settings: Settings):
     def _extract_to_flat_state(n):
         if str(n.__class__.__name__) in conditions_map:
             node_states[n.network_ID] = conditions_map[str(n.__class__.__name__)](
-                tag=n.network_ID
+                name=n.network_ID
             )  # Initialize the state
         else:
-            node_states[n.network_ID] = NodeState(tag=n.network_ID)  # Initialize the state
+            node_states[n.network_ID] = NodeState(name=n.network_ID)  # Initialize the state
         if hasattr(n, "subcomponents"):
             for child in n.subcomponents:
                 _extract_to_flat_state(child)

@@ -106,7 +106,7 @@ def _resolve_namespaces(node, parent_prefix=""):
 @register
 class GraphNetwork[DesignType: NetworkDesign](GraphNode):
 
-    tag: str = field("Network", static=True)
+    name: str = field("Network", static=True)
     network_ID: str = field("network", static=True)
 
     nodes: dict[str, "GraphNode"] = field(dict)
@@ -290,7 +290,7 @@ class _JetNetwork[DesignType: JetNetDesign](GraphNetwork[DesignType]):
 # Turbojet ---------------------------------------------------------------------
 
 def _TurbojetNetworkSetup():
-    return (TurbojetLine(tag="Line"),)
+    return (TurbojetLine(name="Line"),)
 
 @register
 class JetNetDesign(NetworkDesign):

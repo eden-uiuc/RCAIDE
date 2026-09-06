@@ -21,6 +21,8 @@ from flowtangent.core._settings import AnalysisSettings
 # Filter Functions
 # -----------------------------------------------------------------------------------------------------------------------
 
+# Random seed for mock data
+rng = np.random.default_rng(seed=137)
 
 def filter_widget(
     label: str,
@@ -124,7 +126,7 @@ def apply_filters(data, ar, sweep, taper, mach, alpha):
 def wing_generator(aspect_ratio, taper, sweep, dihedral, twist):
 
     wing = Wing(
-        tag="W1",
+        name="W1",
         symmetric=True,
         taper=taper,
         dihedral=dihedral,
@@ -134,7 +136,7 @@ def wing_generator(aspect_ratio, taper, sweep, dihedral, twist):
         origin=jnp.array([[0.0, 0.0, 0.0]]),
     ).update_geometry(calculate_reference_area=True, calculate_wetted_area=True)
 
-    system = Aircraft(tag="W1 System", areas=wing.areas).add_subcomponent(wing)
+    system = Aircraft(name="W1 System", areas=wing.areas).add_subcomponent(wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system, {"AR": aspect_ratio, "taper": taper, "QC_Sweep": sweep, "Dihedral": dihedral}
@@ -157,22 +159,20 @@ def wing_renderer(wing_system):
 # Data Functions
 # -----------------------------------------------------------------------------------------------------------------------
 
-
 @st.cache_data
 def load_mock_data():
-    np.random.seed(42)
     n_points = 100
     data = {
-        "AR": np.random.uniform(5, 30, n_points),
-        "taper": np.random.uniform(0.1, 1.0, n_points),
-        "QC_Sweep": np.random.uniform(0, 60, n_points),
+        "AR": rng.uniform(5, 30, n_points),
+        "taper": rng.uniform(0.1, 1.0, n_points),
+        "QC_Sweep": rng.uniform(0, 60, n_points),
     }
 
     # Force mock data to align with our discrete grid!
-    raw_alpha = np.random.uniform(-5, 15, n_points)
+    raw_alpha = rng.uniform(-5, 15, n_points)
     data["alpha"] = np.round(raw_alpha / 0.25) * 0.25
 
-    raw_mach = np.random.uniform(0.1, 2.0, n_points)
+    raw_mach = rng.uniform(0.1, 2.0, n_points)
     data["mach"] = np.round(raw_mach / 0.05) * 0.05
 
     data["CL"] = 0.1 * data["alpha"] * (1 + 0.1 * data["AR"])

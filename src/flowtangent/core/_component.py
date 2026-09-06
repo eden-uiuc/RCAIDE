@@ -111,7 +111,7 @@ class MassProperties(eqx.Module):
 
 @register
 class Component(eqx.Module):
-    tag: str = field("Component", static=True)
+    name: str = field("Component", static=True)
     is_control_component: bool = field(False, static=True)
 
     segments: tuple[Component, ...] = field(tuple)
@@ -134,7 +134,7 @@ class Component(eqx.Module):
     _bookkeeping: dict[str, Any] = field(dict, static=True)
 
     def __repr__(self):
-        repr_str = self.tag + " - Subcomponents: (" + ", ".join([sc.tag for sc in self.subcomponents]) + ")"
+        repr_str = self.name + " - Subcomponents: (" + ", ".join([sc.name for sc in self.subcomponents]) + ")"
         return repr_str
 
     def __getitem__(self, item):
@@ -152,7 +152,7 @@ class Component(eqx.Module):
         if hasattr(self, "_bookkeeping") and item in self._bookkeeping:
             target_class = self._bookkeeping[item]
             filtered_subs = tuple(c for c in self.subcomponents if isinstance(c, target_class))
-            return Component(tag=item.replace("_", " ").title(), subcomponents=filtered_subs)
+            return Component(name=item.replace("_", " ").title(), subcomponents=filtered_subs)
         for sc in self.subcomponents:
             if hasattr(sc, "get_field_name") and sc.get_field_name() == item:
                 return sc
@@ -174,7 +174,7 @@ class Component(eqx.Module):
         return item in self.subcomponents
 
     def get_field_name(self):
-        actual_tag = self.tag
+        actual_tag = self.name
 
         if not isinstance(actual_tag, str):
             if hasattr(actual_tag, "value"):

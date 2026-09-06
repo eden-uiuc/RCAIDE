@@ -65,7 +65,7 @@ warnings.filterwarnings('ignore', category=SolverWarning)
 from simple_turbojet import Turbojet
 from turbojet_validation import system_setup as ft_turbojet
 
-from flowtangent.utils import DataPath, configure_environment
+from flowtangent.utils import TreePath, configure_environment
 from flowtangent.framework import State, Settings, Process
 from flowtangent.core._settings import NumericalSettings, JacobianSettings, JacobianMap
 from flowtangent.framework.analyses.batched import BatchedAnalysis
@@ -930,13 +930,13 @@ def run_flowtangent_benchmark(N_points):
                     calculate=True,
                     couple_time=False,
                     mapping=JacobianMap(
-                        system_inputs=(DataPath((
+                        system_inputs=(TreePath((
                             "energy",
                             "nodes",
                             "network.line.engine.compressor",
                             "design_parameters",
                             "pressure_ratio")),),
-                        state_outputs=(DataPath((
+                        state_outputs=(TreePath((
                             "energy",
                             "nodes",
                             "network.line.engine",
@@ -974,7 +974,7 @@ def run_flowtangent_benchmark(N_points):
 
     od_state, _, _ = update_freestream(od_state, des_system, settings)
     od_base_analysis = build_turbojet_performance(des_system.energy, od)
-    od_node = BatchedAnalysis(tag="Off-Design Analysis", analyze=od_base_analysis)
+    od_node = BatchedAnalysis(name="Off-Design Analysis", analyze=od_base_analysis)
 
     def design_handover(swap_state, swap_system, swap_settings):
     
@@ -989,7 +989,7 @@ def run_flowtangent_benchmark(N_points):
             return new_state, new_system, new_settings
 
     pact_process = Process(
-        tag='PACT Benchmark',
+        name='PACT Benchmark',
         steps=(design_node, design_handover, od_node),
         initialize=design_node.initialize_controls
         )

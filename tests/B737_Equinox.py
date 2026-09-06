@@ -61,7 +61,7 @@ def vehicle_setup():
     )
 
     vehicle = Aircraft(
-        tag='Boeing 737',
+        name='Boeing 737',
         passengers=170,
         mass_properties=mass_props,
         areas=Areas(reference=124.862),
@@ -79,7 +79,7 @@ def vehicle_setup():
 
     # Root Segment
     root_segment = WingSegment(
-        tag='Main Wing Root Segment',
+        name='Main Wing Root Segment',
         percent_span_location   =0.0,
         twist                   =4. * units.deg,
         root_chord_percent      =1.,
@@ -89,7 +89,7 @@ def vehicle_setup():
         airfoil                 =Airfoil.from_file(_AF_DIR/'B737a.txt'))
 
     yehudi_segment = WingSegment(
-        tag='Main Wing Yehudi Segment',
+        name='Main Wing Yehudi Segment',
         percent_span_location=0.324,
         twist=0.047193 * units.deg,
         root_chord_percent=0.5,
@@ -99,7 +99,7 @@ def vehicle_setup():
         airfoil=Airfoil.from_file(_AF_DIR/'B737b.txt'))
 
     mid_segment = WingSegment(
-        tag='Main Wing Mid Segment',
+        name='Main Wing Mid Segment',
         percent_span_location=0.963,
         twist=0.00258 * units.deg,
         root_chord_percent=0.220,
@@ -109,7 +109,7 @@ def vehicle_setup():
         airfoil=Airfoil.from_file(_AF_DIR/'B737c.txt'))
 
     tip_segment = WingSegment(
-        tag='Main Wing Tip Segment',
+        name='Main Wing Tip Segment',
         percent_span_location=1.,
         root_chord_percent=0.10077,
         thickness_to_chord=0.1,
@@ -118,7 +118,7 @@ def vehicle_setup():
     # Control Surfaces -------------------------------------------------------------------------------------------------
 
     slat = WingControlSurface(
-        tag='Slat',
+        name='Slat',
         span_fraction_start=0.2,
         span_fraction_end=0.963,
         deflection=0.0,
@@ -126,7 +126,7 @@ def vehicle_setup():
         hinge_fraction=1.0)
 
     flap = WingControlSurface(
-        tag='Flap',
+        name='Flap',
         span_fraction_start=0.2,
         span_fraction_end=0.7,
         deflection=0.0,
@@ -134,7 +134,7 @@ def vehicle_setup():
         root_chord_percent=0.30)
 
     aileron = WingControlSurface(
-        tag='Aileron',
+        name='Aileron',
         span_fraction_start=0.7,
         span_fraction_end=0.963,
         deflection=0.0,
@@ -143,7 +143,7 @@ def vehicle_setup():
 
     # Wing Properties --------------------------------------------------------------------------------------------------
     main_wing = Wing(
-        tag='Main Wing',
+        name='Main Wing',
         aspect_ratio=10.18,
         thickness_to_chord=0.1,
         origin=jnp.array([[13.61, 0., -0.93]]),
@@ -169,7 +169,7 @@ def vehicle_setup():
 
     # H-Stab Segments --------------------------------------------------------------------------------------------------
     h_root_segment = WingSegment(
-        tag="Main Wing Root Segment",
+        name="Main Wing Root Segment",
         thickness_to_chord=0.1,
         percent_span_location=0.0,
         root_chord_percent=1.0,
@@ -177,7 +177,7 @@ def vehicle_setup():
         sweeps=Sweeps(quarter_chord=28.2250 * units.deg))
 
     h_tip_segment = WingSegment(
-        tag='Horizontal Stabilizer Tip Segment',
+        name='Horizontal Stabilizer Tip Segment',
         percent_span_location =1.,
         root_chord_percent=0.3333,
         thickness_to_chord=.1)
@@ -185,7 +185,7 @@ def vehicle_setup():
     # H-Stab Controls  -------------------------------------------------------------------------------------------------
 
     elevator = WingControlSurface(
-        tag='Elevator',
+        name='Elevator',
         span_fraction_start=0.09,
         span_fraction_end=0.92,
         deflection=0.0,
@@ -193,7 +193,7 @@ def vehicle_setup():
 
     # H-Stab Properties  -----------------------------------------------------------------------------------------------
     h_stab = Wing(
-        tag='Horizontal Stabilizer',
+        name='Horizontal Stabilizer',
         aspect_ratio            =4.99,
         thickness_to_chord      =0.08,
         taper                   =0.3333,
@@ -220,28 +220,28 @@ def vehicle_setup():
     # V-Stab Segments --------------------------------------------------------------------------------------------------
 
     root_segment = WingSegment(
-        tag='Vertical Stabilizer Root Segment',
+        name='Vertical Stabilizer Root Segment',
         percent_span_location=0.0,
         root_chord_percent=1.,
         thickness_to_chord=.1,
         sweeps=Sweeps(quarter_chord=61.485 * units.deg))
 
     mid_segment = WingSegment(
-        tag='Vertical Stabilizer Mid Segment',
+        name='Vertical Stabilizer Mid Segment',
         percent_span_location=0.2962,
         root_chord_percent=0.45,
         sweeps=Sweeps(quarter_chord=31.2 * units.deg),
         thickness_to_chord=.1,)
 
     tip_segment = WingSegment(
-        tag='Vertical Stabilizer Tip Segment',
+        name='Vertical Stabilizer Tip Segment',
         percent_span_location=1.0,
         root_chord_percent=0.1183,
         thickness_to_chord=.1,)
 
     # V-Stab Properties ------------------------------------------------------------------------------------------------
     v_stab = Wing(
-        tag='Vertical Stabilizer',
+        name='Vertical Stabilizer',
         aspect_ratio            =1.98865,
         thickness_to_chord      =0.08,
         taper                   =0.1183,
@@ -286,7 +286,7 @@ def vehicle_setup():
     f_segments = []
     for idx, (x, z, h, w) in enumerate(segment_specs):
         f_segments.append(FuselageSegment(
-            tag=f'Fuselage Segment {idx}',
+            name=f'Fuselage Segment {idx}',
             percent_x_location=x,
             percent_z_location=z,
             heights=Dimensions(maximum=h),
@@ -294,7 +294,7 @@ def vehicle_setup():
 
     # Fuselage Properties ----------------------------------------------------------------------------------------------
     fuse = Fuselage(
-        tag='Fuselage',
+        name='Fuselage',
         number_of_seats=170,
         seats_abreast=6,
         seat_pitch=0.7874,
@@ -317,8 +317,8 @@ def vehicle_setup():
     # Landing Gear
     # ------------------------------------------------------------------------------------------------------------------
 
-    mlg = LandingGear(tag='Main Landing Gear', number_of_wheels=2, tire_diameter=1.12, strut_length=1.8)
-    nlg = LandingGear(tag='Nose Landing Gear', number_of_wheels=2, tire_diameter=1.12, strut_length=1.3)
+    mlg = LandingGear(name='Main Landing Gear', number_of_wheels=2, tire_diameter=1.12, strut_length=1.8)
+    nlg = LandingGear(name='Nose Landing Gear', number_of_wheels=2, tire_diameter=1.12, strut_length=1.3)
 
     vehicle.add_subcomponent(mlg)
     vehicle.add_subcomponent(nlg)
@@ -327,7 +327,7 @@ def vehicle_setup():
     # Nacelles
     # ------------------------------------------------------------------------------------------------------------------
     nacelle = Nacelle(
-        tag='Engine Nacelle 1',
+        name='Engine Nacelle 1',
         flow_through= True,
         airfoil=Airfoil.NACA_4_Series('2410'),
         origin= jnp.array([[13.72, -4.86, -1.9]]),
@@ -336,7 +336,7 @@ def vehicle_setup():
         areas=Areas(wetted=1.1 * jnp.pi * 2.05 * 2.71)
     )
 
-    nacelle_2 = dc.replace(nacelle, tag="Engine Nacelle 2", origin=jnp.array([[13.72, 4.86, -1.9]]))
+    nacelle_2 = dc.replace(nacelle, name="Engine Nacelle 2", origin=jnp.array([[13.72, 4.86, -1.9]]))
 
     vehicle = vehicle.add_subcomponent(nacelle)
     vehicle = vehicle.add_subcomponent(nacelle_2)
@@ -347,7 +347,7 @@ def vehicle_setup():
 
     # Engine -----------------------------------------------------------------------------------------------------------
     tf = TurbofanEngine(
-        tag="Engine 1",
+        name="Engine 1",
         origin=jnp.array([[13.72, -4.86, -1.9]]),
         bypass_ratio=5.4,
         plug_diameter=0.1,
@@ -385,7 +385,7 @@ def vehicle_setup():
         )
 
     # Engine & Line Rebuild --------------------------------------------------------------------------------------------
-    tf2 = dc.replace(tf, tag="Engine 2", origin=jnp.array([[13.72, 4.86, -1.9]]))
+    tf2 = dc.replace(tf, name="Engine 2", origin=jnp.array([[13.72, 4.86, -1.9]]))
     
     fuel_mass = MassProperties(
         total=79015.8-62732.0,
@@ -393,9 +393,9 @@ def vehicle_setup():
     )
     fuel = FuelTank(origin=jnp.array([[13.61, 0., -0.93]]), mass_properties=fuel_mass)
 
-    tf_line = TurbojetLine(tag="Turbofan Line", subcomponents=(tf, tf2, fuel))
+    tf_line = TurbojetLine(name="Turbofan Line", subcomponents=(tf, tf2, fuel))
 
-    tf_network = GraphNetwork(tag="Turbofan Network", subcomponents=(tf_line,))
+    tf_network = GraphNetwork(name="Turbofan Network", subcomponents=(tf_line,))
     vehicle = vehicle.add_subcomponent(tf_network)
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -405,13 +405,13 @@ def vehicle_setup():
     # Takeoff Configuration
 
     # takeoff_config = deepcopy(vehicle)
-    # takeoff_config.tag = "Takeoff"
+    # takeoff_config.name = "Takeoff"
     # takeoff_config.wings.main_wing.control_surfaces.flap.deflection    = jnp.deg2rad(20)
     # takeoff_config.wings.main_wing.control_surfaces.slat.deflection    = jnp.deg2rad(25)
 
     # for tf in takeoff_config.energy.lines[0].converters:
 
-    #     tf: rcl.Components.Energy.Propulsors.TurbofanEngine
+    #     tf: Components.Energy.Propulsors.TurbofanEngine
     #     tf.converters.fan.rotation_speed        = 2780.
     #     tf.converters.fan_nozzle.noise_speed    = 315.
     #     tf.converters.core_nozzle.noise_speed   = 415.
@@ -421,13 +421,13 @@ def vehicle_setup():
     # # Cutback Configuration
 
     # cutback_config = deepcopy(vehicle)
-    # cutback_config.tag = "Cutback"
+    # cutback_config.name = "Cutback"
     # cutback_config.wings.main_wing.control_surfaces.flap.deflection    = jnp.deg2rad(20)
     # cutback_config.wings.main_wing.control_surfaces.slat.deflection    = jnp.deg2rad(20)
 
     # for tf in cutback_config.energy.lines[0].converters:
 
-    #     tf: rcl.Components.Energy.Propulsors.TurbofanEngine
+    #     tf: Components.Energy.Propulsors.TurbofanEngine
     #     tf.converters.fan.rotation_speed        = 2780.
     #     tf.converters.fan_nozzle.noise_speed    = 210.
     #     tf.converters.core_nozzle.noise_speed   = 360.
@@ -437,7 +437,7 @@ def vehicle_setup():
     # # Landing Configuration
 
     # landing_config = deepcopy(vehicle)
-    # landing_config.tag = "Landing"
+    # landing_config.name = "Landing"
     # landing_config.wings.main_wing.control_surfaces.flap.deflection    = jnp.deg2rad(30)
     # landing_config.wings.main_wing.control_surfaces.slat.deflection    = jnp.deg2rad(25)
 
@@ -446,7 +446,7 @@ def vehicle_setup():
 
     # for tf in landing_config.energy.lines[0].converters:
 
-    #     tf: rcl.Components.Energy.Converters.TurbofanEngine
+    #     tf: Components.Energy.Converters.TurbofanEngine
     #     tf.converters.fan.rotation_speed        = 2030.
     #     tf.converters.fan_nozzle.noise_speed    = 109.3
     #     tf.converters.core_nozzle.noise_speed   = 92.
@@ -462,8 +462,8 @@ def mission_setup(state: State, system: Aircraft, settings: Settings):
 
     controls = (
         "body_angle",
-        # DirectControlVariable(tag='Thrust', path=("frames", "body", "thrust_force_vector",), active=True),
-        Control(tag='Throttle', state_path=("energy", "throttle"), _active=True)
+        # DirectControlVariable(name='Thrust', path=("frames", "body", "thrust_force_vector",), active=True),
+        Control(name='Throttle', state_path=("energy", "throttle"), _active=True)
     )
 
     residuals = ("force_x", "force_z")
@@ -476,7 +476,7 @@ def mission_setup(state: State, system: Aircraft, settings: Settings):
     # Create Segments
 
     climb_segment = Segment(
-        tag="Climb Segment",
+        name="Climb Segment",
         position_profile=AltitudeChange(initial_altitude=0.0 * units.m, final_altitude=10000.0 * units.m),
         speed_profile=ConstantSpeed(speed=125 * units.m/units.s),
         velocity_profile=ConstantAltitudeChangeRate(change_rate=6.0 * units.m/units.s),
@@ -487,7 +487,7 @@ def mission_setup(state: State, system: Aircraft, settings: Settings):
     )
     
     cruise_segment = Segment(
-        tag="Cruise Segment",
+        name="Cruise Segment",
         position_profile=ConstantAltitude(altitude=10000.0 * units.m),
         speed_profile=ConstantSpeed(speed=230 * units.m/units.s),
         duration_profile=FixedDistance(distance=5500. * units.km),
@@ -497,7 +497,7 @@ def mission_setup(state: State, system: Aircraft, settings: Settings):
     )
 
     descent_segment = Segment(
-        tag="Descent Segment",
+        name="Descent Segment",
         position_profile=AltitudeChange(initial_altitude=10000.0 * units.m, final_altitude=0.0 * units.m),
         speed_profile=ConstantSpeed(speed=145 * units.m/units.s),
         velocity_profile=ConstantAltitudeChangeRate(change_rate=5.0 * units.m/units.s),
@@ -510,7 +510,7 @@ def mission_setup(state: State, system: Aircraft, settings: Settings):
     # test_cruise_segment = TestCSACruise(altitude=10000.0, speed)
 
     mission = Process(
-        tag='Boeing 737 Mission',
+        name='Boeing 737 Mission',
         steps=(
             # climb_segment,
             cruise_segment,

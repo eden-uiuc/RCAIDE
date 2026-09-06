@@ -8,18 +8,20 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
+# Flowtangent imports
+from __future__ import annotations
+
 import equinox as eqx
 import jax.numpy as jnp
 
-# Flowtangent imports
-import flowtangent.framework as rcf
+from ... import Settings, State, System
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  acceleration
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-def update_acceleration(state: "rcf.state", system: "rcf.systems", settings: "rcf.settings"):
+def update_acceleration(state: State, system: System, settings: Settings):
 
     v = state.frames.inertial.velocity_vector
     D = state.numerics.time.differentiate

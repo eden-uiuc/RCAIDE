@@ -7,10 +7,12 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
+# Flowtangent Imports
+from __future__ import annotations
+
 import equinox as eqx
 
-# Flowtangent Imports
-import flowtangent.framework as rcf
+from ... import Settings, State, System
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Initialize Planetary Position
@@ -18,9 +20,9 @@ import flowtangent.framework as rcf
 
 
 def initialize_planetary_position(
-    state: "rcf.state",
-    system: "rcf.systems",
-    settings: "rcf.settings",
+    state: State,
+    system: System,
+    settings: Settings,
 ):
 
     state = eqx.tree_at(

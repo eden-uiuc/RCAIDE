@@ -59,7 +59,7 @@ class StaticCoeffs(StateData):
     """
 
     # Attribute     Type        Default Value
-    tag: str = field("Static Stability Coefficients", static=True)
+    name: str = field("Static Stability Coefficients", static=True)
 
     lift: jnp.ndarray = empty_array()
     drag: jnp.ndarray = empty_array()
@@ -105,7 +105,7 @@ class StaticForces(StateData):
     """
 
     # Attribute     Type        Default Value
-    tag: str = field("Static Stability Forces", static=True)
+    name: str = field("Static Stability Forces", static=True)
 
     lift: jnp.ndarray = empty_array()
     drag: jnp.ndarray = empty_array()
@@ -141,7 +141,7 @@ class StaticMoments(StateData):
     """
 
     # Attribute     Type        Default Value
-    tag: str = field("Static Stability Moments", static=True)
+    name: str = field("Static Stability Moments", static=True)
 
     L: jnp.ndarray = empty_array()
     M: jnp.ndarray = empty_array()
@@ -199,7 +199,7 @@ class Sensitivities(StateData):
     """
 
     # Attribute     Type        Default Value
-    tag: str = field("Coefficient Static Stability Derivatives", static=True)
+    name: str = field("Coefficient Static Stability Derivatives", static=True)
 
     # Throttle Derivative
     throttle: jnp.ndarray = empty_array()
@@ -261,39 +261,39 @@ class StaticDerivatives(StateData):
     """
 
     # Attribute     Type            Default Value
-    tag: str = field("Static Stability Coefficients Derivatives", static=True)
+    name: str = field("Static Stability Coefficients Derivatives", static=True)
 
     Clift: Sensitivities = field(
-        lambda: Sensitivities(tag="Lift Coefficient Static Stability Derivatives")
+        lambda: Sensitivities(name="Lift Coefficient Static Stability Derivatives")
     )
     Cdrag: Sensitivities = field(
-        lambda: Sensitivities(tag="Drag Coefficient Static Stability Derivatives")
+        lambda: Sensitivities(name="Drag Coefficient Static Stability Derivatives")
     )
 
     CX: Sensitivities = field(
-        lambda: Sensitivities(tag="X Coefficient Static Stability Derivatives")
+        lambda: Sensitivities(name="X Coefficient Static Stability Derivatives")
     )
     CY: Sensitivities = field(
-        lambda: Sensitivities(tag="Y Coefficient Static Stability Derivatives")
+        lambda: Sensitivities(name="Y Coefficient Static Stability Derivatives")
     )
     CZ: Sensitivities = field(
-        lambda: Sensitivities(tag="Z Coefficient Static Stability Derivatives")
+        lambda: Sensitivities(name="Z Coefficient Static Stability Derivatives")
     )
 
     CL: Sensitivities = field(
-        lambda: Sensitivities(tag="L Coefficient Static Stability Derivatives")
+        lambda: Sensitivities(name="L Coefficient Static Stability Derivatives")
     )
     CM: Sensitivities = field(
-        lambda: Sensitivities(tag="M Coefficient Static Stability Derivatives")
+        lambda: Sensitivities(name="M Coefficient Static Stability Derivatives")
     )
     CN: Sensitivities = field(
-        lambda: Sensitivities(tag="N Coefficient Static Stability Derivatives")
+        lambda: Sensitivities(name="N Coefficient Static Stability Derivatives")
     )
 
 
 @register
 class Static(StateData):
-    tag: str = field("Static Stability", static=True)
+    name: str = field("Static Stability", static=True)
 
     forces: StaticForces = field(StaticForces)
     moments: StaticMoments = field(StaticMoments)
@@ -313,16 +313,16 @@ class Static(StateData):
 @register
 class Dynamic(StateData):
     # Attribute      Type        Default Value
-    tag: str = field("Dynamic Stability", static=True)
+    name: str = field("Dynamic Stability", static=True)
 
-    LongModes: StateData = field(lambda: StateData(tag="Longitudinal Modes"))
-    LatModes: StateData = field(lambda: StateData(tag="Lateral Modes"))
+    LongModes: StateData = field(lambda: StateData(name="Longitudinal Modes"))
+    LatModes: StateData = field(lambda: StateData(name="Lateral Modes"))
 
 
 @register
 class StabilityData(StateData):
     # Attribute     Type                Default Value
-    tag: str = field("Stability", static=True)
+    name: str = field("Stability", static=True)
 
     static: Static = field(Static)
     dynamic: Dynamic = field(Dynamic)

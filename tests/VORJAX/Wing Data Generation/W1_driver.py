@@ -13,7 +13,7 @@ from plotly._subplots import make_subplots
 
 from scipy.stats import qmc, beta
 
-from flowtangent.utils import DataPath
+from flowtangent.utils import TreePath
 
 from flowtangent.data import units
 from flowtangent.library.components.wings import Wing, Chords, WingDimensions, Sweeps
@@ -174,7 +174,7 @@ def wing_generator(df_geometries):
     for row in df_geometries.itertuples(index=False):
 
         wing = Wing(
-            tag="W1 Wing",
+            name="W1 Wing",
             symmetric=True,
             taper=row.taper_ratio,
             dihedral=row.dihedral,
@@ -185,7 +185,7 @@ def wing_generator(df_geometries):
             origin=jnp.array([[0., 0., 0.]]),
         ).update_geometry(calculate_reference_area=True, calculate_wetted_area=True)
 
-        system = Aircraft(tag=f"W1_System", areas=wing.areas).add_subcomponent(wing)
+        system = Aircraft(name=f"W1_System", areas=wing.areas).add_subcomponent(wing)
         system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
         meta = {
@@ -237,12 +237,12 @@ if __name__ == "__main__":
         
         solver=BatchVORJAX()
 
-        mach_path   = DataPath(("freestream", "mach_number"), tag="M")
-        alpha_path  = DataPath(("aerodynamics", "angles", "alpha"), tag="a")
-        beta_path   = DataPath(("aerodynamics", "angles", "beta"), tag="b")
+        mach_path   = TreePath(("freestream", "mach_number"), name="M")
+        alpha_path  = TreePath(("aerodynamics", "angles", "alpha"), name="a")
+        beta_path   = TreePath(("aerodynamics", "angles", "beta"), name="b")
 
-        lift_path   = DataPath(("aerodynamics", "coefficients", "lift", "total"), tag="CL")
-        drag_path   = DataPath(("aerodynamics", "coefficients", "drag", "total"), tag="CD")
+        lift_path   = TreePath(("aerodynamics", "coefficients", "lift", "total"), name="CL")
+        drag_path   = TreePath(("aerodynamics", "coefficients", "drag", "total"), name="CD")
 
         GRAD_MAP = JacobianMap(
             state_inputs=(
@@ -267,7 +267,7 @@ if __name__ == "__main__":
             cache_dir="./tests/VORJAX/Wing Data Generation/W1",
             storage_dir="/media/jordan/Ashley_Backup/Wing Data Generation/W1",
             shard_size=3_000_000,
-            tag="W1"
+            name="W1"
         )
         
         generator.run(

@@ -51,7 +51,7 @@ class Mass(StateData):
     """
 
     # Attribute             Type        Default Value
-    tag: str = field("Mass Conditions", static=True)
+    name: str = field("Mass Conditions", static=True)
 
     total: jnp.ndarray = empty_array(())
     rate_of_change: jnp.ndarray = empty_array(())
@@ -60,4 +60,4 @@ class Mass(StateData):
     center_of_gravity: jnp.ndarray = empty_array((0, 3))
     moments_of_inertia: jnp.ndarray = empty_array((0, 3, 3))
 
-    breakdown: StateData = field(lambda: StateData(tag="Mass Breakdown"))
+    breakdown: StateData = field(lambda: StateData(name="Mass Breakdown"))

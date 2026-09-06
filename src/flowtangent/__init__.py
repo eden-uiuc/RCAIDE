@@ -22,8 +22,9 @@ numerical_environment()
 # Framework Hoists
 from .core._settings import Settings
 from .core._state import State
-from .core._systems import System
+from .core._systems import System, Aircraft
 from .core._component import Component
+from .core._processes import Process, ProcessStep
 
 # Utility Hoists
 from .utils import (
@@ -33,10 +34,17 @@ from .utils import (
     static_field,
     method_field,
     null_step,
+    Module
+)
+
+from .analyses import (
+    BatchedAnalysis,
+    ImplicitAnalysis,
+    PACT
 )
 
 # 4. Short-Name Namespace Routing
-from . import functional as F
+from . import functional as F # noqa: N812
 from . import components as comp
 from . import data
 from . import analyses as solve

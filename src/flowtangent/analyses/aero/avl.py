@@ -133,7 +133,7 @@ def convert_to_Flowtangent(avl_data: dict) -> Aircraft:
     xref, yref, zref = avl_data["reference_point"]
 
     global_areas = Areas(reference=sref)
-    vehicle = Aircraft(tag=avl_data["name"], areas=global_areas)
+    vehicle = Aircraft(name=avl_data["name"], areas=global_areas)
     vehicle = eqx.tree_at(lambda v: v.mass_properties.center_of_gravity, vehicle, jnp.array([[xref, yref, zref]]))
 
     for surf_data in avl_data["surfaces"]:
@@ -193,7 +193,7 @@ def convert_to_Flowtangent(avl_data: dict) -> Aircraft:
                 airfoil = None
 
             segment = WingSegment(
-                tag=f"{surf_data['name']}_Seg_{i + 1}",
+                name=f"{surf_data['name']}_Seg_{i + 1}",
                 percent_span_location=span_fraction,
                 root_chord_percent=chord_fraction,
                 # twist=sec_in["twist"],
@@ -205,7 +205,7 @@ def convert_to_Flowtangent(avl_data: dict) -> Aircraft:
 
         segments_list.append(
             WingSegment(
-                tag=f"{surf_data['name']}_Seg_{len(sections)}",
+                name=f"{surf_data['name']}_Seg_{len(sections)}",
                 percent_span_location=1.0,
                 root_chord_percent=taper,
                 twist=tip_sec["twist"],
@@ -217,7 +217,7 @@ def convert_to_Flowtangent(avl_data: dict) -> Aircraft:
 
         # 3. Instantiate the Wing Component
         wing = Wing(
-            tag=surf_data["name"],
+            name=surf_data["name"],
             symmetric=is_symmetric,
             vertical=is_vertical,
             taper=taper,

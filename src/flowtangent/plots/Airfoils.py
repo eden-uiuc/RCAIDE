@@ -50,7 +50,7 @@ def plot_airfoil(airfoil, show_markers=False, show_camber=False):
 
     # Layout: The 1:1 aspect ratio is mandatory for airfoil visualization
     fig.update_layout(
-        title=f"Airfoil Geometry Inspection: {airfoil.tag}",
+        title=f"Airfoil Geometry Inspection: {airfoil.name}",
         xaxis_title="x/c",
         yaxis_title="y/c",
         yaxis=dict(scaleanchor="x", scaleratio=1, zeroline=True, zerolinecolor="lightgrey"),

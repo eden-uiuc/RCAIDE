@@ -7,9 +7,11 @@
 #  Imports
 # ----------------------------------------------------------------------
 
-import flowtangent.framework as rcf
-import flowtangent.library as rcl
+from __future__ import annotations
+
 from flowtangent.data import units
+
+from .... import Component, Settings, State, System
 
 # -----------------------------------------------------------------------
 # Functional/Library Version
@@ -45,25 +47,25 @@ def func_passenger_payload(n_passengers, m_passenger=195.0 * units.lbm, m_baggag
 # -----------------------------------------------------------------------
 
 
-def passenger_payload(state: "rcf.state", system: "rcf.systems", settings: "rcf.settings"):
+def passenger_payload(state: State, system: System, settings: Settings):
 
     n_passengers = system.number_of_passengers
 
     passenger_mass, baggage_mass = func_passenger_payload(n_passengers)
 
-    def _build_payload(payload: "rcl.component"):
+    def _build_payload(payload: "Component"):
 
         if hasattr(payload, "passengers"):
             payload.passengers.mass_properties.total = passenger_mass
         else:
-            passengers = rcl.component(tag="passengers")
+            passengers = Component(name="passengers")
             passengers.mass_properties.total = passenger_mass
             payload.add_subcomponent(passengers)
 
         if hasattr(payload, "baggage"):
             payload.baggage.mass_properties.total = baggage_mass
         else:
-            baggage = rcl.component(tag="baggage")
+            baggage = Component(name="baggage")
             baggage.mass_properties.total = baggage_mass
             payload.add_subcomponent(baggage)
 
@@ -76,7 +78,7 @@ def passenger_payload(state: "rcf.state", system: "rcf.systems", settings: "rcf.
         system.payload = _build_payload(_payload)
         system.sum_mass()
     else:
-        _payload = rcl.component(tag="payload")
+        _payload = Component(name="payload")
         payload = _build_payload(_payload)
         system.add_subcomponent(payload)
 

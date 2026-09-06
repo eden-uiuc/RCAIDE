@@ -6,6 +6,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #  IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 
 # package imports
 import equinox as eqx
@@ -16,8 +17,7 @@ import equinox as eqx
 import jax.numpy as jnp
 from jax import vmap
 
-# Flowtangent imports
-import flowtangent.framework as rcf
+from ... import Settings, State, System
 
 
 def euler_zyx_to_dcm(angles):
@@ -42,9 +42,9 @@ vmap_euler_to_dcm = vmap(euler_zyx_to_dcm)
 
 
 def update_orientations(
-    state: "rcf.state",
-    system: "rcf.systems",
-    settings: "rcf.settings",
+    state: State,
+    system: System,
+    settings: Settings,
 ):
 
     v_inertial = state.frames.inertial.velocity_vector

@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Sequence, Tuple
 
 if TYPE_CHECKING:
-    from flowtangent.framework import Settings, System
+    from .. import Settings, System
 
 import logging
 import os
@@ -31,7 +31,7 @@ from numcodecs import Blosc
 from tqdm import tqdm, trange
 
 from flowtangent.framework import Process, Settings, State, System
-from flowtangent.utils import DataPath, field, get_all_targets
+from flowtangent.utils import TreePath, field, get_all_targets
 
 from .implicit import ImplicitAnalysis
 
@@ -41,18 +41,18 @@ from .implicit import ImplicitAnalysis
 
 class BatchedAnalysis(Process):
 
-    tag: str = field("Batched Analysis")
+    name: str = field("Batched Analysis")
 
     analyze: Process = field(Process)
-    state_inputs: tuple[DataPath, ...] = field(())
+    state_inputs: tuple[TreePath, ...] = field(())
 
     def __init__(
                 self,
-                tag: str = "Batched Analysis",
-                analyze: Process = Process(tag="Batched Analysis"),
-                state_inputs: tuple[DataPath, ...] = ()
+                name: str = "Batched Analysis",
+                analyze: Process = Process(name="Batched Analysis"),
+                state_inputs: tuple[TreePath, ...] = ()
                 ):
-            super().__init__(tag=tag)
+            super().__init__(name=name)
 
             self.analyze = analyze
 
@@ -60,7 +60,7 @@ class BatchedAnalysis(Process):
                 self.state_inputs = state_inputs
             else:
                 ctrls = self.analyze.controls
-                ctrl_inputs = tuple(DataPath(path=c.state_path.path, value=jnp.atleast_3d(c.initial_value)) for c in ctrls)
+                ctrl_inputs = tuple(TreePath(path=c.state_path.path, value=jnp.atleast_3d(c.initial_value)) for c in ctrls)
                 self.state_inputs = self.state_inputs + ctrl_inputs
 
     def _batch_inputs(self, mode='mesh'):
@@ -100,14 +100,14 @@ class BatchedAnalysis(Process):
             raise ValueError("Batch mode must be 'zip' or 'mesh'.")
 
         total_states = batch_arrays[0].shape[0]
-        tag_groups = [p.tag.split('.') for p in self.state_inputs]
-        leading_state = [int(g[0] == "state") for g in tag_groups]
-        state_tags = ['.'.join(g[slice(leading_state[i], None)]) for i, g in enumerate(tag_groups)]
+        name_groups = [p.name.split('.') for p in self.state_inputs]
+        leading_state = [int(g[0] == "state") for g in name_groups]
+        state_names = ['.'.join(g[slice(leading_state[i], None)]) for i, g in enumerate(name_groups)]
 
         state_inputs = tuple(
-            DataPath(
-                tag=p.tag,
-                path=state_tags[idx],
+            TreePath(
+                name=p.name,
+                path=state_names[idx],
                 path_slice=p.path_slice,
                 value=batch_arrays[idx]
             )
@@ -117,7 +117,7 @@ class BatchedAnalysis(Process):
         return state_inputs, total_states
 
     @staticmethod
-    def _update_inputs(pytree: State | System, idx: int, batch_size: int, inputs:Sequence[DataPath]):
+    def _update_inputs(pytree: State | System, idx: int, batch_size: int, inputs:Sequence[TreePath]):
         input_arrays = tuple(si.value[idx:idx+batch_size] for si in inputs)
         actual_size = input_arrays[0].shape[0]
 
@@ -144,7 +144,7 @@ class BatchedAnalysis(Process):
         if settings.logging.handle is not None:
             pbar = range(0, total_states, batch_size)
         else:
-            pbar = trange(0, total_states, batch_size, desc=self.tag, leave=False)
+            pbar = trange(0, total_states, batch_size, desc=self.name, leave=False)
 
         batch_states = []
         for batch_idx in pbar:
@@ -163,7 +163,7 @@ class BatchedAnalysis(Process):
 # class BatchAnalysis:
 #     def __init__(
 #         self,
-#         tag: str = "Batched Analysis",
+#         name: str = "Batched Analysis",
 #         initialize: Process = Process(),
 #         compute: Process = Process(),
 #         inputs: dict = {},
@@ -171,7 +171,7 @@ class BatchedAnalysis(Process):
 #         db_path: Optional[str | Path] = None,
 #     ):
 
-#         self.tag = tag
+#         self.name = name
 
 #         # Path mapping and default settings.
 #         self.input_mappings = inputs
@@ -195,7 +195,7 @@ class BatchedAnalysis(Process):
 #         if handle is not None:  # Inherit logger from dataset generator
 #             logger = logging.getLogger(handle)
 #         else:  # Self logging
-#             logger = logging.getLogger(self.tag + "_Logger")
+#             logger = logging.getLogger(self.name + "_Logger")
 
 #             ch = logging.StreamHandler()
 #             ch.setLevel(logging.INFO)
@@ -259,7 +259,7 @@ class BatchedAnalysis(Process):
 #             out = g_map.state_outputs
 
 #             grad_pairs = product(out, inp)
-#             grad_keys = [f"d{p[0].tag}_d{p[1].tag}" for p in grad_pairs]
+#             grad_keys = [f"d{p[0].name}_d{p[1].name}" for p in grad_pairs]
 #             grad_idxs = list(product(range(len(out)), range(len(inp))))
 
 #         # Initialize Analysis once
@@ -272,7 +272,7 @@ class BatchedAnalysis(Process):
 #         if handle is not None:
 #             pbar = range(0, total_states, batch_size)
 #         else:
-#             pbar = trange(0, total_states, batch_size, desc=f"Running {self.tag} Analysis")
+#             pbar = trange(0, total_states, batch_size, desc=f"Running {self.name} Analysis")
 #         for i in pbar:
 #             batch_arrays = tuple(arr[i : i + batch_size].reshape(-1, 1) for arr in processed_arrays)
 #             actual_size = len(batch_arrays[0])
@@ -417,7 +417,7 @@ class ShardedDatasetGenerator:
         cache_dir: str | Path,
         storage_dir: str | Path,
         shard_size: int = 3_000_000,
-        tag: str = "DataGenerator",
+        name: str = "DataGenerator",
     ):
 
         self.cache_dir = Path(cache_dir)
@@ -426,8 +426,8 @@ class ShardedDatasetGenerator:
 
         self.batch_process = batch_analysis
 
-        self.tag = tag
-        self.dataset_prefix = "_".join(tag.split(" ")).lower()
+        self.name = name
+        self.dataset_prefix = "_".join(name.split(" ")).lower()
 
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
@@ -459,11 +459,6 @@ class ShardedDatasetGenerator:
         jax_logger = logging.getLogger("jax")
         jax_logger.propagate = False
         jax_logger.handlers.clear()
-
-        jax_filter = JAXCompileFilter()
-        for handler in self.logger.handlers:
-            handler.addFilter(jax_filter)
-            jax_logger.addHandler(handler)
 
         if getattr(jax.config, "jax_log_compiles", False):
             jax_logger.setLevel(logging.INFO)
@@ -542,7 +537,7 @@ class ShardedDatasetGenerator:
 
         self.shard_manager.offload_and_rollover()
         shutil.rmtree(self.cache_dir)
-        self.logger.info(f"{self.tag} Complete.")
+        self.logger.info(f"{self.name} Complete.")
 
 
 # -----------------------------------------------------------------------------------------------------------------------

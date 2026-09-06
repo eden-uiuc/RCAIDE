@@ -9,6 +9,7 @@
 
 # package imports
 import jax.numpy as jnp
+
 from flowtangent.library import Areas, Component, Dimensions, Fineness
 
 # Flowtangent imports
@@ -65,7 +66,7 @@ class BWBAreas(Areas):
 
 
 class BWBFuselage(Fuselage):
-    tag: str = field("BWB Fuselage", static=True)
+    name: str = field("BWB Fuselage", static=True)
 
     aft_centerbody_taper: float = field(0.0, static=True)
 

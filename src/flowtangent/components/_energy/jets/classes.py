@@ -11,8 +11,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
-    from flowtangent.framework import Settings, State, System
-    from flowtangent.framework.analyses.energy.jets import JetSettings
+    from .... import Aircraft, Settings, State, System
+    from ....analyses.energy.jets import JetSettings
 
 
 import json
@@ -31,8 +31,8 @@ from flowtangent.data import units
 # Flowtangent imports
 from flowtangent.utils import field, register
 
-from ....gases import Air, BurnedJetA, Gas
-from ....propellants import JetA, Propellant
+from ....data.gases import Air, BurnedJetA, Gas
+from ....data.propellants import JetA, Propellant
 from ..maps import data as map_data
 from ..maps.classes import CompressorMap, TurbineMap
 from ..nodes import BleedFlow, FlowNode, FlowOpPoint, GraphInput, GraphNode, Splitter
@@ -45,7 +45,7 @@ from ..nodes import BleedFlow, FlowNode, FlowOpPoint, GraphInput, GraphNode, Spl
 
 @register
 class Inlet(FlowNode):
-    tag: str = field("inlet", static=True)
+    name: str = field("inlet", static=True)
 
     @tu.inputs(
         "state.freestream",
@@ -136,7 +136,7 @@ def _alpha_c(Nc, Nc_design):
 
 @register
 class Compressor(FlowNode):
-    tag: str = field("compressor", static=True)
+    name: str = field("compressor", static=True)
 
     inputs: tuple | GraphInput = field(GraphInput("flow", "inlet"), static=True)
 
@@ -146,7 +146,7 @@ class Compressor(FlowNode):
 
     def __post_init__(self):
         if not isinstance(self.map, CompressorMap):
-            raise TypeError(f"'{self.tag}' requires a CompressorMap, got {type(self.map).__name__}")
+            raise TypeError(f"'{self.name}' requires a CompressorMap, got {type(self.map).__name__}")
         if self.design_parameters.eff.flow == 1.0:
             map_effs = replace(self.design_parameters.eff, flow=self.map.eff_des + 0.0)  # +0.0 trick to force new memory allocation
             map_params = replace(self.design_parameters, eff=map_effs)
@@ -155,7 +155,7 @@ class Compressor(FlowNode):
 
     @tu.inputs(
         "state.energy.rotation_speed",
-        "state.energy.{tag.lower()}_Rline",
+        "state.energy.{name.lower()}_Rline",
         "state.energy.nodes['{flow_inputs.network_ID}'].flow",
         "system.energy.nodes['{network_ID}'].design_parameters.pressure_ratio",
         "system.energy.nodes['{network_ID}'].design_parameters.eff.flow",
@@ -163,7 +163,7 @@ class Compressor(FlowNode):
         "system.energy.nodes['{network_ID}'].design_parameters.exit_mach_number: Optional",
     )
     @tu.outputs(
-        "state.energy.residual.{tag.lower()}_Wc",
+        "state.energy.residual.{name.lower()}_Wc",
         "state.energy.nodes['{network_ID}'].flow",
         "state.energy.nodes['{network_ID}'].mechanical.power",
         "system.energy.nodes['{network_ID}'].design_parameters.A_exit: Optional",
@@ -248,9 +248,9 @@ class Compressor(FlowNode):
                 ))
 
         else:
-            if self.tag.lower() == 'lpc' or self.tag.lower() == 'fan':
+            if self.name.lower() == 'lpc' or self.name.lower() == 'fan':
                 N = jnp.atleast_2d(network_state.LP_speed)
-            elif self.tag.lower() == 'hpc':
+            elif self.name.lower() == 'hpc':
                 N = jnp.atleast_2d(network_state.HP_speed)
             else:
                 N = jnp.atleast_2d(network_state.rotation_speed)
@@ -258,7 +258,7 @@ class Compressor(FlowNode):
             Nc     = N / jnp.sqrt(theta_c)
 
             alpha   = self.alpha_schedule(Nc, Nc_des)
-            Rline = jnp.atleast_2d(getattr(network_state, f"{self.tag.lower()}_Rline")) # TODO: Shift to Rline scheduling on altitude, Mach number in future
+            Rline = jnp.atleast_2d(getattr(network_state, f"{self.name.lower()}_Rline")) # TODO: Shift to Rline scheduling on altitude, Mach number in future
 
             # Reference the nodal version of the map to ensure updated scalars
             PR, Wc, n_isn = system_node.map.evaluate(alpha, Nc, Rline)
@@ -304,7 +304,7 @@ class Compressor(FlowNode):
         Wc_res  = (W_in - state.energy.mass_flow_rate)/W_des
 
         updated_state = eqx.tree_at(
-            lambda s:getattr(s.energy.residual, f"{self.tag.lower()}_Wc"),
+            lambda s:getattr(s.energy.residual, f"{self.name.lower()}_Wc"),
             updated_state,
             Wc_res)
 
@@ -389,7 +389,7 @@ def _burner_performance(
 
 @register
 class Burner(FlowNode):
-    tag: str = field("Burner", static=True)
+    name: str = field("Burner", static=True)
 
     inputs: tuple | GraphInput = field(GraphInput("flow", "Compressor"), static=True)
     fuel: Propellant = field(JetA)
@@ -499,7 +499,7 @@ class Burner(FlowNode):
 
 @register
 class Turbine(FlowNode):
-    tag: str = field("Turbine", static=True)
+    name: str = field("Turbine", static=True)
 
     map: TurbineMap = field(map_data.LPT2269)
 
@@ -513,7 +513,7 @@ class Turbine(FlowNode):
 
     def __post_init__(self):
         if not isinstance(self.map, TurbineMap):
-            raise TypeError(f"'{self.tag}' requires a TurbineMap, got {type(self.map).__name__}")
+            raise TypeError(f"'{self.name}' requires a TurbineMap, got {type(self.map).__name__}")
         if self.design_parameters.eff.flow == 1.0:
             map_effs = replace(self.design_parameters.eff, flow=self.map.eff_des)
             map_params = replace(self.design_parameters, eff=map_effs)
@@ -521,7 +521,7 @@ class Turbine(FlowNode):
         super(Turbine, self).__post_init__()
 
     @tu.inputs(
-        "state.energy.{tag.lower()}_PR",
+        "state.energy.{name.lower()}_PR",
         "state.energy.nodes['{flow_inputs.network_ID}'].flow",
         "system.energy.nodes['{network_ID}'].map",
         "system.energy.nodes['{network_ID}'].design_parameters.eff.flow",
@@ -530,7 +530,7 @@ class Turbine(FlowNode):
         "system.energy.nodes['{network_ID}'].design_parameters.exit_mach_number: Optional",
     )
     @tu.outputs(
-        "state.energy.residual.{tag.lower()}_Wp",
+        "state.energy.residual.{name.lower()}_Wp",
         "state.energy.nodes['{network_ID}'].flow",
         "state.energy.nodes['{network_ID}'].mechanical.power",
         "system.energy.nodes['{network_ID}'].map.s_Wp",
@@ -557,7 +557,7 @@ class Turbine(FlowNode):
         gas, T_t, P_t, W, FAR, _ = self.mix_inputs(state)
 
         if design_mode:
-            PR = jnp.atleast_2d(getattr(network_state, f"{self.tag.lower()}_PR"))
+            PR = jnp.atleast_2d(getattr(network_state, f"{self.name.lower()}_PR"))
             n_isn = jnp.atleast_1d(des_params.eff.flow)
             N_des = jnp.atleast_1d(des_params.rotation_speed)
 
@@ -623,16 +623,16 @@ class Turbine(FlowNode):
             )
 
         else:
-            if self.tag.lower() == 'lpt':
+            if self.name.lower() == 'lpt':
                 N = jnp.atleast_2d(network_state.LP_speed)
-            elif self.tag.lower() == 'hpt':
+            elif self.name.lower() == 'hpt':
                 N = jnp.atleast_2d(network_state.HP_speed)
             else:
                 N = jnp.atleast_2d(network_state.rotation_speed)
             Np = N / jnp.sqrt(T_t)
             Np_des = des_params.rotation_speed
 
-            PR = jnp.atleast_2d(getattr(network_state, f"{self.tag.lower()}_PR"))
+            PR = jnp.atleast_2d(getattr(network_state, f"{self.name.lower()}_PR"))
             # PR = jnp.atleast_2d(system.energy.nodes[self.network_ID].design_parameters.pressure_ratio)
             alpha = self.alpha_schedule(Np, Np_des)
 
@@ -684,7 +684,7 @@ class Turbine(FlowNode):
         W_des = eng_des.mass_flow_rate
         Wp_res = (W / (1. + FAR) - state.energy.mass_flow_rate)/W_des
         updated_state = eqx.tree_at(
-            lambda s: getattr(s.energy.residual, f"{self.tag.lower()}_Wp"),
+            lambda s: getattr(s.energy.residual, f"{self.name.lower()}_Wp"),
             updated_state,
             Wp_res)
 
@@ -897,7 +897,7 @@ def _variable_nozzle_performance(
 
 @register
 class Nozzle(FlowNode):
-    tag: str = field("Core Nozzle", static=True)
+    name: str = field("Core Nozzle", static=True)
     variable_exit: bool = field(False, static=True)
     diverging_section: bool = field(False, static=True)
 
@@ -909,7 +909,7 @@ class Nozzle(FlowNode):
         super(Nozzle, self).__post_init__()
         if self.variable_exit:
             if not self.diverging_section:
-                warnings.warn(f"Variable exit for nozzle '{self.tag}' requires diverging section. "
+                warnings.warn(f"Variable exit for nozzle '{self.name}' requires diverging section. "
                               "Setting diverging section to True.")
                 object.__setattr__(self, "diverging_section", True)
 
@@ -1037,7 +1037,7 @@ class Nozzle(FlowNode):
 
 @register
 class Turboshaft(GraphNode):
-    tag: str = field("Turboshaft", static=True)
+    name: str = field("Turboshaft", static=True)
 
     inputs: tuple | GraphInput = (
         GraphInput("mechanical", "compressor"),
@@ -1143,7 +1143,7 @@ def _ABTurbojetSetup():
 
     base_components = _TurbojetSetup()
     ab = Burner(
-        tag="Afterburner",
+        name="Afterburner",
         inputs=(
             GraphInput("flow", "turbine"),
         ),
@@ -1176,7 +1176,7 @@ class JetKinematics(eqx.Module):
 @register
 class TurbojetOpPoint[KinType: JetKinematics | FanKinematics](FlowOpPoint):
 
-    tag: str = field("TOC", static=True) # Top-of-Climb design point by default
+    name: str = field("TOC", static=True) # Top-of-Climb design point by default
 
     # Performance Parameters
     thrust:     float = 0.0
@@ -1241,7 +1241,7 @@ class TurbojetOpPoint[KinType: JetKinematics | FanKinematics](FlowOpPoint):
 
 @register
 class TurbojetEngine(FlowNode[TurbojetOpPoint]):
-    tag: str = field("Engine", static=True)
+    name: str = field("Engine", static=True)
     subcomponents: tuple = field(_TurbojetSetup)
 
     plug_diameter: float = 0.0
@@ -1279,16 +1279,16 @@ class TurbojetEngine(FlowNode[TurbojetOpPoint]):
         **kwargs
     ):
 
-        if turbofan:
-            if afterburner:
-                base_components = _ABTurbofanSetup()
-            else:
-                base_components = _TurbofanSetup()
-        else:
-            if afterburner:
-                base_components = _ABTurbojetSetup()
-            else:
-                base_components = _TurbojetSetup()
+        # if turbofan:
+        #     if afterburner:
+        #         base_components = _ABTurbofanSetup()
+        #     else:
+        #         base_components = _TurbofanSetup()
+        # else:
+        #     if afterburner:
+        #         base_components = _ABTurbojetSetup()
+        #     else:
+        #         base_components = _TurbojetSetup()
 
 
         inlet = Inlet()
@@ -1318,7 +1318,7 @@ class TurbojetEngine(FlowNode[TurbojetOpPoint]):
             if engine_cat == "civil":
                 # Create Synthetic TOC point
                 des_kwargs = {
-                    'tag': "TOC",
+                    'name': "TOC",
                     'mach_number': data.get("Cruise Mach", 0.8),
                     'altitude': data.get("Cruise Alt (kft)", 35.0) * 1000. * units.ft,
                     'thrust': data.get("Takeoff Thrust (lbf)", 0.0) * 0.25 * units.lbf,
@@ -1331,7 +1331,7 @@ class TurbojetEngine(FlowNode[TurbojetOpPoint]):
                 }
 
                 cruise_kwargs = {
-                    'tag': "Cruise",
+                    'name': "Cruise",
                     'mach_number': data.get("Cruise Mach", 0.8),
                     'altitude': data.get("Cruise Alt (kft)", 35.0) * 1000. * units.ft,
                     'thrust': data.get("Cruise Thrust (lbf)", 0.0) * 0.25 * units.lbf,
@@ -1344,7 +1344,7 @@ class TurbojetEngine(FlowNode[TurbojetOpPoint]):
                 }
 
                 takeoff_kwargs = {
-                    'tag': "Takeoff",
+                    'name': "Takeoff",
                     'mach_number': 1e-6,
                     'altitude': 0.0,
                     'thrust': data.get("Takeoff Thrust (lbf)", 0.0) * units.lbf,
@@ -1569,48 +1569,48 @@ def _TurbofanSetup():
 
     inlet = Inlet()
     fan = Compressor(
-        tag="Fan",
+        name="Fan",
         map=map_data.Fan,)
 
     # Core Flow ----------------------------------------------------------------
 
     core_flow = Splitter(
-        tag="Core Flow",
+        name="Core Flow",
         inputs=GraphInput("flow", "fan"),
         values=("mass_flow_rate",),
         fractions=BPRSplit(is_bypass=False)
     )
-    core_duct = FlowNode(tag="Core Duct", inputs=GraphInput("flow", "core flow"))
+    core_duct = FlowNode(name="Core Duct", inputs=GraphInput("flow", "core flow"))
 
     # Compressors
-    lpc = Compressor(tag="LPC", map=map_data.LPC, inputs=GraphInput("flow", "core duct"))
+    lpc = Compressor(name="LPC", map=map_data.LPC, inputs=GraphInput("flow", "core duct"))
 
-    c_stat = FlowNode(tag="Compressor Stator", inputs=GraphInput("flow", "lpc"))
+    c_stat = FlowNode(name="Compressor Stator", inputs=GraphInput("flow", "lpc"))
 
-    hpc = Compressor(tag="HPC", map=map_data.HPC,
+    hpc = Compressor(name="HPC", map=map_data.HPC,
                      inputs=GraphInput("flow", "compressor stator"),
                      output_bleeds=(
-                        BleedFlow(tag="outlet", fractions_dict={
+                        BleedFlow(name="outlet", fractions_dict={
                             'mass_flow_rate':0.05,
                             'stagnation_pressure': 0.5,
                             'stagnation_enthalpy': 0.5}),
-                        BleedFlow(tag="LPT cooling", fractions_dict={
+                        BleedFlow(name="LPT cooling", fractions_dict={
                             'mass_flow_rate':0.05,
                             'stagnation_pressure': 0.5,
                             'stagnation_enthalpy': 0.5}),
-                        BleedFlow(tag="nozzle cooling", fractions_dict={
+                        BleedFlow(name="nozzle cooling", fractions_dict={
                             'mass_flow_rate':0.02,
                             'stagnation_pressure': 0.5,
                             'stagnation_enthalpy': 0.5}),))
 
-    cooling = FlowNode(tag="Cooling Duct",
+    cooling = FlowNode(name="Cooling Duct",
                        inputs=GraphInput("flow", "hpc"),
                        output_bleeds=(
-                           BleedFlow(tag="HPT cooling", fractions_dict={
+                           BleedFlow(name="HPT cooling", fractions_dict={
                             'mass_flow_rate':0.05,
                             'stagnation_pressure': 0.5,
                             'stagnation_enthalpy': 0.5}),
-                           BleedFlow(tag="LPT cooling", fractions_dict={
+                           BleedFlow(name="LPT cooling", fractions_dict={
                             'mass_flow_rate':0.10,
                             'stagnation_pressure': 0.5,
                             'stagnation_enthalpy': 0.5}),))
@@ -1619,31 +1619,31 @@ def _TurbofanSetup():
     comb = Burner(inputs=GraphInput("flow", "cooling_duct"))
 
     # Turbines
-    hpt = Turbine(tag="HPT", map=map_data.HPT,
+    hpt = Turbine(name="HPT", map=map_data.HPT,
                   inputs=(
                       GraphInput("flow", "burner", primary=True),
                       GraphInput("flow", "cooling_duct.hpt_cooling"),))
 
-    t_stat = FlowNode(tag="Turbine Stator", inputs=(
+    t_stat = FlowNode(name="Turbine Stator", inputs=(
                         GraphInput("flow", "hpt", primary=True),
                         GraphInput("flow", "hpc.lpt_cooling"),
                         GraphInput("flow", "cooling_duct.lpt_cooling"),))
 
-    lpt = Turbine(tag="LPT", map=map_data.LPT,
+    lpt = Turbine(name="LPT", map=map_data.LPT,
                   inputs=GraphInput("flow", "turbine_stator"))
 
     # Turboshafts
-    lp_shaft = Turboshaft(tag="LP Shaft", inputs=(
+    lp_shaft = Turboshaft(name="LP Shaft", inputs=(
             GraphInput("mechanical", "lpc"),
             GraphInput("mechanical", "fan"),
             GraphInput("mechanical", "lpt"),))
 
-    hp_shaft = Turboshaft(tag="HP Shaft", inputs=(
+    hp_shaft = Turboshaft(name="HP Shaft", inputs=(
             GraphInput("mechanical", "hpc"),
             GraphInput("mechanical", "hpt"),))
 
     # Core Nozzle
-    cn_duct = FlowNode(tag="Core Nozzle Duct", inputs=(
+    cn_duct = FlowNode(name="Core Nozzle Duct", inputs=(
         GraphInput("flow", "lpt", primary=True),
         GraphInput("flow", "hpc.nozzle_cooling"),
     ))
@@ -1651,15 +1651,15 @@ def _TurbofanSetup():
 
     # Bypass Flow --------------------------------------------------------------
     fan_flow = Splitter(
-        tag="Fan Flow",
+        name="Fan Flow",
         inputs=GraphInput("flow", "fan"),
         values=("mass_flow_rate",),
         fractions=BPRSplit(is_bypass=True))
 
-    fn_duct = FlowNode(tag="Fan Duct", inputs=GraphInput("flow", "fan flow"),
-                       output_bleeds=(BleedFlow(tag="outlet", fractions_dict={"mass_flow_rate":0.005 }),))
+    fn_duct = FlowNode(name="Fan Duct", inputs=GraphInput("flow", "fan flow"),
+                       output_bleeds=(BleedFlow(name="outlet", fractions_dict={"mass_flow_rate":0.005 }),))
 
-    f_nozz = Nozzle(tag="Fan Nozzle", inputs=(GraphInput("flow", "fan duct")))
+    f_nozz = Nozzle(name="Fan Nozzle", inputs=(GraphInput("flow", "fan duct")))
 
     return (inlet, fan,
             core_flow, core_duct,
@@ -1675,7 +1675,7 @@ def _ABTurbofanSetup():
 
     base_components = _TurbofanSetup()
     ab = Burner(
-        tag="Afterburner",
+        name="Afterburner",
         inputs=(
             GraphInput("flow", "fan_nozzle"),
             GraphInput("flow", "core_nozzle"),

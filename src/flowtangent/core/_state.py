@@ -33,7 +33,7 @@ from flowtangent.utils import empty_array, field, register
 @register
 class State[EnergyType: NetworkState](StateData):
 
-    tag: str = field("State", static=True)
+    name: str = field("State", static=True)
 
     initials: eqx.Module | None = None
     time: Time = field(Time)

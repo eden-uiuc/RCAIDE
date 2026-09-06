@@ -7,18 +7,20 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
+# Flowtangent Imports
+from __future__ import annotations
+
 import equinox as eqx
 import jax.numpy as jnp
 
-# Flowtangent Imports
-import flowtangent.framework as rcf
+from ... import Settings, State, System
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Initialize Time
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-def initialize_time(state: "rcf.state", system: "rcf.systems", settings: "rcf.settings"):
+def initialize_time(state: State, system: System, settings: Settings):
 
     t_initial = state.initials.frames.inertial.time
     if t_initial is None:

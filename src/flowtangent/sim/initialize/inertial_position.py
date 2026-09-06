@@ -10,16 +10,18 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # Initialize Inertial Position
 # ----------------------------------------------------------------------------------------------------------------------
+# Flowtangent Imports
+from __future__ import annotations
+
 import equinox as eqx
 
-# Flowtangent Imports
-import flowtangent.framework as rcf
+from ... import Settings, State, System
 
 
 def initialize_inertial_position(
-    state: "rcf.state",
-    system: "rcf.systems",
-    settings: "rcf.settings",
+    state: State,
+    system: System,
+    settings: Settings,
 ):
 
     # Extract current arrays

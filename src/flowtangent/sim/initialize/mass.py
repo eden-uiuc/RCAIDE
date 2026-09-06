@@ -7,9 +7,11 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # Flowtangent Imports
+from __future__ import annotations
+
 import equinox as eqx
 
-import flowtangent.framework as rcf
+from ... import Settings, State, System
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Initialize Mass
@@ -17,9 +19,9 @@ import flowtangent.framework as rcf
 
 
 def initialize_mass(
-    state: "rcf.state",
-    system: "rcf.systems",
-    settings: "rcf.settings",
+    state: State,
+    system: System,
+    settings: Settings,
 ):
 
     m_initial = state.initials.mass.total[-1, 0]

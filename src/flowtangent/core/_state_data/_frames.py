@@ -23,7 +23,7 @@ from flowtangent.utils import empty_array, field, register
 @register
 class Frame(StateData):
     # Attribute             Type        Default Value
-    tag: str = field("Frame", static=True)
+    name: str = field("Frame", static=True)
 
     transform_to_inertial: jnp.ndarray = empty_array((0, 3))
 
@@ -33,7 +33,7 @@ class Frame(StateData):
 @register
 class Inertial(Frame):
     # Attribute                     Type        Default Value
-    tag: str = field("Inertial Frame", static=True)
+    name: str = field("Inertial Frame", static=True)
 
     position_vector: jnp.ndarray = empty_array((0, 3))
 
@@ -51,7 +51,7 @@ class Inertial(Frame):
 @register
 class Body(Frame):
     # Attribute             Type        Default Value
-    tag: str = field("Body Frame", static=True)
+    name: str = field("Body Frame", static=True)
 
     inertial_rotations: jnp.ndarray = empty_array((0, 3))
     thrust_force_vector: jnp.ndarray = empty_array((0, 3))
@@ -60,7 +60,7 @@ class Body(Frame):
 @register
 class Wind(Frame):
     # Attribute         Type            Default Value
-    tag: str = field("Wind Frame", static=True)
+    name: str = field("Wind Frame", static=True)
 
     body_rotations: jnp.ndarray = empty_array((0, 3))
     transform_to_body: jnp.ndarray = empty_array((0, 3))
@@ -72,7 +72,7 @@ class Wind(Frame):
 @register
 class Planet(Frame):
     # Attribute     Type            Default Value
-    tag: str = field("Planet Frame", static=True)
+    name: str = field("Planet Frame", static=True)
     start_time: jnp.ndarray = empty_array()
 
     # Default to takeoff at JFK
@@ -84,7 +84,7 @@ class Planet(Frame):
 @register
 class FrameData(StateData):
     # Attribute     Type            Default Value
-    tag: str = field("Dynamic Frames", static=True)
+    name: str = field("Dynamic Frames", static=True)
 
     inertial: Inertial = field(Inertial)
     body: Body = field(Body)

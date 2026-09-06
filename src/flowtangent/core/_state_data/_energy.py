@@ -22,7 +22,7 @@ from flowtangent.utils import empty_array, field, register
 
 @register
 class MechanicalOutputs(StateData):
-    tag: str = field("Mechanical Outputs", static=True)
+    name: str = field("Mechanical Outputs", static=True)
 
     work: jnp.ndarray = empty_array()
     power: jnp.ndarray = empty_array()
@@ -30,7 +30,7 @@ class MechanicalOutputs(StateData):
 
 @register
 class ElectricalOutputs(StateData):
-    tag: str = field("Electrical Outputs", static=True)
+    name: str = field("Electrical Outputs", static=True)
 
     power: jnp.ndarray = empty_array()
     voltage: jnp.ndarray = empty_array()
@@ -39,7 +39,7 @@ class ElectricalOutputs(StateData):
 
 @register
 class FuelOutputs(StateData):
-    tag: str = field("Fuel Outputs", static=True)
+    name: str = field("Fuel Outputs", static=True)
 
     TSFC: jnp.ndarray = empty_array()
     flow_rate: jnp.ndarray = empty_array()
@@ -47,7 +47,7 @@ class FuelOutputs(StateData):
 
 @register
 class FlowOutputs(StateData):
-    tag: str = field("Flow Outputs", static=True)
+    name: str = field("Flow Outputs", static=True)
     fluid: Gas = field(Air)
 
     speed: jnp.ndarray = empty_array()
@@ -77,7 +77,7 @@ class FlowOutputs(StateData):
 
 @register
 class ResidualOutputs(StateData):
-    tag: str = field("Residual Outputs", static=True)
+    name: str = field("Residual Outputs", static=True)
 
     mass: jnp.ndarray = empty_array()
     mass_flow_rate: jnp.ndarray = empty_array()
@@ -102,7 +102,7 @@ class ResidualOutputs(StateData):
 
 @register
 class ForceOutputs(StateData):
-    tag: str = field("Force Outputs", static=True)
+    name: str = field("Force Outputs", static=True)
 
     thrust: jnp.ndarray = empty_array()
     nondimensional_thrust: jnp.ndarray = empty_array()
@@ -111,7 +111,7 @@ class ForceOutputs(StateData):
 
 @register
 class NodeState(StateData):
-    tag: str = field("Node Outputs", static=True)
+    name: str = field("Node Outputs", static=True)
 
     mechanical: MechanicalOutputs = field(MechanicalOutputs)
     electrical: ElectricalOutputs = field(ElectricalOutputs)
@@ -129,7 +129,7 @@ class NodeState(StateData):
 @register
 class BatteryCellConditions(NodeState):
     # Attribute                 Type        Default Value
-    tag: str = field("Battery Cell", static=True)
+    name: str = field("Battery Cell", static=True)
 
     cycle_in_day: int = field(0, static=True)
     resistance_growth_factor: float = field(0.0, static=True)
@@ -143,7 +143,7 @@ class BatteryCellConditions(NodeState):
 @register
 class BatteryPackConditions(NodeState):
     # Attribute             Type                    Default Value
-    tag: str = field("Battery Pack", static=True)
+    name: str = field("Battery Pack", static=True)
 
     maximum_total_energy: float = field(0.0, static=True)
 
@@ -159,7 +159,7 @@ class BatteryPackConditions(NodeState):
 
 @register
 class NetworkState(NodeState):
-    tag: str = field("Energy Network", static=True)
+    name: str = field("Energy Network", static=True)
 
     nodes: dict = field(dict)
 
@@ -176,7 +176,7 @@ class NetworkState(NodeState):
 @register
 class TurbojetState(NetworkState):
 
-    tag: str = field("Turbojet Network", static=True)
+    name: str = field("Turbojet Network", static=True)
 
     # Control hooks
     fuel_air_ratio: jnp.ndarray = empty_array()
@@ -191,7 +191,7 @@ class TurbojetState(NetworkState):
 @register
 class TurbofanState(NetworkState):
 
-    tag: str = field("Turbofan Network", static=True)
+    name: str = field("Turbofan Network", static=True)
 
     # Control hooks
     fuel_air_ratio: jnp.ndarray = empty_array()

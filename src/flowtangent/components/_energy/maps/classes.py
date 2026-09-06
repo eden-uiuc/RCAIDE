@@ -64,7 +64,7 @@ def interp_2d_extrapolate(x, y, x_grid, y_grid, z_table):
 
 @register
 class CompressorMap(eqx.Module):
-    tag: str = field("Compressor Map", static=True)
+    name: str = field("Compressor Map", static=True)
 
     # 1D Grid Axes
     alpha_grid: jnp.ndarray = empty_array()  # FADEC Inlet Guide Vane Angle
@@ -148,7 +148,7 @@ class CompressorMap(eqx.Module):
         eff_table = jnp.array(data["eff"]).reshape(shape)
 
         return cls(
-            tag=Path(filepath).stem,
+            name=Path(filepath).stem,
             Nc_des=float(data["Nc_des"]),
             alpha_des=float(data["alpha_des"]),
             PR_des=float(data.get("PR_des", 10.0)),
@@ -167,7 +167,7 @@ class CompressorMap(eqx.Module):
 
 @register
 class TurbineMap(eqx.Module):
-    tag: str = field("Turbine Map", static=True)
+    name: str = field("Turbine Map", static=True)
 
     # 1D Grid Axes
     alpha_grid: jnp.ndarray = empty_array()  # Turbine Nozzle Ratio
@@ -237,7 +237,7 @@ class TurbineMap(eqx.Module):
         eff_table = jnp.array(data["eff"]).reshape(shape)
 
         return cls(
-            tag=Path(filepath).stem,
+            name=Path(filepath).stem,
             alpha_des=float(data["alpha_des"]),
             Np_des=float(data["Np_des"]),
             PR_des=float(data["PR_des"]),

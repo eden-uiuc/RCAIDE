@@ -8,11 +8,13 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
+# Flowtangent imports
+from __future__ import annotations
+
 import equinox as eqx
 import jax.numpy as jnp
 
-# Flowtangent imports
-import flowtangent.framework as rcf
+from ... import Settings, State, System
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Update Angular Acceleration
@@ -20,9 +22,9 @@ import flowtangent.framework as rcf
 
 
 def update_angular_acceleration(
-    state: "rcf.state",
-    system: "rcf.systems",
-    settings: "rcf.settings",
+    state: State,
+    system: System,
+    settings: Settings,
 ):
 
     w = state.frames.inertial.angular_velocity_vector

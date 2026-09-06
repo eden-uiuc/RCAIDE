@@ -11,7 +11,6 @@
 
 # Flowtangent imports
 from flowtangent.library import Component
-
 from flowtangent.utils import field
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -20,7 +19,7 @@ from flowtangent.utils import field
 
 
 class LandingGear(Component):
-    tag: str = field("Landing Gear", static=True)
+    name: str = field("Landing Gear", static=True)
 
     deployed: bool = False
 

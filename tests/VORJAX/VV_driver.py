@@ -262,7 +262,7 @@ def VORJAX_straight_wing(span=10.0, chord=1.0):
         aerodynamic_center=jnp.array([0.0, 0.0, 0.0])
     )
 
-    system = Aircraft(tag='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
+    system = Aircraft(name='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system
@@ -298,7 +298,7 @@ def VORJAX_elliptical_wing(AR=10., n_segments=1):
         sweep_c4 = jnp.arctan2(delta_x_c4, delta_y)
 
         segments += (WingSegment(
-            tag=f"{i}", 
+            name=f"{i}", 
             percent_span_location=eta_start, 
             root_chord_percent=chord_frac_start,
             sweeps=Sweeps(quarter_chord=sweep_c4)  # Inject sweep here!
@@ -306,14 +306,14 @@ def VORJAX_elliptical_wing(AR=10., n_segments=1):
 
     # Tip segment doesn't need a sweep since there's no geometry after it
     segments += (WingSegment(
-        tag="Tip", 
+        name="Tip", 
         percent_span_location=1.0, 
         root_chord_percent=0.01
     ),)
 
     wing_areas = Areas(reference=S_ref, wetted=2.0 * S_ref)
 
-    wing = Wing(tag=f"Elliptical {n_segments}",
+    wing = Wing(name=f"Elliptical {n_segments}",
                 segments=segments,
                 symmetric=True,
                 spans=WingDimensions(projected=span),
@@ -323,7 +323,7 @@ def VORJAX_elliptical_wing(AR=10., n_segments=1):
                 origin=jnp.array([[0.0, 0.0, 0.0]]),
                 aerodynamic_center=jnp.array([0.0, 0.0, 0.0])).update_geometry()
     
-    system = Aircraft(tag='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
+    system = Aircraft(name='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system  
@@ -344,13 +344,13 @@ def VORJAX_delta_wing(AR=2.0):
     
     segments = (
         WingSegment(
-            tag="Root_to_Tip",
+            name="Root_to_Tip",
             percent_span_location=0.0,
             root_chord_percent=1.0,
             sweeps=Sweeps(quarter_chord=sweep_c4)
         ),
         WingSegment(
-            tag="Tip",
+            name="Tip",
             percent_span_location=1.0,
             root_chord_percent=c_tip_ratio
         )
@@ -358,7 +358,7 @@ def VORJAX_delta_wing(AR=2.0):
 
     wing_areas = Areas(reference=S_ref, wetted=2.0 * S_ref)
 
-    wing = Wing(tag=f"Delta_AR_{AR}",
+    wing = Wing(name=f"Delta_AR_{AR}",
                 segments=segments,
                 symmetric=True,
                 spans=WingDimensions(projected=span),
@@ -368,7 +368,7 @@ def VORJAX_delta_wing(AR=2.0):
                 origin=jnp.array([[0.0, 0.0, 0.0]]),
                 aerodynamic_center=jnp.array([0.0, 0.0, 0.0])).update_geometry()
     
-    system = Aircraft(tag='Delta Aircraft', areas=wing_areas).add_subcomponent(wing)
+    system = Aircraft(name='Delta Aircraft', areas=wing_areas).add_subcomponent(wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system
@@ -393,14 +393,14 @@ def VORJAX_ONERA_M6():
 
     segments = (
         WingSegment(
-            tag="ONERA M6",
+            name="ONERA M6",
             percent_span_location=0.0,
             root_chord_percent=1.0,
             sweeps=Sweeps(leading_edge=sweep_le, quarter_chord=sweep_qc),
             airfoil=Airfoil.from_file(Airfoil_Data/"ONERA_M6.txt")
         ),
         WingSegment(
-            tag="Tip",
+            name="Tip",
             percent_span_location=1.0,
             root_chord_percent=taper,
             airfoil=Airfoil.from_file(Airfoil_Data/"ONERA_M6.txt")
@@ -408,7 +408,7 @@ def VORJAX_ONERA_M6():
     )
     
     onera_wing = Wing(
-        tag="Main Wing",
+        name="Main Wing",
         symmetric=True,
         segments=segments,
         aspect_ratio=AR,
@@ -418,7 +418,7 @@ def VORJAX_ONERA_M6():
         spans=WingDimensions(projected=2 * semispan),
     ).update_geometry(calculate_reference_area=True, calculate_wetted_area=True)
 
-    system = Aircraft(tag='ONERA M6 Container', areas=onera_wing.areas).add_subcomponent(onera_wing)
+    system = Aircraft(name='ONERA M6 Container', areas=onera_wing.areas).add_subcomponent(onera_wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system
@@ -488,7 +488,7 @@ def VORJAX_test_run(
     initial_settings = eqx.tree_at(lambda s: s.analysis.aerodynamics, Settings(DEBUG_MODE=debug_mode), aero_settings)
 
     analysis = Process(
-        tag="VORJAX Test Run",
+        name="VORJAX Test Run",
         steps=(
             InitializeVORJAX(),
             ComputeVORJAX()
@@ -1596,20 +1596,20 @@ if __name__ == "__main__":
 
     os.chdir(tu.get_Flowtangent_root())
 
-    mach_path   = tu.DataPath(("freestream", "mach_number"), tag="M")
-    alpha_path  = tu.DataPath(("aerodynamics", "angles", "alpha"), tag="a")
-    beta_path   = tu.DataPath(("aerodynamics", "angles", "beta"), tag="b")
+    mach_path   = tu.TreePath(("freestream", "mach_number"), name="M")
+    alpha_path  = tu.TreePath(("aerodynamics", "angles", "alpha"), name="a")
+    beta_path   = tu.TreePath(("aerodynamics", "angles", "beta"), name="b")
 
-    p_path      = tu.DataPath(("stability", "static", "roll_rate"), tag="p")
-    q_path      = tu.DataPath(("stability", "static", "pitch_rate"), tag="q")
-    r_path      = tu.DataPath(("stability", "static", "yaw_rate"), tag="r")
+    p_path      = tu.TreePath(("stability", "static", "roll_rate"), name="p")
+    q_path      = tu.TreePath(("stability", "static", "pitch_rate"), name="q")
+    r_path      = tu.TreePath(("stability", "static", "yaw_rate"), name="r")
     
-    lift_path   = tu.DataPath(("aerodynamics", "coefficients", "lift", "total"), tag="CL")
-    drag_path   = tu.DataPath(("aerodynamics", "coefficients", "drag", "total"), tag="CD")
+    lift_path   = tu.TreePath(("aerodynamics", "coefficients", "lift", "total"), name="CL")
+    drag_path   = tu.TreePath(("aerodynamics", "coefficients", "drag", "total"), name="CD")
     
-    i_drag_path = tu.DataPath(("aerodynamics", "coefficients", "drag", "induced", "total"))
-    nf_drag_path = tu.DataPath(("aerodynamics", "coefficients", "drag", "induced", "near_field"))
-    ff_drag_path = tu.DataPath(("aerodynamics", "coefficients", "drag", "induced", "far_field"))
+    i_drag_path = tu.TreePath(("aerodynamics", "coefficients", "drag", "induced", "total"))
+    nf_drag_path = tu.TreePath(("aerodynamics", "coefficients", "drag", "induced", "near_field"))
+    ff_drag_path = tu.TreePath(("aerodynamics", "coefficients", "drag", "induced", "far_field"))
 
     GRAD_MAP = JacobianMap(
         state_inputs=(
@@ -1662,8 +1662,8 @@ if __name__ == "__main__":
             f_st, f_sys, f_setts = results
 
             CL = tu.get_target(f_st, lift_path)
-            CD = tu.get_target(f_st, tu.DataPath(("aerodynamics", "coefficients", "drag", "total")))
-            C_m = tu.get_target(f_st, tu.DataPath(("aerodynamics", "coefficients", "moments", "pitch")))
+            CD = tu.get_target(f_st, tu.TreePath(("aerodynamics", "coefficients", "drag", "total")))
+            C_m = tu.get_target(f_st, tu.TreePath(("aerodynamics", "coefficients", "moments", "pitch")))
 
             data = f_sys.analysis_data
             # VORJAX_dCp = np.round(np.asarray(data["dCp"]), 5)
@@ -2075,7 +2075,7 @@ if __name__ == "__main__":
                 cache_dir="./tests/VORJAX/shard_test",
                 storage_dir="/media/jordan/Ashley_Backup/shard_test",
                 shard_size=3_000_000,
-                tag="Rectangle AR 10"
+                name="Rectangle AR 10"
             )
 
             generator.run(

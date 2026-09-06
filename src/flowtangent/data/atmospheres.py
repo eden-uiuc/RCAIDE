@@ -35,7 +35,7 @@ class AtmosphericBreakpoints(eqx.Module):
 
 
 class Atmosphere(eqx.Module):
-    tag: str = field("Atmosphere", static=True)
+    name: str = field("Atmosphere", static=True)
 
     fluid: Gas = field(Air)
 
@@ -44,7 +44,7 @@ class Atmosphere(eqx.Module):
     breaks: AtmosphericBreakpoints = field(AtmosphericBreakpoints)
 
     def __repr__(self):
-        return self.tag
+        return self.name
 
     def _compute_property(self, altitude, property: Literal["temperature", "pressure", "density"]):
         return jnp.interp(altitude, self.breaks.altitude, getattr(self.breaks, property))
@@ -138,7 +138,7 @@ def generate_us_standard_atmosphere(max_alt=84852.0, step=10.0):
     )
 
 class USStandard1976(Atmosphere):
-    tag: str = field("US Standard Atmosphere, 1976", static=True)
+    name: str = field("US Standard Atmosphere, 1976", static=True)
     breaks: AtmosphericBreakpoints = field(generate_us_standard_atmosphere)
 
 def _ConstantTempBreaks(self):
@@ -153,5 +153,5 @@ def _ConstantTempBreaks(self):
 
 
 class ConstantTemperature(Atmosphere):
-    tag: str = field("Constant Temprerature Atmosphere", static=True)
+    name: str = field("Constant Temprerature Atmosphere", static=True)
     breaks: AtmosphericBreakpoints = field(_ConstantTempBreaks)

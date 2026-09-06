@@ -20,7 +20,7 @@ from .nodes import EnergyStore, FuelTank, GraphInput, GraphNode, Splitter
 
 @register
 class EnergyLine(GraphNode):
-    tag: str = field("Line", static=True)
+    name: str = field("Line", static=True)
     _bookkeeping: dict = field(
         lambda: {
             "splitters": Splitter,

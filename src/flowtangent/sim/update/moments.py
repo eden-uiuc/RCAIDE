@@ -8,11 +8,13 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
+# Flowtangent Imports
+from __future__ import annotations
+
 import equinox as eqx
 import jax.numpy as jnp
 
-# Flowtangent Imports
-import flowtangent.framework as rcf
+from ... import Settings, State, System
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Update Moments
@@ -20,9 +22,9 @@ import flowtangent.framework as rcf
 
 
 def update_moments(
-    state: "rcf.state",
-    system: "rcf.systems",
-    settings: "rcf.settings",
+    state: State,
+    system: System,
+    settings: Settings,
 ):
 
     wind = state.frames.wind.total_moment_vector

@@ -43,7 +43,7 @@ class PerSeatMasses(eqx.Module):
 
 
 class AircraftClass(eqx.Module):
-    tag: str = field("Aircraft Class", static=True)
+    name: str = field("Aircraft Class", static=True)
 
     control_type: ControlType = field("full_powered", static=True)
 
@@ -78,7 +78,7 @@ def _BizJetPer():
 
 
 class BusinessJet(AircraftClass):
-    tag: str = field("Business Jet", static=True)
+    name: str = field("Business Jet", static=True)
 
     fixed_masses: FixedMasses = field(_BizJetFixed, static=True)
     per_seat_masses: PerSeatMasses = field(_BizJetPer, static=True)
@@ -111,7 +111,7 @@ def _MRPer():
 
 
 class MediumRange(AircraftClass):
-    tag: str = field("Medium Range Jet", static=True)
+    name: str = field("Medium Range Jet", static=True)
 
     fixed_masses: FixedMasses = field(_MRFixed, static=True)
     per_seat_masses: PerSeatMasses = field(_MRPer, static=True)

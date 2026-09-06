@@ -13,18 +13,18 @@ from typing import Callable, Literal, Optional
 # package imports
 import jax
 import jax.numpy as jnp
-from flowtangent.library import Component
 
 from flowtangent.core._state_data import StateData
 from flowtangent.core._state_data._stability import StabilityData
 
 # Flowtangent imports
-from flowtangent.utils import DataPath, field
+from flowtangent.utils import TreePath, field
+
+from .._component import Component
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Controls
 # ----------------------------------------------------------------------------------------------------------------------
-
 
 def get_active(cond: StateData) -> tuple[StateData, ...]:
     """
@@ -43,7 +43,7 @@ def get_active(cond: StateData) -> tuple[StateData, ...]:
 
 
 class Residual(StateData):
-    tag: str = field("Dynamic Residual", static=True)
+    name: str = field("Dynamic Residual", static=True)
 
     get_value: Callable = field(lambda state: jnp.empty(0), as_value=True, static=True)
 
@@ -51,7 +51,7 @@ class Residual(StateData):
 
 class DynamicsConditions(StateData):
 
-    tag: str = field("Dynamics", static=True)
+    name: str = field("Dynamics", static=True)
 
     @property
     def active_residuals(self) -> tuple[Residual, ...]:
@@ -72,7 +72,7 @@ class Control(StateData):
         The name of the control variable. Defaults to 'Control Variable'.
     active : bool
         Indicates whether the control variable is active or not. Defaults to False.
-    path: DataPath
+    path: TreePath
         Location of the control variable in the overall state data structure.
     initial_guess : float
         An initial guess for the control variable's value. Defaults to None.
@@ -80,9 +80,9 @@ class Control(StateData):
         The current value of the control variable. Initialized as a 1x1 zero array.
 
     """
-    tag: str = field("Control", static=True)
+    name: str = field("Control", static=True)
 
-    state_path: DataPath = field(DataPath, static=True)
+    state_path: TreePath = field(TreePath, static=True)
 
     # Inital values aren't actually optional, but an unset one will be flagged in initialize_controls
     initial_value: Optional[float | jnp.ndarray] = None
@@ -92,7 +92,7 @@ class Control(StateData):
     _active: bool = field(False, static=True)
 
     def get_field_name(self):
-        return self.tag.replace(" ", "_").lower()
+        return self.name.replace(" ", "_").lower()
 
     def scale(self, val):
         if self.scaling == "logistic":
@@ -113,13 +113,12 @@ class Control(StateData):
 
     def __post_init__(self):
         if self.bounds[0] > self.bounds[1]:
-            warnings.warn(f"Control '{self.tag}' initialized with out-of-order bounds: {self.bounds}. Reversing...")
+            warnings.warn(f"Control '{self.name}' initialized with out-of-order bounds: {self.bounds}. Reversing...")
             rev_bnds = (self.bounds[1], self.bounds[0])
             object.__setattr__(self, "bounds", rev_bnds)
 
         if self.initial_value is not None:
             object.__setattr__(self, "initial_value", jnp.clip(self.initial_value, self.bounds[0] * 1.10, self.bounds[1] * 0.90))
-
 
 class SurfaceControl(Control):
     """
@@ -131,7 +130,7 @@ class SurfaceControl(Control):
 
     Attributes
     ----------
-    tag : str
+    name : str
         The name of the aerodunamic control variable. Defaults to 'Surface Control Variable'.
     surfaces : list[Component]
         A list of surfaces associated with the control variable. Defaults to None.
@@ -147,14 +146,14 @@ class SurfaceControl(Control):
     """
 
     # Attribute          Type                        Default Value
-    tag: str = field("Surface Control Variable", static=True)
+    name: str = field("Surface Control Variable", static=True)
     surfaces: tuple[Component] | None = None
 
     stability: StabilityData = field(StabilityData)
 
 
 class ControlsConditions(StateData):
-    tag: str = field("Controls", static=True)
+    name: str = field("Controls", static=True)
 
     _default_paths: dict = field(lambda: {
         "bank_angle": (("frames", "body", "inertial_rotations"), slice(None)),
@@ -169,8 +168,8 @@ class ControlsConditions(StateData):
                 self,
                 ctrl,
                 Control(
-                    tag=ctrl.replace('_', " ").title(),
-                    state_path=DataPath(path=ctrl_path, path_slice=path_slice),
+                    name=ctrl.replace('_', " ").title(),
+                    state_path=TreePath(path=ctrl_path, path_slice=path_slice),
                 ),
             )
         return super().__post_init__()

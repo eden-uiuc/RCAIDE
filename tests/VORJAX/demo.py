@@ -7,7 +7,7 @@ from flowtangent.core._systems import Aircraft
 from flowtangent.library.components import Areas
 from flowtangent.data import units
 
-from flowtangent.utils import configure_environment, DataPath
+from flowtangent.utils import configure_environment, TreePath
 
 from flowtangent.framework import State, Settings, Process
 from flowtangent.core._settings import JacobianMap, NumericalSettings
@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
         segments += (
             WingSegment(
-                tag=f"Elliptical Segment {i}",
+                name=f"Elliptical Segment {i}",
                 percent_span_location=eta_start,
                 root_chord_percent=chord_start,
                 sweeps=sweeps,
@@ -52,14 +52,14 @@ if __name__ == "__main__":
         )
 
     segments += (WingSegment(
-        tag="Tip",
+        name="Tip",
         percent_span_location=1.0,
         root_chord_percent=0.01),)
 
     wing_areas = Areas(reference=S_ref, wetted=2.0 * S_ref)
 
     wing = Wing(
-        tag=f"Elliptical {n_seg}",
+        name=f"Elliptical {n_seg}",
         symmetric=True,
         spans=WingDimensions(projected=span),
         segments=segments,
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         ).update_geometry()
 
     system = Aircraft(
-        tag="VORJAX Model",
+        name="VORJAX Model",
         areas=wing_areas,
         subcomponents=(wing,)
     )
@@ -109,8 +109,8 @@ if __name__ == "__main__":
         n_chordwise=48
     )
 
-    alpha_path  = DataPath(("aerodynamics", "angles", "alpha"), tag="a")
-    lift_path   = DataPath(("aerodynamics", "coefficients", "lift", "total"), tag="CL")
+    alpha_path  = TreePath(("aerodynamics", "angles", "alpha"), name="a")
+    lift_path   = TreePath(("aerodynamics", "coefficients", "lift", "total"), name="CL")
     
     jac_map = JacobianMap(state_inputs=(alpha_path,), state_outputs=(lift_path,))
     num_sets = NumericalSettings(jacobian_map=jac_map)

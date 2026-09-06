@@ -14,32 +14,23 @@ import threading
 import time
 import timeit
 from dataclasses import replace
-from typing import TYPE_CHECKING
+
+import equinox as eqx
 
 # package imports
 import jax
-
-jax.config.update("jax_enable_x64", True)
-
-first_structure = None
-first_treedef = None
-
-import equinox as eqx
 import jax.numpy as jnp
-from jaxopt import Broyden, GaussNewton, ScipyRootFinding
 
 from flowtangent.core._processes import null_step
 from flowtangent.core._state_data._controls import Control, Residual
 from flowtangent.framework import Process, ProcessStep
-from flowtangent.framework.simulation.initialize import *
-from flowtangent.framework.simulation.update import *
+from flowtangent.framework.simulation.initialize import *  #noqa: F403
+from flowtangent.framework.simulation.update import *  #noqa: F403
 from flowtangent.utils import field, scan_for_invalid_JAX_types
 
-# Flowtangent imports
-from .profiles import *
+from . import profiles as pf
 
-if TYPE_CHECKING:
-    from flowtangent.framework import Settings, State, System
+jax.config.update("jax_enable_x64", True)
 
 # -----------------------------------------------------------------------------------------------------------------------
 # Mission Spinner
@@ -90,7 +81,7 @@ def _activate_control(control: str | Control, state):
 
         if control_name not in state.controls.__dataclass_fields__:
             # It's a custom control:
-            new_ctrl = Control(tag=control, _active=True)
+            new_ctrl = Control(name=control, _active=True)
             new_controls = state.controls.add_control_variable(new_ctrl)
         else:
             # It's a pre-existing control: grab the existing one, activate it, and replace it
@@ -129,18 +120,18 @@ def _activate_residual(res: str | Residual, state):
 
 def _initialization_steps():
     return (
-        ProcessStep(tag="State", function=expand_state),
-        ProcessStep(tag="Time", function=initialize_time),
-        ProcessStep(tag="Mass", function=initialize_mass),
-        ProcessStep(tag="Energy", function=initialize_energy),
-        ProcessStep(tag="Inertial Position", function=initialize_inertial_position),
-        ProcessStep(tag="Planetary Position", function=initialize_planetary_position),
-        ProcessStep(tag="Analyses", function=null_step),
+        ProcessStep(name="State", function=expand_state),
+        ProcessStep(name="Time", function=initialize_time),
+        ProcessStep(name="Mass", function=initialize_mass),
+        ProcessStep(name="Energy", function=initialize_energy),
+        ProcessStep(name="Inertial Position", function=initialize_inertial_position),
+        ProcessStep(name="Planetary Position", function=initialize_planetary_position),
+        ProcessStep(name="Analyses", function=null_step),
     )
 
 
 class InitializeSegment(Process):
-    tag: str = "Segment Initialization"
+    name: str = "Segment Initialization"
 
     active_controls: tuple[str | Control, ...] = field(tuple)
     active_residuals: tuple[NamedResidual, ...] = field(tuple)
@@ -152,8 +143,8 @@ class InitializeSegment(Process):
     def __call__(self, state: State, system: System, settings: Settings, validate_controls=False):
 
         if settings.DEBUG_MODE:
-            scan_for_invalid_JAX_types(state, f"Pre-{self.tag} State")
-            scan_for_invalid_JAX_types(system, f"Pre-{self.tag} System")
+            scan_for_invalid_JAX_types(state, f"Pre-{self.name} State")
+            scan_for_invalid_JAX_types(system, f"Pre-{self.name} System")
 
         current_state = state
 
@@ -191,7 +182,7 @@ class InitializeSegment(Process):
 
         if validate_controls:
             assert current_state.check_controls(verbose=False), (
-                f"During initialization of {self.tag} the number of active controls "
+                f"During initialization of {self.name} the number of active controls "
                 "did not match the number of active residuals.\n"
             )
 
@@ -209,24 +200,24 @@ class InitializeSegment(Process):
 
 def _default_analyses():
     return (
-        ProcessStep(tag="Time Differentials", function=update_time_differentials),
-        ProcessStep(tag="Acceleration", function=update_acceleration),
-        ProcessStep(tag="Angular Acceleration", function=update_angular_acceleration),
-        ProcessStep(tag="Freestream", function=update_freestream),
-        ProcessStep(tag="Orientations", function=update_orientations),
-        ProcessStep(tag="Energy", function=null_step),
-        ProcessStep(tag="Aerodynamics", function=null_step),
-        ProcessStep(tag="Stability", function=null_step),
-        ProcessStep(tag="Mass", function=update_mass_and_weight),
-        ProcessStep(tag="Forces", function=update_forces),
-        ProcessStep(tag="Moments", function=update_moments),
-        ProcessStep(tag="Planetary Position", function=update_planetary_position),
-        ProcessStep(tag="Calculate Residuals", function=flight_dynamics_residuals),
+        ProcessStep(name="Time Differentials", function=update_time_differentials),
+        ProcessStep(name="Acceleration", function=update_acceleration),
+        ProcessStep(name="Angular Acceleration", function=update_angular_acceleration),
+        ProcessStep(name="Freestream", function=update_freestream),
+        ProcessStep(name="Orientations", function=update_orientations),
+        ProcessStep(name="Energy", function=null_step),
+        ProcessStep(name="Aerodynamics", function=null_step),
+        ProcessStep(name="Stability", function=null_step),
+        ProcessStep(name="Mass", function=update_mass_and_weight),
+        ProcessStep(name="Forces", function=update_forces),
+        ProcessStep(name="Moments", function=update_moments),
+        ProcessStep(name="Planetary Position", function=update_planetary_position),
+        ProcessStep(name="Calculate Residuals", function=flight_dynamics_residuals),
     )
 
 
 class AnalyzeSegment(Process):
-    tag: str = field("Segment Analysis", static=True)
+    name: str = field("Segment Analysis", static=True)
 
     steps: tuple[ProcessStep, ...] = field(_default_analyses)
 
@@ -279,7 +270,7 @@ def find_circular_references(obj, path="root", visited=None):
 
 
 class IterateSegment(Process):
-    tag: str = field("Segment Convergence", static=True)
+    name: str = field("Segment Convergence", static=True)
     analyze: Process = field(AnalyzeSegment)
 
     def _get_residuals(self, unknowns, state: "State", system: "System", settings: "Settings"):
@@ -445,11 +436,11 @@ def _reset_controls_and_residuals(
 
 
 def _default_finalize():
-    return (ProcessStep(tag="Deactivate Controls & Residuals", function=_reset_controls_and_residuals),)
+    return (ProcessStep(name="Deactivate Controls & Residuals", function=_reset_controls_and_residuals),)
 
 
 class FinalizeSegment(Process):
-    tag: str = field("Segment Finalization", static=True)
+    name: str = field("Segment Finalization", static=True)
     steps: tuple[ProcessStep, ...] = field(_default_finalize)
 
 
@@ -459,18 +450,18 @@ class FinalizeSegment(Process):
 
 
 class Segment(Process):
-    tag: str = field("Segment", static=True)
+    name: str = field("Segment", static=True)
 
     # Pass-through configuration for InitializeSegment
     active_controls: tuple[str | Control, ...] = field(tuple)
     active_residuals: tuple[NamedResidual, ...] = field(tuple)
     controls_initial_guess: tuple[jnp.ndarray | float, ...] = (0.0, 0.0)
 
-    course_profile: CourseProfile = field(ConstantCourse)
-    position_profile: PositionProfile = field(ConstantAltitude)
-    speed_profile: SpeedProfile = field(ConstantSpeed)
-    velocity_profile: VelocityProfile = field(ConstantAltitudeChangeRate)
-    duration_profile: DurationProfile = field(FixedDistance)
+    course_profile:     pf.CourseProfile = field(pf.ConstantCourse)
+    position_profile:   pf.PositionProfile = field(pf.ConstantAltitude)
+    speed_profile:      pf.SpeedProfile = field(pf.ConstantSpeed)
+    velocity_profile:   pf.VelocityProfile = field(pf.ConstantAltitudeChangeRate)
+    duration_profile:   pf.DurationProfile = field(pf.FixedDistance)
 
     # Global dynamics variables
     sideslip_angle: float = 0.0
@@ -485,7 +476,7 @@ class Segment(Process):
         if len(self.steps) == 0:
             # 1. Build the steps, passing the controls configuration directly into InitializeSegment
             init_step = InitializeSegment(
-                tag=f"{self.tag} Initialization",
+                name=f"{self.name} Initialization",
                 active_controls=self.active_controls,
                 active_residuals=self.active_residuals,
                 controls_initial_guess=self.controls_initial_guess,
@@ -505,8 +496,8 @@ class Segment(Process):
                 ),
             )
 
-            iter_step = IterateSegment(tag=f"{self.tag} Iteration")
-            fin_step = FinalizeSegment(tag=f"{self.tag} Finalization")
+            iter_step = IterateSegment(name=f"{self.name} Iteration")
+            fin_step = FinalizeSegment(name=f"{self.name} Finalization")
 
             # 2. Safely lock them into the frozen object
             object.__setattr__(self, "steps", (init_step, iter_step, fin_step))
@@ -540,7 +531,7 @@ class Segment(Process):
         if settings.DEBUG_MODE:
             for step in self.analyze.steps:
                 if isinstance(step, ProcessStep) and not isinstance(step, Process) and step.function is null_step:
-                    print(f"Warning: Skipping {step.tag} analysis due to missing function.")
+                    print(f"Warning: Skipping {step.name} analysis due to missing function.")
 
         return super().__call__(state, system, settings)
 
@@ -551,14 +542,14 @@ class Segment(Process):
 
 
 class FixedSegment(Segment):
-    tag: str = field("Fixed Segment", static=True)
+    name: str = field("Fixed Segment", static=True)
 
     def __post_init__(self):
         # Only build the default steps if the user didn't explicitly provide custom ones
         if len(self.steps) == 0:
             # 1. Build the steps, passing the controls configuration directly into InitializeSegment
             init_step = InitializeSegment(
-                tag=f"{self.tag} Initializations",
+                name=f"{self.name} Initializations",
                 active_controls=self.active_controls,
                 active_residuals=self.active_residuals,
                 controls_initial_guess=self.controls_initial_guess,
@@ -579,10 +570,10 @@ class FixedSegment(Segment):
             )
 
             iter_step = AnalyzeSegment(
-                tag=f"{self.tag} Analysis",
+                name=f"{self.name} Analysis",
                 steps=_default_analyses()[:-1],  # Skip Residual Calculation
             )
-            fin_step = FinalizeSegment(tag=f"{self.tag} Finalization")
+            fin_step = FinalizeSegment(name=f"{self.name} Finalization")
 
             # 2. Safely lock them into the frozen object
             object.__setattr__(self, "steps", (init_step, iter_step, fin_step))
@@ -600,7 +591,7 @@ class FixedSegment(Segment):
 # @chex.dataclass(kw_only=True)
 # class OptimalSegment(Process):
 
-#     tag:                    str    = 'Optimize Segment'
+#     name:                    str    = 'Optimize Segment'
 #     optimization_method:    str    = 'SLSQP'
 #     display_optimization:   bool   = False
 
@@ -622,7 +613,7 @@ class FixedSegment(Segment):
 
 #         return self.state, self.settings, self.system
 
-#     def __call__(self, *args, **kwargs) -> Tuple["rcf.State", "rcf.System", "rcf.Settings"]:
+#     def __call__(self, *args, **kwargs) -> Tuple[State, System, Settings]:
 
 #         # Fix Bounds
 #         NCP = self.state.numerics.number_of_control_points
@@ -675,9 +666,9 @@ class FixedSegment(Segment):
 # # Energy Optimal Segments
 
 # def energy_use(
-#         state: "rcf.State",
-#         system: "rcf.System",
-#         settings: "rcf.Settings"
+#         state: State,
+#         system: System,
+#         settings: Settings
 # ):
 
 #     energy_start    = state.energy.total_energy[0]
@@ -690,7 +681,7 @@ class FixedSegment(Segment):
 # @chex.dataclass(kw_only=True)
 # class EnergyOptimalCruise(OptimalSegment):
 
-#     tag: str = 'Energy Optimal Cruise'
+#     name: str = 'Energy Optimal Cruise'
 
 #     altitude: float = 0.0
 #     distance: float = 0.0
@@ -706,7 +697,7 @@ class FixedSegment(Segment):
 # @chex.dataclass(kw_only=True)
 # class EnergyOptimalAltitudeChange(OptimalSegment):
 
-#     tag: str = 'Energy Optimal Altitude Change'
+#     name: str = 'Energy Optimal Altitude Change'
 
 #     altitude_start: float = 0.0
 #     altitude_end:   float = 0.0

@@ -13,15 +13,14 @@ from typing import Optional
 # package imports
 import equinox as eqx
 import jax
-
-jax.config.update("jax_enable_x64", True)
-
 import jax.numpy as jnp
 import numpy as np
 
 # Flowtangent imports
 from flowtangent.data import units
 from flowtangent.utils.io import _ft_root, register
+
+jax.config.update("jax_enable_x64", True)
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Thermo Database

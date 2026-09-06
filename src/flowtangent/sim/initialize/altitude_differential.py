@@ -8,17 +8,19 @@
 
 # Package Imports
 
+# Flowtangent Imports
+from __future__ import annotations
+
 import jax.numpy as jnp
 
-# Flowtangent Imports
-import flowtangent.framework as rcf
+from ... import Settings, State, System
 
 # -------------------------------------------------------------------------------
 #  Stateful/Framework Version
 # -------------------------------------------------------------------------------
 
 
-def initialize_altitude_differential(state: "rcf.state", settings: "rcf.settings", system: "rcf.systems"):
+def initialize_altitude_differential(state: State, settings: Settings, system: System):
     """
     Framework version of initialize_altitude_differential
 

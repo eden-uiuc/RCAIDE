@@ -21,15 +21,13 @@ from flowtangent.framework import ProcessStep
 from flowtangent.framework.simulation.segments import Segment
 from flowtangent.utils import field
 
-from .profiles import *
-
 # ----------------------------------------------------------------------------------------------------------------------
 #  Cruise
 # ----------------------------------------------------------------------------------------------------------------------
 
 
 class Cruise(Segment):
-    tag: str = "Cruise"
+    name: str = "Cruise"
 
     distance: float = 0.0
 
@@ -42,13 +40,13 @@ class Cruise(Segment):
 def _test_cruise_controls():
     return (
         Control(
-            tag="Lift Coefficient",
+            name="Lift Coefficient",
             state_path=("aerodynamics", "coefficients", "lift", "total"),
-            path_indices=(slice(None), 0),
+            path_slice=(slice(None), 0),
             _active=True,
         ),
         Control(
-            tag="Drag Coefficient",
+            name="Drag Coefficient",
             state_path=("aerodynamics", "coefficients", "drag", "total"),
             path_indices=(slice(None), 0),
             _active=True,
@@ -104,7 +102,7 @@ def _build_dynamics(
 
 
 class TestCSACruise(Cruise):
-    tag: str = "Constant Speed & Altitude Cruise"
+    name: str = "Constant Speed & Altitude Cruise"
 
     altitude: float = 1.0
     air_speed: float = 1.0
@@ -121,7 +119,7 @@ class TestCSACruise(Cruise):
         initialize_dynamics = _build_dynamics(self.altitude, self.distance, self.air_speed, self.sideslip_angle)
 
         # 3. Functionally append to the InitializeSegment
-        new_init = self.initialize.append(ProcessStep(tag="Dynamics and Controls", function=initialize_dynamics))
+        new_init = self.initialize.append(ProcessStep(name="Dynamics and Controls", function=initialize_dynamics))
 
         # 4. Overwrite the underlying tuple, NOT the `@property`
         new_steps = (new_init, self.iterate, self.finalize)

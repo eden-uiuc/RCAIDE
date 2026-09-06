@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 import os
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
 import equinox as eqx
@@ -66,7 +67,7 @@ def update(obj, where_or_updates, val=None):
             "or a sequence of updates."
         )
 
-    where_fn = lambda s: get_all_targets(s, paths)
+    where_fn = partial(get_all_targets, input_map=paths)
     vals = tuple(p.value for p in paths)
     return eqx.tree_at(where_fn, obj, vals)
 
@@ -162,7 +163,7 @@ def get_all_targets(s: Any, input_map: Sequence[str | tuple | TreePath]) -> tupl
 
 def is_equivalent(a, b):
     """Safely checks deep equality between any two PyTrees, arrays, or scalars."""
-    if type(a) != type(b):
+    if type(a) is not type(b):
         return False
 
     try:
@@ -292,8 +293,10 @@ def inspect_leaves(tree, mask, settings: Settings, tree_name:str="Tree", depth:i
         if getattr(settings, 'verbose', False):
             print(f"\n - {tree_name.title()} leaf structure log saved to {output_file}")
 
-def scan_for_invalid_JAX_types(pytree, name="PyTree") -> None:
-    print(f"--- Scanning {name} for invalid dynamic leaves ---")
+def scan_for_invalid_JAX_types(pytree, name: Optional[str]=None) -> None:
+    tree_name = getattr(pytree, "name", "PyTree")
+    scan_name = tree_name if name is None else tree_name
+    print(f"--- Scanning {scan_name} for invalid dynamic leaves ---")
     found_invalid = False
 
     def check_leaf(path, leaf):
@@ -313,13 +316,13 @@ def scan_for_invalid_JAX_types(pytree, name="PyTree") -> None:
                 else:
                     path_str += f"<{p}>"
 
-            print(f"Invalid JAX Type Found: {name}{path_str}\n   Type:  {type(leaf)}\n   Value: {leaf}\n")
+            print(f"Invalid JAX Type Found: {scan_name}{path_str}\n   Type:  {type(leaf)}\n   Value: {leaf}\n")
         return leaf
 
     tree_map_with_path(check_leaf, pytree)
 
     if not found_invalid:
-        print(f"{name} is a valid PyTree.\n")
+        print(f"{scan_name} is a valid PyTree.\n")
 
 # -----------------------------------------------------------------------------
 # EXPLICIT FACADE EXPORTS
