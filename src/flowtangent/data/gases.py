@@ -270,12 +270,12 @@ def __dir__():
 @lru_cache(maxsize=1)
 def _build_air():
     """Private builder for standard air."""
-    air =  Gas(
+    air = Gas(
         fractions_dict={
-            "O2":0.2314,
-            "AR":0.0128,
-            "CO2":0.0006,
-            "N2":0.7552,
+            "O2": 0.2314,
+            "AR": 0.0128,
+            "CO2": 0.0006,
+            "N2": 0.7552,
         },
     )
     return air
@@ -336,6 +336,7 @@ ATOMIC_MASSES = {
     "AR": 39.948,
     "S": 32.065,
 }
+
 
 def parse_chemkin_thermo(filepath: str, output_path: str):
     database = {}

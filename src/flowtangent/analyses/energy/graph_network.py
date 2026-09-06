@@ -94,11 +94,12 @@ def build_analysis_from_network(network: GraphNetwork):
         return net_transmit
 
     node_steps = tuple(
-            ProcessStep(
-                name=f"{ID}",
-                function=make_node_function(ID),
-            ) for ID in analysis_network._execution_order
+        ProcessStep(
+            name=f"{ID}",
+            function=make_node_function(ID),
         )
+        for ID in analysis_network._execution_order
+    )
 
     net_step = ProcessStep(
         name=f"{analysis_network.network_id}",

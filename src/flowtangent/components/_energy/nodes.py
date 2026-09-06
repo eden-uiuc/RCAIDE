@@ -39,13 +39,13 @@ from flowtangent.utils import field, register
 class Efficiencies(eqx.Module):
     total: float | jax.Array = 1.0
 
-    #fmt: off
+    # fmt: off
     mechanical: float | jax.Array = 1.0
     electrical: float | jax.Array = 1.0
     fuel:       float | jax.Array = 1.0
     flow:       float | jax.Array = 1.0
     force:      float | jax.Array = 1.0
-    #fmt: on
+    # fmt: on
 
 
 GraphDomain = Literal["flow", "mechanical", "electrical", "fuel", "force", "residual"]
@@ -214,7 +214,7 @@ class Splitter(GraphNode):
 # ----------------------------------------------------------------------------------------------------------------------
 @register
 class FlowOpPoint(eqx.Module):
-    #fmt: off
+    # fmt: off
     pressure_ratio:     float | jax.Array = 1.0
     pressure_recovery:  float | jax.Array = 1.0
 
@@ -231,7 +231,8 @@ class FlowOpPoint(eqx.Module):
     noise_speed:    float | jax.Array = 0.0
 
     eff: Efficiencies = field(Efficiencies)
-    #fmt: on
+    # fmt: on
+
 
 @register
 class BleedFlow(GraphNode):
@@ -304,11 +305,13 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
             add_mixer = self.add_mixer and not hasattr(self, "mixer")
 
         if add_mixer:
-            parent_inputs = tuple(replace(i, network_id="parent."+i.network_id) for i in self.flow_inputs)
-            mixer = FlowNode(name="Mixer",
-                             inputs=parent_inputs,
-                             add_mixer=False,
-                             design_parameters=FlowOpPoint(pressure_ratio=1.0),)
+            parent_inputs = tuple(replace(i, network_id="parent." + i.network_id) for i in self.flow_inputs)
+            mixer = FlowNode(
+                name="Mixer",
+                inputs=parent_inputs,
+                add_mixer=False,
+                design_parameters=FlowOpPoint(pressure_ratio=1.0),
+            )
 
             other_inputs = tuple(i for i in self.inputs if i not in self.flow_inputs)
             object.__setattr__(
@@ -321,7 +324,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
         M = self.get_primary_input_state(state, "flow", "mach_number")
 
         if len(self.flow_inputs) == 1:
-            #fmt: off
+            # fmt: off
             mixed_fluid = self.get_primary_input_state(state, "flow", "fluid")
             T_t         = self.get_primary_input_state(state, "flow", "stagnation_temperature")
             P_t         = self.get_primary_input_state(state, "flow", "stagnation_pressure")
@@ -330,7 +333,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
             # fmt: on
 
         else:
-            #fmt: off
+            # fmt: off
             # Get incoming flow values
             W_list     = [i.get_value(state, "mass_flow_rate") for i in self.flow_inputs]
             T_t_list   = [i.get_value(state, "stagnation_temperature") for i in self.flow_inputs]
@@ -341,7 +344,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
             W_fracs   = jnp.concatenate(W_list, axis=-1)
             T_t_fracs = jnp.concatenate(T_t_list, axis=-1)
             h_t_fracs = jnp.concatenate(h_t_list, axis=-1)
-            #fmt: on
+            # fmt: on
 
             # Calculate mixed baseline mass flow and enthalpy
             W_mix = self.apply_domain_op(jnp.sum, state, "flow", "mass_flow_rate")
@@ -446,10 +449,10 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
         mdot: float | jnp.ndarray,
         area: float | jnp.ndarray,
     ):
-        #fmt: off
+        # fmt: off
         gamma   = jnp.atleast_2d(gas.compute_gamma(T_t))
         R       = jnp.atleast_2d(gas.R_specific)
-        #fmt: on
+        # fmt: on
 
         # Non-dimensional mass flow
         Q = (mdot * jnp.sqrt(R * T_t)) / (P_t * area * jnp.sqrt(gamma))
@@ -473,11 +476,11 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
         T = jnp.atleast_2d(T_t / (1.0 + (gamma - 1.0) / 2.0 * M**2))
         P = jnp.atleast_2d(P_t / (1.0 + (gamma - 1.0) / 2.0 * M**2) ** (gamma / (gamma - 1.0)))
 
-        #fmt: off
+        # fmt: off
         h_t = jnp.atleast_2d(gas.compute_enthalpy(T_t))
         h   = jnp.atleast_2d(gas.compute_enthalpy(T))
         u   = jnp.atleast_2d(jnp.sqrt(2.0 * (h_t - h)))
-        #fmt: on
+        # fmt: on
 
         return T, P, h_t, h, u, M
 
@@ -496,11 +499,11 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
         gas, T_t, P_t, W_in, FAR, M = self.mix_inputs(state)
         W_out = W_in * (1.0 - self.bleed_MFR_frac(state))
 
-        #fmt: off
+        # fmt: off
         PR    = jnp.atleast_2d(system.energy.nodes[self.network_id].design_parameters.pressure_ratio)
         P_rec = jnp.atleast_2d(system.energy.nodes[self.network_id].design_parameters.pressure_recovery)
         n_isn = jnp.atleast_2d(system.energy.nodes[self.network_id].design_parameters.eff.flow)
-        #fmt: on
+        # fmt: on
 
         if not statics:
             M = jnp.atleast_2d(0.0)

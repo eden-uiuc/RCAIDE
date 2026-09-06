@@ -60,12 +60,12 @@ class BatchedAnalysis(Process):
             self.state_inputs = state_inputs
         else:
             ctrls = self.analyze.controls
-            #fmt: off
+            # fmt: off
             ctrl_inputs = tuple(TreePath(
                 path=c.state_path.path,
                 value=jnp.atleast_3d(c.initial_value)) for c in ctrls)
             self.state_inputs = self.state_inputs + ctrl_inputs
-            #fmt: on
+            # fmt: on
 
     def _batch_inputs(self, mode="mesh"):
 

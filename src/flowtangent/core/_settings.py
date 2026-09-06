@@ -99,12 +99,12 @@ class JacobianMap(eqx.Module):
         _filter_in = lambda str: tuple(p for p in self.inputs if p.path[0].lower() == str)  # noqa: E731
         _filter_out = lambda str: tuple(p for p in self.inputs if p.path[0].lower() == str)  # noqa: E731
 
-        #fmt: off
+        # fmt: off
         self.state_inputs   = _filter_in("state") if state_inputs is None else state_inputs
         self.system_inputs  = _filter_in("system") if system_inputs is None else system_inputs
         self.state_outputs  = _filter_out("state") if state_outputs is None else state_outputs
         self.system_outputs = _filter_out("system") if system_outputs is None else system_outputs
-        #fmt: on
+        # fmt: on
 
         self._n_st = len(self.state_inputs)
         self._n_sys = len(self.system_inputs)

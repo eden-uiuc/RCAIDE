@@ -75,13 +75,13 @@ def _resolve_namespaces(node, parent_prefix=""):
             else:
                 return parent_prefix + "." + flat_input_parts[-1]
 
-    #fmt: off
+    # fmt: off
     new_inputs = tuple(
         i if i._assigned
         else replace(i, network_id=parse_input(i.network_id), _assigned=True)
         for i in node.inputs
     )
-    #fmt: on
+    # fmt: on
 
     # Update the node itself
     node = replace(
@@ -279,10 +279,9 @@ class _JetNetwork[DesignType: JetNetDesign](GraphNetwork[DesignType]):
                 s.energy.total_force_vector,
                 s.energy.residual.thrust,
             ),
-            updated_state,(
-                total_force_vector,
-                (total_thrust - state.energy.target_thrust)/state.energy.target_thrust),
-            )
+            updated_state,
+            (total_force_vector, (total_thrust - state.energy.target_thrust) / state.energy.target_thrust),
+        )
 
         # Power Imbalance (Single Spool Only) ----------------------------------
 

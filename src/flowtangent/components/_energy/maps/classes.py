@@ -52,7 +52,7 @@ def interp_2d_extrapolate(x, y, x_grid, y_grid, z_table):
     z11 = z_table[idx_x + 1, idx_y + 1]
 
     # 5. Bilinear combination (carries the gradients smoothly everywhere)
-    #fmt: off
+    # fmt: off
     z = (1.0 - tx) * (1.0 - ty) * z00 + \
         tx * (1.0 - ty) * z10 + \
         (1.0 - tx) * ty * z01 + \

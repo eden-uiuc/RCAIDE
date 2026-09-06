@@ -57,7 +57,7 @@ class Inlet(FlowNode):
         "system.energy.nodes['{network_id}'].design_parameters.exit_mach_number: Optional",
     )
     @tu.outputs(
-        "system.energy.nodes['{network_id}'].design_parameters.A_exit: Optional"
+        "system.energy.nodes['{network_id}'].design_parameters.A_exit: Optional",
         "state.energy.nodes['{network_id}'].flow",
     )
     def transmit(self, state: State, system: Aircraft, settings: Settings):  # type: ignore
@@ -93,12 +93,14 @@ class Inlet(FlowNode):
                     T_t_out=T_t_out,
                     P_t_out=P_t_out,
                     M_out=M_out,
-                    mdot=network_state.mass_flow_rate,)
+                    mdot=network_state.mass_flow_rate,
+                )
 
                 updated_system = eqx.tree_at(
                     lambda s: s.energy.nodes[self.network_id].design_parameters.A_exit,
                     updated_system,
-                    A_out.squeeze(),)
+                    A_out.squeeze(),
+                )
 
         elif statics:
             T_out, P_out, h_t_out, h_out, u_out, M_out = self.statics(
@@ -241,7 +243,8 @@ class Compressor(FlowNode):
             updated_map = eqx.tree_at(
                 lambda m: (m.s_Wc, m.s_PR, m.s_eff, m.s_Nc),
                 system_node.map,
-                (s_Wc, s_PR, s_eff, s_Nc),)
+                (s_Wc, s_PR, s_eff, s_Nc),
+            )
 
             updated_system = eqx.tree_at(
                 lambda s: (
@@ -279,7 +282,8 @@ class Compressor(FlowNode):
                     T_t_out,
                     P_t_out,
                     W_in,
-                    des_params.A_exit,)
+                    des_params.A_exit,
+                )
 
         power = (h_t_out - jnp.atleast_2d(gas.compute_enthalpy(T_t))) * W_in
 
@@ -310,9 +314,10 @@ class Compressor(FlowNode):
         Wc_res = (W_in - state.energy.mass_flow_rate) / W_des
 
         updated_state = eqx.tree_at(
-            lambda s:getattr(s.energy.residual, f"{self.name.lower()}_Wc"),
+            lambda s: getattr(s.energy.residual, f"{self.name.lower()}_Wc"),
             updated_state,
-            Wc_res,)
+            Wc_res,
+        )
 
         return updated_state, updated_system, settings
 
@@ -476,7 +481,8 @@ class Burner(FlowNode):
                 mdot_in=W_in,
                 FAR=FAR,
                 PR=PR,
-                n_b=n_b,)
+                n_b=n_b,
+            )
 
             if statics:
                 T_out, P_out, h_t_out, h_out, u_out, M_out = self.statics(
@@ -484,7 +490,8 @@ class Burner(FlowNode):
                     T_t_out,
                     P_t_out,
                     mdot_out,
-                    des_params.A_exit,)
+                    des_params.A_exit,
+                )
 
         outputs = state_node.flow
 
@@ -624,11 +631,8 @@ class Turbine(FlowNode):
                     s.energy.nodes[self.network_id].map,
                     s.energy.nodes[self.network_id].design_parameters,
                 ),
-                    updated_system,
-                (
-                    updated_map,
-                    updated_design
-                )
+                updated_system,
+                (updated_map, updated_design),
             )
 
         else:
@@ -695,7 +699,8 @@ class Turbine(FlowNode):
         updated_state = eqx.tree_at(
             lambda s: getattr(s.energy.residual, f"{self.name.lower()}_Wp"),
             updated_state,
-            Wp_res,)
+            Wp_res,
+        )
 
         return updated_state, updated_system, settings
 
@@ -722,11 +727,12 @@ def _isentropic_expansion(
 
     return P_t_out, T_t_out, T_out, M_out
 
+
 def _mass_flux(
-        gas: Gas,
-        T_t: jnp.ndarray,
-        P_t: jnp.ndarray,
-        M: jnp.ndarray,
+    gas: Gas,
+    T_t: jnp.ndarray,
+    P_t: jnp.ndarray,
+    M: jnp.ndarray,
 ):
     gamma = gas.compute_gamma(T_t)
     R = gas.R_specific

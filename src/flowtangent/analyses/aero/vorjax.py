@@ -922,7 +922,8 @@ def check_freestream(state: State, system: Aircraft, settings: Settings):
 )
 @io.outputs(
     "system.analysis_data['boundary_conditions']",
-    "system.analysis_data['relative_velocity']",)
+    "system.analysis_data['relative_velocity']",
+)
 def compute_boundary_conditions(state: State, system: Aircraft, settings: Settings):
     """
     Computes the Neumann boundary condition (RHS) for the VLM.
@@ -2175,10 +2176,11 @@ class VORJAX(Process):
     name: str = field("Aerodynamics", static=True)
     steps: tuple = field(lambda: (InitializeVORJAX(), ComputeVORJAX()))
 
-    def __init__(self,
-                 name: str = "Aerodynamics",
-                 steps: tuple = (InitializeVORJAX(), ComputeVORJAX()),
-                 ) -> None:
+    def __init__(
+        self,
+        name: str = "Aerodynamics",
+        steps: tuple = (InitializeVORJAX(), ComputeVORJAX()),
+    ) -> None:
         super().__init__(name=name, steps=steps)
 
     # TODO: Add full drag, trimming, stability analysis

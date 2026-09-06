@@ -467,12 +467,12 @@ class ImplicitAnalysis(Process):
             # All control values are normalized by their initial value, so set initial control value to 1.0
             # Values are rescaled in update_controls when actually added to state
             if ctrl.initial_value is not None:
-                    #fmt: off
-                    control_values.append(jnp.full(
+                # fmt: off
+                control_values.append(jnp.full(
                         (n_cp, 1),
                         ctrl.normalize(ctrl.initial_value))
                     )
-                    #fmt: on
+                # fmt: on
             else:
                 raise ValueError(
                     f"Control {ctrl.name} has no initial value: {ctrl.initial_value}. "
@@ -826,8 +826,13 @@ class ImplicitAnalysis(Process):
 
     @overload
     def run(
-        self, state: State, system: System, settings: Settings, *,
-        initialize: bool = ..., track_history: Literal[True],
+        self,
+        state: State,
+        system: System,
+        settings: Settings,
+        *,
+        initialize: bool = ...,
+        track_history: Literal[True],
     ) -> tuple[State, System, Settings, Process]: ...
 
     @overload

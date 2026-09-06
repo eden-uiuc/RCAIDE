@@ -265,9 +265,13 @@ class Process(ProcessStep):
         self._cached_grad_map = _cached_grad_map
 
         # Handle mutable dictionary default safely
-        self._filter_map = _filter_map if _filter_map is not None else {
-            "energy": r"state\.energy\.nodes\.\[*\].",
-        }
+        self._filter_map = (
+            _filter_map
+            if _filter_map is not None
+            else {
+                "energy": r"state\.energy\.nodes\.\[*\].",
+            }
+        )
 
         self.steps = tuple(ProcessStep.from_function(step) for step in steps)
 

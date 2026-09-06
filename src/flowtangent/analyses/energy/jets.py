@@ -270,10 +270,11 @@ def turbofan_design(state: State, system: Aircraft, settings: Settings) -> Impli
 #  Off-Design Performance Analysis
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 def build_turbojet_performance(
-        network: TurbojetNetwork,
-        operating_parameters:  TurbojetOpPoint,
-    ):
+    network: TurbojetNetwork,
+    operating_parameters: TurbojetOpPoint,
+):
 
     op = operating_parameters
 
@@ -282,17 +283,20 @@ def build_turbojet_performance(
     comp = network.line.engine.compressor
     c_map: CompressorMap = comp.map
 
-    R_bnds = (min(c_map.Rline_grid).item() * 0.5,
-              max(c_map.Rline_grid).item() * 1.5,)
+    R_bnds = (
+        min(c_map.Rline_grid).item() * 0.5,
+        max(c_map.Rline_grid).item() * 1.5,
+    )
 
     # Turbine Map Bounds -------------------------------------------------------
 
     turb = network.line.engine.turbine
     t_map: TurbineMap = turb.map
 
-
-    PR_bnds = (min(t_map.PR_grid).item() * 0.5,
-               max(t_map.PR_grid).item() * 1.5,)
+    PR_bnds = (
+        min(t_map.PR_grid).item() * 0.5,
+        max(t_map.PR_grid).item() * 1.5,
+    )
 
     # Composite Bounds ---------------------------------------------------------
 
@@ -381,40 +385,50 @@ def turbofan_performance(network: TurbofanNetwork):
     fan = network.line.engine.fan
     fan_map: CompressorMap = fan.map
 
-    fan_R_bnds = (min(fan_map.Rline_grid).item() * 0.5,
-                  max(fan_map.Rline_grid).item() * 1.5,)
+    fan_R_bnds = (
+        min(fan_map.Rline_grid).item() * 0.5,
+        max(fan_map.Rline_grid).item() * 1.5,
+    )
 
     # LPC Map Bounds -----------------------------------------------------------
 
     lpc = network.line.engine.lpc
     lpc_map: CompressorMap = lpc.map
 
-    lpc_R_bnds = (min(lpc_map.Rline_grid).item() * 0.5,
-                  max(lpc_map.Rline_grid).item() * 1.5,)
+    lpc_R_bnds = (
+        min(lpc_map.Rline_grid).item() * 0.5,
+        max(lpc_map.Rline_grid).item() * 1.5,
+    )
 
     # HPC Map Bounds -----------------------------------------------------------
 
     hpc = network.line.engine.hpc
     hpc_map: CompressorMap = hpc.map
 
-    hpc_R_bnds = (min(hpc_map.Rline_grid).item() * 0.5,
-                  max(hpc_map.Rline_grid).item() * 1.5,)
+    hpc_R_bnds = (
+        min(hpc_map.Rline_grid).item() * 0.5,
+        max(hpc_map.Rline_grid).item() * 1.5,
+    )
 
     # HPT Map Bounds -----------------------------------------------------------
 
     hpt = network.line.engine.hpt
     hpt_map: TurbineMap = hpt.map
 
-    hpt_PR_bnds = (min(hpt_map.PR_grid).item() * 0.5,
-                   max(hpt_map.PR_grid).item() * 1.5,)
+    hpt_PR_bnds = (
+        min(hpt_map.PR_grid).item() * 0.5,
+        max(hpt_map.PR_grid).item() * 1.5,
+    )
 
     # LPT Map Bounds -----------------------------------------------------------
 
     lpt = network.line.engine.lpt
     lpt_map: TurbineMap = lpt.map
 
-    lpt_PR_bnds = (min(lpt_map.PR_grid).item() * 0.5,
-                   max(lpt_map.PR_grid).item() * 1.5,)
+    lpt_PR_bnds = (
+        min(lpt_map.PR_grid).item() * 0.5,
+        max(lpt_map.PR_grid).item() * 1.5,
+    )
 
     # Control Setup -----------------------------------------------------------
 
@@ -517,10 +531,16 @@ def turbofan_performance(network: TurbofanNetwork):
     # Variable Setup -----------------------------------------------------------
 
     ctrls = (
-        FAN_Rline, LP_Rline, HP_Rline,
-        HPT_PR, LPT_PR,
-        HPN, LPN,
-        W, FAR, BPR,
+        FAN_Rline,
+        LP_Rline,
+        HP_Rline,
+        HPT_PR,
+        LPT_PR,
+        HPN,
+        LPN,
+        W,
+        FAR,
+        BPR,
     )
 
     res = (
@@ -580,7 +600,7 @@ def _design_update_batched(
     OD_points = design_points[1:]
     n_OD = len(OD_points)
 
-    #fmt: off
+    # fmt: off
     alt_val = jnp.array([d.altitude for d in OD_points]).reshape((-1, 1))
     a0_val  = des_state.freestream.atmosphere.compute_speed_of_sound(alt_val)
     M0_val  = jnp.array([d.mach_number for d in OD_points]).reshape((-1, 1))
@@ -598,7 +618,7 @@ def _design_update_batched(
     # Outer Loop Controls
     F       = TreePath("state.energy.target_thrust", value=F_val)
     T       = TreePath("state.energy.target_temperature", value=T_val)
-    #fmt: on
+    # fmt: on
 
     OD_analysis = BatchedAnalysis(
         name="Off-Design Analysis",
