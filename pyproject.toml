@@ -66,10 +66,14 @@ ignore = [
 ]
 
 [tool.ruff.format]
-# Use double quotes for strings (standard Python convention)
-quote-style = "double"
-# Indent with 4 spaces
-indent-style = "space"
+quote-style = "double" # Use double quotes for strings
+indent-style = "space" # Indent with 4 spaces
+skip-magic-trailing-comma = false  # Don't auto collapse things on separate lines
+
+line-ending = "auto"
+
+docstring-code-format = true
+docstring-code-line-length = 60
 
 [tool.ruff.lint.isort]
 # Import block order
