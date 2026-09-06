@@ -271,7 +271,9 @@ def inspect_leaves(tree, mask, settings: Settings, tree_name:str="Tree", depth:i
             summary[prefix]["types"].add(type(leaf).__name__)
 
     lines = []
-    header = f"{'PyTree Path (Depth ' + str(depth) + ')':<{35 + 15 * depth}} | {'Kept':<6} | {'Pruned':<6} | {'Common Kept Types'}"
+    header = f"{'PyTree Path (Depth ' +
+                str(depth) +
+                ')':<{35 + 15 * depth}} | {'Kept':<6} | {'Pruned':<6} | {'Common Kept Types'}"
     lines.append(header)
     lines.append("-" * 100)
 

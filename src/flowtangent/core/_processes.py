@@ -322,7 +322,8 @@ class Process(ProcessStep):
                 final_st = eqx.tree_at(lambda s: s.process_jacobian, final_st, jacobian_matrix)
                 return final_st, final_sys, final_setts
             else:
-                warnings.warn(f"Process '{self.name}' Jacobian called with no Jacbian Map set. Jacobian will not be calculated.")
+                warnings.warn(f"Process '{self.name}' Jacobian called with no Jacbian Map set. "
+                              "Jacobian will not be calculated.")
 
         # Standard Execution Path
         for step in self.steps[self.initial_step :]:
@@ -392,7 +393,8 @@ class Process(ProcessStep):
                 if flat_sys.size > 0:
                     # System is usually dense across the batch
                     B_total = B * T
-                    basis_sys = jnp.eye(B_total * N_o).reshape(B_total * N_o, B, T, N_o) if has_B else jnp.eye(B_total * N_o).reshape(B_total * N_o, T, N_o)
+                    basis_sys = (jnp.eye(B_total * N_o).reshape(B_total * N_o, B, T, N_o) if has_B
+                                 else jnp.eye(B_total * N_o).reshape(B_total * N_o, T, N_o))
                     jac_sys_tuple = jax.vmap(vjp_fn)(basis_sys)
 
                     jac_sys = jac_sys_tuple[1].reshape(B, T, N_o, -1) if has_B else jac_sys_tuple[1].reshape(T, N_o, -1)
@@ -424,12 +426,12 @@ class Process(ProcessStep):
                 if flat_sys.size > 0:
                     # System is dense across everything
                     B_total = B * T if has_B else T
-                    basis_sys = jnp.eye(B_total * N_o).reshape(B_total * N_o, B, T, N_o) if has_B else jnp.eye(B_total * N_o).reshape(B_total * N_o, T, N_o)
+                    basis_sys = (jnp.eye(B_total * N_o).reshape(B_total * N_o, B, T, N_o) if has_B
+                                 else jnp.eye(B_total * N_o).reshape(B_total * N_o, T, N_o))
                     jac_sys_tuple = jax.vmap(vjp_fn)(basis_sys)
 
-                    # You may need to adapt this reshape depending on if System variables are constant over time or time-varying
                     jac_sys = jac_sys_tuple[1].reshape(B, T, N_o, -1) if has_B else jac_sys_tuple[1].reshape(T, N_o, -1)
-                    # Note: Concatenating State (5D) with System (4D) requires flattening the time dimensions for the solver
+                    # Note: Concatenating State with System requires flattening the time dimensions for the solver
                     batched_jacobian = (jac_st, jac_sys) # Returned as a tuple for optimal control solvers
                 else:
                     batched_jacobian = jac_st

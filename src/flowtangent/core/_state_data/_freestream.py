@@ -99,7 +99,7 @@ class Freestream(StateData):
     mach_number: jnp.ndarray = empty_array()
     reynolds_number: jnp.ndarray = empty_array()
 
-    delta_ISA: jnp.ndarray = empty_array()
+    delta_ISA: jnp.ndarray = empty_array() # noqa: N815
     gamma: jnp.ndarray = empty_array()
     Cp: jnp.ndarray = empty_array()
     R: jnp.ndarray = empty_array()

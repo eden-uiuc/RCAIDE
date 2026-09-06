@@ -11,9 +11,9 @@ from flowtangent.library.components.energy.maps.classes import CompressorMap, Tu
 from flowtangent.data import units
 from flowtangent.utils.io import _ft_root
 
-# -----------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 # Map Specifications (Sourced from PyCycle)
-# -----------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 
 _MAP_DIR = _ft_root() / "library/data/turbo_maps"
 STUB_FILE = _ft_root() / "library/components/energy/maps/data.pyi"

@@ -60,7 +60,9 @@ class BatchedAnalysis(Process):
                 self.state_inputs = state_inputs
             else:
                 ctrls = self.analyze.controls
-                ctrl_inputs = tuple(TreePath(path=c.state_path.path, value=jnp.atleast_3d(c.initial_value)) for c in ctrls)
+                ctrl_inputs = tuple(TreePath(
+                    path=c.state_path.path,
+                    value=jnp.atleast_3d(c.initial_value)) for c in ctrls)
                 self.state_inputs = self.state_inputs + ctrl_inputs
 
     def _batch_inputs(self, mode='mesh'):
@@ -540,9 +542,9 @@ class ShardedDatasetGenerator:
         self.logger.info(f"{self.name} Complete.")
 
 
-# -----------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 # Compression Benchmarking
-# -----------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 
 
 def benchmark_zarr_compression(num_states=1_000_000, chunk_size=100_000):

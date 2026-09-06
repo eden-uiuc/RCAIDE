@@ -1,3 +1,4 @@
+# ruff: noqa: N815
 # flowtangent/Framework/Missions/Conditions/Energy.py
 # (c) Copyright 2024 Aerospace Research Community LLC
 #

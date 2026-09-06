@@ -542,7 +542,11 @@ def turbofan_performance(network: TurbofanNetwork):
 #  Multi-Point Design Analysis
 # ----------------------------------------------------------------------------------------------------------------------
 
-def _design_update_batched(state: State, system: Aircraft, settings: Settings) -> tuple[State, Aircraft, Settings, Process]:
+def _design_update_batched(
+        state: State,
+        system: Aircraft,
+        settings: Settings
+    ) -> tuple[State, Aircraft, Settings, Process]:
 
     engine = system.energy.line.engine
     design_points = engine.design_parameters
@@ -632,7 +636,10 @@ def design_turbofan_mp(state: State, system: Aircraft, settings: Settings) -> tu
     OD_TSFC = jnp.array([d.TSFC for d in OD_points]).reshape((-1, 1))
     d_TSFC = Residual(
         name="Off-Design TSFC",
-        get_value=lambda s: jnp.where(OD_TSFC, (s.energy.nodes['network.line.engine'].fuel.TSFC - OD_TSFC)/OD_TSFC, OD_TSFC))
+        get_value=lambda s: jnp.where(
+            OD_TSFC,
+            (s.energy.nodes['network.line.engine'].fuel.TSFC - OD_TSFC)/OD_TSFC, OD_TSFC)
+        )
 
     def split_residuals(swap_state, swap_system, swap_settings):
 

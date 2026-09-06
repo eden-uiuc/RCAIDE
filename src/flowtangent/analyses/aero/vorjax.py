@@ -28,7 +28,7 @@ import jax.numpy as jnp
 # package imports
 import sklearn
 
-from ... import Aircraft, Settings, State, TreePath, field
+from ... import Aircraft, Settings, State, TreePath, field, method_field
 from ...components._wings import Sweeps, Wing, WingSegment
 from ...core._processes import Process, ProcessStep
 from ...data import units as U  # noqa: N812
@@ -1943,9 +1943,9 @@ class SupersonicSettings(eqx.Module):
     begin_blend_mach: float = 0.5
     end_blend_mach: float = 2.0
 
-    peak_CL_multiplier: float = 1.15
+    peak_CL_multiplier: float = 1.15 # noqa: N815
     peak_mach_number: Optional[float] = None
-    _transonic_CL_blender: Callable = field(ensemble_CL_spline, as_value=True, static=True)
+    _transonic_CL_blender: Callable = method_field(ensemble_CL_spline) #noqa: N815
 
     begin_drag_rise_mach_number: float = 0.95
     end_drag_rise_mach_number: float = 1.2
@@ -2038,7 +2038,7 @@ class Vortices(eqx.Module):
         3, static=True
     )  # Min value 3 to allow front and rear control surfaces
 
-    # Can set separate values for each wing/fuselage (ex. [8, 4] for [wing, stab] and [4, 2] for [fuselage, nacelle]), else uses global value above
+    # Can set separate values for each wing/fuselage, else uses global value above
     wings_n_spanwise: Optional[Iterable[int] | int] = field(None, static=True)
     wings_n_chordwise: Optional[Iterable[int] | int] = field(None, static=True)
 

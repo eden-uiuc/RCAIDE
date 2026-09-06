@@ -219,7 +219,7 @@ class Variable(Module):
     - 'log_bounded': Exponential sigmoid. Best for variables with strict upper/lower bounds.
     - 'algebraic_bounded': Slower-decaying sigmoid. Best for tight bounds where gradient starvation is a risk.
     - 'softplus': One-sided bound (y > 0). Best for mass, pressure, or physical properties without an upper limit.
-    - 'logarithmic': Base-10 scaling. Best for strictly positive variables spanning multiple orders of magnitude (e.g., Reynolds).
+    - 'logarithmic': Base-10 scaling. Best for strictly positive vars. spanning multiple orders of magnitude (e.g., Re).
     """
 
     state_path: ftu.TreePath = ftu.static_field(ftu.TreePath)
@@ -311,7 +311,7 @@ class Variable(Module):
             needs_clip = jnp.any(safe_init != self.initial_value)
             jax.lax.cond(
                 needs_clip,
-                lambda: jax.debug.print("Warning: initial_value for '{name}' was outside bounds and clipped.", name=self.name),
+                lambda: jax.debug.print(f"Warning: initial_value for '{self.name}' was outside bounds and clipped."),
                 lambda: None
             )
 
@@ -416,7 +416,9 @@ class ImplicitAnalysis(Process):
             print(f"\n{'Active Controls':<{pad+2}}| {'Init. Values':<13}| Bounds")
             print("-"*65)
             for control in active_controls:
-                print(f"- {control.name:<{pad}}| {ftu.format_array(control.initial_value, width=12):>12} | {ftu.format_array(jnp.asarray(control.bounds))}")
+                print(f"- {control.name:<{pad}}| "
+                      "{ftu.format_array(control.initial_value, width=12):>12} | "
+                      "{ftu.format_array(jnp.asarray(control.bounds))}")
 
             print("\nActive Residuals")
             print("-"*65)
@@ -465,8 +467,8 @@ class ImplicitAnalysis(Process):
                         ctrl.normalize(ctrl.initial_value))
                     )
             else:
-                raise ValueError(f"Control {ctrl.name} has no initial value: {ctrl.initial_value}."
-                                "Initial value must be a float or an array of size matching the number of analysis control points.")
+                raise ValueError(f"Control {ctrl.name} has no initial value: {ctrl.initial_value}. "
+                                "Must be a float or an array of size matching the number of control points.")
 
         ctrl_state = self._update_controls(state, jnp.concatenate(control_values, axis=0), settings)
 
@@ -736,7 +738,7 @@ class ImplicitAnalysis(Process):
                     print(f"{'='*60}\n")
                 else:
                     sys.exit(f"Graph complexity ({solver_graph_length:,}) higher than "
-                             f"settings.numerical.maximum_graph_complexity ({settings.numerical.maximum_graph_complexity:,}). "
+                             f"maximum_graph_complexity ({settings.numerical.maximum_graph_complexity:,}). "
                              "Terminating.")
 
         if settings.DEBUG_MODE:
@@ -835,7 +837,8 @@ class ImplicitAnalysis(Process):
                   "History returned will be single forward pass with final input values.")
 
         r_st, r_sys, r_setts = self(state, system, settings)
-        f_st, f_sys, f_setts, history = self.analyze.run(r_st, r_sys, r_setts, initialize=initialize, track_history=True)
+        f_st, f_sys, f_setts, history = self.analyze.run(r_st, r_sys, r_setts,
+                                                         initialize=initialize, track_history=True)
         return f_st, f_sys, f_setts, history
 
 

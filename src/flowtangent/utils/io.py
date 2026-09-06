@@ -196,7 +196,8 @@ def save_data(obj, filename: str | Path):
         json.dump(payload, f)
 
     name = getattr(obj, "name", "")
-    print(f"Successfully saved {type(obj).__name__} '{name}' to {file_path}" if name else f"Successfully saved {type(obj).__name__} to {file_path}")
+    print(f"Successfully saved {type(obj).__name__} '{name}' to {file_path}" if name
+          else f"Successfully saved {type(obj).__name__} to {file_path}")
 
 def load_data(filename: str | Path) -> Any:
     with gzip.open(filename, 'rt', encoding='utf-8') as f:
@@ -204,5 +205,6 @@ def load_data(filename: str | Path) -> Any:
 
     obj = deserialize_node(payload)
     name = getattr(obj, "name", "")
-    print(f"Successfully loaded {type(obj).__name__} '{name}' from {filename}" if name else f"Successfully loaded {type(obj).__name__} from {filename}")
+    print(f"Successfully loaded {type(obj).__name__} '{name}' from {filename}" if name
+          else f"Successfully loaded {type(obj).__name__} from {filename}")
     return obj

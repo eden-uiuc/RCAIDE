@@ -118,7 +118,13 @@ class Control(StateData):
             object.__setattr__(self, "bounds", rev_bnds)
 
         if self.initial_value is not None:
-            object.__setattr__(self, "initial_value", jnp.clip(self.initial_value, self.bounds[0] * 1.10, self.bounds[1] * 0.90))
+            object.__setattr__(self,
+                               "initial_value",
+                               jnp.clip(
+                                   self.initial_value,
+                                   self.bounds[0] * 1.10,
+                                   self.bounds[1] * 0.90)
+                                )
 
 class SurfaceControl(Control):
     """

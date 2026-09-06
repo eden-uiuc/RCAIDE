@@ -50,7 +50,7 @@ GraphDomain = Literal["flow", "mechanical", "electrical", "fuel", "force", "resi
 @register
 class GraphInput(eqx.Module):
     domain: GraphDomain = field("flow", static=True)
-    network_ID: str = field("network", static=True)
+    network_id: str = field("network", static=True)
     primary: bool = field(False, static=True)
     _assigned: bool = field(False)
 
@@ -63,14 +63,14 @@ class GraphInput(eqx.Module):
             p_str = "Primary "
         else:
             p_str = ""
-        return p_str + f"{self.domain.title()} Input: {self.network_ID}"
+        return p_str + f"{self.domain.title()} Input: {self.network_id}"
 
     def get_value(self, state:State, value: str):
-        return reduce(getattr, (state.energy.nodes[self.network_ID], self.domain, value))
+        return reduce(getattr, (state.energy.nodes[self.network_id], self.domain, value))
 
 @register
 class GraphNode(Component):
-    network_ID: str = field("energy_node", static=True)
+    network_id: str = field("energy_node", static=True)
 
     inputs: tuple[GraphInput, ...] | GraphInput = field(tuple, static=True)
 
@@ -96,7 +96,7 @@ class GraphNode(Component):
     @property
     @eqx.filter_jit
     def input_node_IDs(self):
-        return tuple(set([i.network_ID for i in self.inputs]))
+        return tuple(set([i.network_id for i in self.inputs]))
 
     @property
     @eqx.filter_jit
@@ -109,12 +109,12 @@ class GraphNode(Component):
 
     @eqx.filter_jit
     def get_input_state(self, state: State, input: GraphInput, input_field: str):
-        return getattr(getattr(state.energy.nodes[input.network_ID], input.domain), input_field)
+        return getattr(getattr(state.energy.nodes[input.network_id], input.domain), input_field)
 
     @eqx.filter_jit
     def get_input_states(self, state: State, inputs: Iterable[GraphInput]):
         return [
-            getattr(state.energy.nodes[i.network_ID], i.domain)
+            getattr(state.energy.nodes[i.network_id], i.domain)
             for i in inputs
         ]
 
@@ -180,7 +180,7 @@ class Splitter(GraphNode):
         updated_state = state
 
         inp = cast(tuple, self.inputs)[0]
-        ID = inp.network_ID
+        ID = inp.network_id
         domain = inp.domain
 
         for v_idx, value in enumerate(self.values):
@@ -200,7 +200,7 @@ class Splitter(GraphNode):
             )
 
             updated_state = eqx.tree_at(
-                lambda s: getattr(s.energy.nodes[self.network_ID], domain), updated_state, split_input
+                lambda s: getattr(s.energy.nodes[self.network_id], domain), updated_state, split_input
             )
 
         return updated_state, system, settings
@@ -234,15 +234,15 @@ class BleedFlow(GraphNode):
     name: str = field("Bleed Flow", static=True)
     fractions_dict: dict[str, float | Callable] = field(dict)
 
-    parent_ID: str = field('', static=True)
-    grandparent_ID: str = field(tuple, static=True)
+    parent_id: str = field('', static=True)
+    grandparent_id: str = field(tuple, static=True)
 
     def transmit(self, state: State, system: System, settings: Settings):
 
         updated_state = eqx.tree_at(
-            lambda s: s.energy.nodes[self.network_ID].flow,
+            lambda s: s.energy.nodes[self.network_id].flow,
             state,
-            state.energy.nodes[self.grandparent_ID].flow,
+            state.energy.nodes[self.grandparent_id].flow,
         )
 
         for attr in self.fractions_dict:
@@ -251,8 +251,8 @@ class BleedFlow(GraphNode):
             else:
                 frac = self.fractions_dict[attr]
 
-            in_value = getattr(state.energy.nodes[self.grandparent_ID].flow, attr)
-            out_value = getattr(state.energy.nodes[self.parent_ID].flow, attr)
+            in_value = getattr(state.energy.nodes[self.grandparent_id].flow, attr)
+            out_value = getattr(state.energy.nodes[self.parent_id].flow, attr)
 
             if attr == "mass_flow_rate":
                 bleed_value = in_value * frac
@@ -260,16 +260,16 @@ class BleedFlow(GraphNode):
                 bleed_value = in_value + (out_value - in_value) * frac
 
             updated_state = eqx.tree_at(
-                lambda s: getattr(s.energy.nodes[self.network_ID].flow, attr),
+                lambda s: getattr(s.energy.nodes[self.network_id].flow, attr),
                 updated_state,
                 bleed_value
             )
 
             if attr == "stagnation_enthalpy":
-                fluid: Gas = state.energy.nodes[self.parent_ID].flow.fluid
+                fluid: Gas = state.energy.nodes[self.parent_id].flow.fluid
                 T_t = fluid.invert_enthalpy(bleed_value)
                 updated_state = eqx.tree_at(
-                    lambda s: s.energy.nodes[self.network_ID].flow.stagnation_temperature,
+                    lambda s: s.energy.nodes[self.network_id].flow.stagnation_temperature,
                     updated_state,
                     T_t
                 )
@@ -294,18 +294,22 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
         if len(self.output_bleeds) > 0:
             add_mixer = not hasattr(self, "mixer")
             self_bleeds = tuple(replace(b, inputs=GraphInput("flow", "parent")) for b in self.output_bleeds)
-            # BleedFlow Parent ID and Grandparent ID set in GraphNetwork.assign_network_IDs
+            # BleedFlow Parent ID and Grandparent ID set in GraphNetwork.assign_network_ids
             object.__setattr__(self, "subcomponents", self.subcomponents + self_bleeds)
             object.__setattr__(self, "output_bleeds", tuple())
         else:
             add_mixer = self.add_mixer and not hasattr(self, "mixer")
 
         if add_mixer:
-            parent_inputs = tuple(replace(i, network_ID="parent."+i.network_ID) for i in self.flow_inputs)
-            mixer = FlowNode(name="Mixer", inputs=parent_inputs, add_mixer=False, design_parameters=FlowOpPoint(pressure_ratio=1.0))
+            parent_inputs = tuple(replace(i, network_id="parent."+i.network_id) for i in self.flow_inputs)
+            mixer = FlowNode(name="Mixer",
+                             inputs=parent_inputs,
+                             add_mixer=False,
+                             design_parameters=FlowOpPoint(pressure_ratio=1.0))
 
             other_inputs = tuple(i for i in self.inputs if i not in self.flow_inputs)
-            object.__setattr__(self, "inputs", other_inputs + (GraphInput(domain="flow", network_ID="self.mixer", primary=True),))
+            object.__setattr__(self, "inputs",
+                               other_inputs + (GraphInput(domain="flow", network_id="self.mixer", primary=True),))
             object.__setattr__(self, "subcomponents", self.subcomponents + (mixer,))
 
     def mix_inputs(self, state: State) -> tuple[Gas, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
@@ -397,16 +401,16 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
         M: jnp.ndarray | float = 0.0,
         P_rec: jnp.ndarray | float = 1.0
     ):
-        gamma_in = gas.compute_gamma(T_t)
-        T_t_out_ideal = T_t * (PR ** ((gamma_in - 1.0) / gamma_in))
+        g_in = gas.compute_gamma(T_t)
+        T_t_out_ideal = T_t * (PR ** ((g_in - 1.0) / g_in))
         P_t_out_ideal = P_t * PR * P_rec
 
         # Normal Shock Recovery
         safe_M = jnp.maximum(M, 1.0)
         ns_P_t = (
             PR * P_t
-            * ((((gamma_in + 1.0) * (safe_M**2.0)) / ((gamma_in - 1.0) * safe_M**2.0 + 2.0)) ** (gamma_in / (gamma_in - 1.0)))
-            * ((gamma_in + 1.0) / (2.0 * gamma_in * safe_M**2.0 - (gamma_in - 1.0))) ** (1.0 / (gamma_in - 1.0))
+            * ((((g_in + 1.0) * (safe_M**2.0)) / ((g_in - 1.0) * safe_M**2.0 + 2.0)) ** (g_in / (g_in - 1.0)))
+            * ((g_in + 1.0) / (2.0 * g_in * safe_M**2.0 - (g_in - 1.0))) ** (1.0 / (g_in - 1.0))
         )
 
         P_t_out = jnp.where(M > 1.0, ns_P_t, P_t_out_ideal)
@@ -414,9 +418,9 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
 
         # Newton-Raphson step to average T_t_out over gamma change
         def step(T_t_out_ideal, _):
-            gamma_out = gas.compute_gamma(T_t_out_ideal)
-            gamma_avg = 0.5 * (gamma_in + gamma_out)
-            T_t_out_ideal = T_t * (PR_actual ** ((gamma_avg - 1.0) / gamma_avg))
+            g_out = gas.compute_gamma(T_t_out_ideal)
+            g_avg = 0.5 * (g_in + g_out)
+            T_t_out_ideal = T_t * (PR_actual ** ((g_avg - 1.0) / g_avg))
             # new_T_t = jnp.reshape(new_T_t, T_t_out_ideal.shape)
             return T_t_out_ideal, None
 
@@ -481,9 +485,9 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
         gas, T_t, P_t, W_in, FAR, M = self.mix_inputs(state)
         W_out = W_in * (1.0 - self.bleed_MFR_frac(state))
 
-        PR    = jnp.atleast_2d(system.energy.nodes[self.network_ID].design_parameters.pressure_ratio)
-        P_rec = jnp.atleast_2d(system.energy.nodes[self.network_ID].design_parameters.pressure_recovery)
-        n_isn = jnp.atleast_2d(system.energy.nodes[self.network_ID].design_parameters.eff.flow)
+        PR    = jnp.atleast_2d(system.energy.nodes[self.network_id].design_parameters.pressure_ratio)
+        P_rec = jnp.atleast_2d(system.energy.nodes[self.network_id].design_parameters.pressure_recovery)
+        n_isn = jnp.atleast_2d(system.energy.nodes[self.network_id].design_parameters.eff.flow)
 
         if not statics:
             M = jnp.atleast_2d(0.0)
@@ -493,7 +497,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
 
         if design_mode:
             if statics:
-                M_out = jnp.atleast_2d(system.energy.nodes[self.network_ID].design_parameters.exit_mach_number)
+                M_out = jnp.atleast_2d(system.energy.nodes[self.network_id].design_parameters.exit_mach_number)
 
                 A_out, u_out, P_out, T_out, h_t_out, h_out = self.kinematic_design(
                     gas=gas,
@@ -510,7 +514,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
                 )
 
                 updated_system = eqx.tree_at(
-                    lambda s: s.energy.nodes[self.network_ID].design_parameters,
+                    lambda s: s.energy.nodes[self.network_id].design_parameters,
                     updated_system,
                     updated_design_parameters
                 )
@@ -520,7 +524,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
                 A_out = jnp.atleast_2d(self.design_parameters.A_exit)
                 T_out, P_out, h_t_out, h_out, u_out, M_out = self.statics(gas, T_t_out, P_t_out, W_out, A_out)
 
-        outputs = state.energy.nodes[self.network_ID].flow
+        outputs = state.energy.nodes[self.network_id].flow
 
         outputs = eqx.tree_at(lambda o: o.mass_flow_rate, outputs,          jnp.atleast_2d(W_out))
         outputs = eqx.tree_at(lambda o: o.stagnation_pressure, outputs,     jnp.atleast_2d(P_t_out))
@@ -538,7 +542,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
             outputs = eqx.tree_at(lambda o: o.area, outputs,                jnp.atleast_2d(A_out))
 
         updated_state = eqx.tree_at(lambda s:
-            s.energy.nodes[self.network_ID].flow,
+            s.energy.nodes[self.network_id].flow,
             updated_state,
             outputs,
         )

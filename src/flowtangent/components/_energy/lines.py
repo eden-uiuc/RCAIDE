@@ -65,18 +65,18 @@ class TurbojetLine(EnergyLine):
     )
 
     @func_inputs(
-        # "state.energy.nodes['{fuel_tanks.network_ID}'].mass",
-        "state.energy.nodes['{fuel_inputs.network_ID}'].fuel.flow_rate",
-        # "system.energy.nodes['{fuel_tanks.network_ID}'].selector_ratio",
-        # "system.energy.nodes['{fuel_tanks.network_ID}'].mass_properties.total",
-        "system.energy.nodes['{network_ID}'].tank_draw_ratios",
+        # "state.energy.nodes['{fuel_tanks.network_id}'].mass",
+        "state.energy.nodes['{fuel_inputs.network_id}'].fuel.flow_rate",
+        # "system.energy.nodes['{fuel_tanks.network_id}'].selector_ratio",
+        # "system.energy.nodes['{fuel_tanks.network_id}'].mass_properties.total",
+        "system.energy.nodes['{network_id}'].tank_draw_ratios",
     )
     @outputs(
         # "state.energy.nodes['{fuel_tanks}'].fuel.flow_rate",
         "state.mass.rate_of_change",
-        "state.energy.nodes['{network_ID}'].force.thrust",
-        "state.energy.nodes['{network_ID}'].residual.thrust",
-        "state.energy.nodes['{network_ID}'].residual.power",
+        "state.energy.nodes['{network_id}'].force.thrust",
+        "state.energy.nodes['{network_id}'].residual.thrust",
+        "state.energy.nodes['{network_id}'].residual.power",
     )
     def transmit(self, state: State, system: System, settings: Settings):
 
@@ -85,7 +85,7 @@ class TurbojetLine(EnergyLine):
 
         #  Compute fuel fraction
         total_fuel_mass = jnp.sum(jnp.asarray([t.mass_properties.total for t in self.fuel_tanks]))
-        current_fuel_mass = jnp.sum(jnp.asarray([state.energy.nodes[t.network_ID].mass for t in self.fuel_tanks]))
+        current_fuel_mass = jnp.sum(jnp.asarray([state.energy.nodes[t.network_id].mass for t in self.fuel_tanks]))
         fuel_fraction = current_fuel_mass / jnp.where(total_fuel_mass > 1e-6, total_fuel_mass, 1e-6)
 
         # Extract configuration as pure JAX arrays
@@ -108,7 +108,7 @@ class TurbojetLine(EnergyLine):
 
         # Apply updates sequentially
         updated_state = eqx.tree_at(
-            lambda s: tuple(s.energy.nodes[t.network_ID].fuel.flow_rate for t in self.fuel_tanks),
+            lambda s: tuple(s.energy.nodes[t.network_id].fuel.flow_rate for t in self.fuel_tanks),
             state,
             tank_burns,
         )
@@ -121,8 +121,8 @@ class TurbojetLine(EnergyLine):
 
         updated_state = eqx.tree_at(
             lambda s: (
-                s.energy.nodes[self.network_ID].force.thrust,
-                s.energy.nodes[self.network_ID].residual.thrust,
+                s.energy.nodes[self.network_id].force.thrust,
+                s.energy.nodes[self.network_id].residual.thrust,
             ),
             updated_state,
             (
@@ -134,7 +134,7 @@ class TurbojetLine(EnergyLine):
         # Power Imbalance ------------------------------------------------------
 
         updated_state = eqx.tree_at(
-            lambda s: s.energy.nodes[self.network_ID].residual.power,
+            lambda s: s.energy.nodes[self.network_id].residual.power,
             updated_state,
             self.apply_domain_op(jnp.sum, updated_state, "residual", "power"),
         )

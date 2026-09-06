@@ -37,11 +37,11 @@ class PACTNetwork(Process):
         G = nx.DiGraph()
         net = self.analysis_network
 
-        for e_idx, network_ID in enumerate(net._execution_order):
-            node = net.nodes[network_ID]
-            G.add_node(e_idx, name=node.name, network_ID=node.network_ID)
+        for e_idx, network_id in enumerate(net._execution_order):
+            node = net.nodes[network_id]
+            G.add_node(e_idx, name=node.name, network_id=node.network_id)
             for input in node.inputs:
-                input_idx = net._execution_order.index(input.network_ID)
+                input_idx = net._execution_order.index(input.network_id)
                 domain = input.domain
                 G.add_edge(input_idx, e_idx, domain=domain)
 
@@ -49,10 +49,10 @@ class PACTNetwork(Process):
 
 def build_analysis_from_network(network: GraphNetwork):
 
-    analysis_network = network.assign_network_IDs()
+    analysis_network = network.assign_network_ids()
 
-    def make_node_function(network_ID: str):
-        node = analysis_network.nodes[network_ID]
+    def make_node_function(network_id: str):
+        node = analysis_network.nodes[network_id]
         node_func = node.__class__.transmit
 
         raw_inputs = getattr(node_func, "_inputs", set())
@@ -68,7 +68,7 @@ def build_analysis_from_network(network: GraphNetwork):
         @inputs(*node_inputs)
         @outputs(*node_outputs)
         def transmit(state, system, settings):
-            return analysis_network.nodes[network_ID].transmit(state, system, settings)
+            return analysis_network.nodes[network_id].transmit(state, system, settings)
 
         return transmit
 
@@ -100,7 +100,7 @@ def build_analysis_from_network(network: GraphNetwork):
         )
 
     net_step = ProcessStep(
-        name=f"{analysis_network.network_ID}",
+        name=f"{analysis_network.network_id}",
         function=make_network_function()
     )
 

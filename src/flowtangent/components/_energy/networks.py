@@ -76,14 +76,14 @@ def _resolve_namespaces(node, parent_prefix=""):
 
     new_inputs = tuple(
         i if i._assigned
-        else replace(i, network_ID=parse_input(i.network_ID), _assigned=True)
+        else replace(i, network_id=parse_input(i.network_id), _assigned=True)
         for i in node.inputs
     )
 
     # Update the node itself
     node = replace(
         node,
-        network_ID=absolute_id,
+        network_id=absolute_id,
         inputs=new_inputs,
     )
 
@@ -107,7 +107,7 @@ def _resolve_namespaces(node, parent_prefix=""):
 class GraphNetwork[DesignType: NetworkDesign](GraphNode):
 
     name: str = field("Network", static=True)
-    network_ID: str = field("network", static=True)
+    network_id: str = field("network", static=True)
 
     nodes: dict[str, "GraphNode"] = field(dict)
     domains: tuple[GraphDomain, ...] = field(tuple, static=True)
@@ -127,7 +127,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
         def _temp_recurse(subs):
             for c in subs:
                 if isinstance(c, GraphNode):
-                    temp_dict[c.network_ID] = c
+                    temp_dict[c.network_id] = c
                 if hasattr(c, "subcomponents") and c.subcomponents:
                     _temp_recurse(c.subcomponents)
 
@@ -144,21 +144,21 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
             total = sum(s.extraction_fraction for s in splitters)
             if abs(total - 1.0) > 1e-6 and total > 0:
                 for s in splitters:
-                    corrected_fractions[s.network_ID] = s.extraction_fraction / total
+                    corrected_fractions[s.network_id] = s.extraction_fraction / total
 
         if not corrected_fractions:
             return self
 
         def _apply(node):
-            if isinstance(node, GraphNode) and node.network_ID in corrected_fractions:
-                return eqx.tree_at(lambda n: n.extraction_fraction, node, corrected_fractions[node.network_ID])
+            if isinstance(node, GraphNode) and node.network_id in corrected_fractions:
+                return eqx.tree_at(lambda n: n.extraction_fraction, node, corrected_fractions[node.network_id])
             return node
 
         return jax.tree_util.tree_map(_apply, self, is_leaf=lambda x: isinstance(x, GraphNode))
 
-    def assign_network_IDs(self):
+    def assign_network_ids(self):
 
-        updated_network = replace(self, network_ID=self.get_field_name())
+        updated_network = replace(self, network_id=self.get_field_name())
         resolved_lines = []
 
         for line in updated_network.lines:
@@ -180,7 +180,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
         def _recurse(subcomponents):
             for comp in subcomponents:
                 if isinstance(comp, GraphNode):
-                    nodes_dict[comp.network_ID] = comp
+                    nodes_dict[comp.network_id] = comp
                 if hasattr(comp, "subcomponents") and comp.subcomponents:
                     _recurse(comp.subcomponents)
 
@@ -193,7 +193,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
 
         balanced_network = self._rebalance_flow_splitters()
         updated_network = balanced_network._get_all_nodes()
-        dependency_graph = {ID: set([i.network_ID for i in node.inputs]) for ID, node in updated_network.nodes.items()}
+        dependency_graph = {ID: set([i.network_id for i in node.inputs]) for ID, node in updated_network.nodes.items()}
 
         try:
             sorter = TopologicalSorter(dependency_graph)
@@ -213,7 +213,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
             # If we hit an EnergyNode, replace it with the latest version from the dict
             if isinstance(component, GraphNode):
                 # Grab the updated node (fallback to current if not in dict)
-                component = self.nodes.get(component.network_ID, component)
+                component = self.nodes.get(component.network_id, component)
 
             # Recurse down through any nested wrappers (like EnergyLines or Engine Pods)
             if hasattr(component, "subcomponents") and component.subcomponents:
@@ -252,8 +252,8 @@ class _JetNetwork[DesignType: JetNetDesign](GraphNetwork[DesignType]):
     )
 
     @tu.inputs(
-            "state.energy.nodes['{force_inputs.network_ID}'].force.thrust",
-            "state.energy.nodes['{residual_inputs.network_ID}'].residual.power",
+            "state.energy.nodes['{force_inputs.network_id}'].force.thrust",
+            "state.energy.nodes['{residual_inputs.network_id}'].residual.power",
             "state.energy.target_thrust",
     )
     @tu.outputs(

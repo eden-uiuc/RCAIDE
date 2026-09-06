@@ -33,11 +33,11 @@ def initialize_energy(state: State, system: System, settings: Settings):
 
     def _extract_to_flat_state(n):
         if str(n.__class__.__name__) in conditions_map:
-            node_states[n.network_ID] = conditions_map[str(n.__class__.__name__)](
-                name=n.network_ID
+            node_states[n.network_id] = conditions_map[str(n.__class__.__name__)](
+                name=n.network_id
             )  # Initialize the state
         else:
-            node_states[n.network_ID] = NodeState(name=n.network_ID)  # Initialize the state
+            node_states[n.network_id] = NodeState(name=n.network_id)  # Initialize the state
         if hasattr(n, "subcomponents"):
             for child in n.subcomponents:
                 _extract_to_flat_state(child)
@@ -47,7 +47,7 @@ def initialize_energy(state: State, system: System, settings: Settings):
 
     for network in updated_system.energy_networks:
         network: GraphNetwork
-        updated_network = network.assign_network_IDs()
+        updated_network = network.assign_network_ids()
 
         for line in updated_network.lines:
             _extract_to_flat_state(line)

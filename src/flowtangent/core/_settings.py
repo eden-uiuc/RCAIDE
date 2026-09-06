@@ -93,10 +93,13 @@ class JacobianMap(eqx.Module):
         self.inputs = tuple(TreePath(i) for i in inputs)
         self.outputs = tuple(TreePath(o) for o in outputs)
 
-        self.state_inputs = tuple(p for p in self.inputs if p.path[0].lower()=="state") if state_inputs is None else state_inputs
-        self.system_inputs = tuple(p for p in self.inputs if p.path[0].lower()=="system") if system_inputs is None else system_inputs
-        self.state_outputs = tuple(p for p in self.outputs if p.path[0].lower()=="state") if state_outputs is None else state_outputs
-        self.system_outputs = tuple(p for p in self.outputs if p.path[0].lower()=="system") if system_outputs is None else system_outputs
+        _filter_in = lambda str: tuple(p for p in self.inputs if p.path[0].lower()==str) #noqa: E731
+        _filter_out = lambda str: tuple(p for p in self.inputs if p.path[0].lower()==str) #noqa: E731
+
+        self.state_inputs   = _filter_in("state") if state_inputs is None else state_inputs
+        self.system_inputs  = _filter_in("system") if system_inputs is None else system_inputs
+        self.state_outputs  = _filter_out("state") if state_outputs is None else state_outputs
+        self.system_outputs = _filter_out("system") if system_outputs is None else system_outputs
 
         self._n_st = len(self.state_inputs)
         self._n_sys = len(self.system_inputs)
@@ -137,7 +140,8 @@ class JacobianMap(eqx.Module):
             new_slices = [s.reshape((B,) + shp) if has_B else s.reshape(shp) for s, shp in zip(splits, shapes)]
 
             parents = get_all_parents(st, self.state_inputs)
-            updated = [p.at[pth.path_slice].set(n) if pth.path_slice != slice(None) else n for p, n, pth in zip(parents, new_slices, self.state_inputs)]
+            updated = [p.at[pth.path_slice].set(n) if pth.path_slice != slice(None)
+                       else n for p, n, pth in zip(parents, new_slices, self.state_inputs)]
             st = eqx.tree_at(lambda t: get_all_parents(t, self.state_inputs), st, tuple(updated))
 
         # Update System
@@ -150,7 +154,8 @@ class JacobianMap(eqx.Module):
             new_slices = [s.reshape(shp) for s, shp in zip(splits, shapes)]
 
             parents = get_all_parents(sys, self.system_inputs)
-            updated = [p.at[pth.path_slice].set(n) if pth.path_slice != slice(None) else n for p, n, pth in zip(parents, new_slices, self.system_inputs)]
+            updated = [p.at[pth.path_slice].set(n) if pth.path_slice != slice(None)
+                        else n for p, n, pth in zip(parents, new_slices, self.system_inputs)]
             sys = eqx.tree_at(lambda t: get_all_parents(t, self.system_inputs), sys, tuple(updated))
 
         return st, sys
