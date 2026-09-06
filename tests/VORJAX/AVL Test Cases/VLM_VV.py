@@ -17,21 +17,21 @@ import numpy as np
 from tqdm import trange
 from plotly.subplots import make_subplots
 
-import src.eden_trace.utils as ru
+import flowtangent.utils as tu
 
-from src.eden_trace.library import units
-from src.eden_trace.library.components import ComponentAreas
-from src.eden_trace.library.components.wings import Wing, WingSegment, WingChords, WingDimensions, WingSweeps
-from src.eden_trace.library.components.airfoils import Airfoil
+from flowtangent.data import units
+from flowtangent.library.components import Areas
+from flowtangent.library.components.wings import Wing, WingSegment, Chords, WingDimensions, Sweeps
+from flowtangent.library.components.airfoils import Airfoil
 
-from src.eden_trace.framework import Process, State, Settings, GradientMap
-from src.eden_trace.framework.systems import Aircraft
-from src.eden_trace.framework.conditions import Time
+from flowtangent.framework import Process, State, Settings, JacobianMap
+from flowtangent.core._systems import Aircraft
+from flowtangent.core._state_data import Time
 
-from src.eden_trace.framework.analyses.aero import VLM, VORJAX_Settings, InitializeVLM, VLMVortices, SupersonicSettings
+from flowtangent.framework.analyses.aero import VLM, VORJAX_Settings, InitializeVLM, VLMVortices, SupersonicSettings
 
-from src.eden_trace.framework.Interfaces.AVL import parse_avl_file, convert_to_RCAIDE
-from src.eden_trace.framework.Plotting import plot_vlm_panels
+from flowtangent.framework.interfaces.AVL import parse_avl_file, convert_to_Flowtangent
+from flowtangent.framework.plotting import plot_vlm_panels
 
 # AVL Helper Functions -------------------------------------------------------------------------------------------------
 
@@ -183,9 +183,9 @@ def VORJAX_straight_wing(span=10.0, chord=1.0):
 
     wing_spans = WingDimensions(projected=span)
 
-    wing_chords = WingChords(root=chord, tip=chord, mean_aerodynamic=chord)
+    wing_chords = Chords(root=chord, tip=chord, mean_aerodynamic=chord)
 
-    wing_areas = ComponentAreas(reference=span * chord, wetted=2 * span * chord)
+    wing_areas = Areas(reference=span * chord, wetted=2 * span * chord)
 
     wing = Wing(
         symmetric=True,
@@ -196,7 +196,7 @@ def VORJAX_straight_wing(span=10.0, chord=1.0):
         aerodynamic_center=jnp.array([0.0, 0.0, 0.0])
     )
 
-    system = Aircraft(tag='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
+    system = Aircraft(name='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system
@@ -232,32 +232,32 @@ def VORJAX_elliptical_wing(AR=10., n_segments=1):
         sweep_c4 = jnp.arctan2(delta_x_c4, delta_y)
 
         segments += (WingSegment(
-            tag=f"{i}", 
+            name=f"{i}", 
             percent_span_location=eta_start, 
             root_chord_percent=chord_frac_start,
-            sweeps=WingSweeps(quarter_chord=sweep_c4)  # Inject sweep here!
+            sweeps=Sweeps(quarter_chord=sweep_c4)  # Inject sweep here!
         ),)
 
     # Tip segment doesn't need a sweep since there's no geometry after it
     segments += (WingSegment(
-        tag="Tip", 
+        name="Tip", 
         percent_span_location=1.0, 
         root_chord_percent=0.01
     ),)
 
-    wing_areas = ComponentAreas(reference=S_ref, wetted=2.0 * S_ref)
+    wing_areas = Areas(reference=S_ref, wetted=2.0 * S_ref)
 
-    wing = Wing(tag=f"Elliptical {n_segments}",
+    wing = Wing(name=f"Elliptical {n_segments}",
                 segments=segments,
                 symmetric=True,
                 spans=WingDimensions(projected=span),
-                chords=WingChords(root=c_root, tip=0.01 * c_root, mean_aerodynamic=c_root * 8.0 / (3 * jnp.pi)),
+                chords=Chords(root=c_root, tip=0.01 * c_root, mean_aerodynamic=c_root * 8.0 / (3 * jnp.pi)),
                 areas=wing_areas,
                 taper=0.01,
                 origin=jnp.array([[0.0, 0.0, 0.0]]),
                 aerodynamic_center=jnp.array([0.0, 0.0, 0.0])).update_geometry()
     
-    system = Aircraft(tag='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
+    system = Aircraft(name='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system  
@@ -278,31 +278,31 @@ def VORJAX_delta_wing(AR=2.0):
     
     segments = (
         WingSegment(
-            tag="Root_to_Tip",
+            name="Root_to_Tip",
             percent_span_location=0.0,
             root_chord_percent=1.0,
-            sweeps=WingSweeps(quarter_chord=sweep_c4)
+            sweeps=Sweeps(quarter_chord=sweep_c4)
         ),
         WingSegment(
-            tag="Tip",
+            name="Tip",
             percent_span_location=1.0,
             root_chord_percent=c_tip_ratio
         )
     )
 
-    wing_areas = ComponentAreas(reference=S_ref, wetted=2.0 * S_ref)
+    wing_areas = Areas(reference=S_ref, wetted=2.0 * S_ref)
 
-    wing = Wing(tag=f"Delta_AR_{AR}",
+    wing = Wing(name=f"Delta_AR_{AR}",
                 segments=segments,
                 symmetric=True,
                 spans=WingDimensions(projected=span),
-                chords=WingChords(root=c_root, tip=c_root * c_tip_ratio, mean_aerodynamic=2.0/3.0 * c_root),
+                chords=Chords(root=c_root, tip=c_root * c_tip_ratio, mean_aerodynamic=2.0/3.0 * c_root),
                 areas=wing_areas,
                 taper=c_tip_ratio,
                 origin=jnp.array([[0.0, 0.0, 0.0]]),
                 aerodynamic_center=jnp.array([0.0, 0.0, 0.0])).update_geometry()
     
-    system = Aircraft(tag='Delta Aircraft', areas=wing_areas).add_subcomponent(wing)
+    system = Aircraft(name='Delta Aircraft', areas=wing_areas).add_subcomponent(wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system
@@ -327,32 +327,32 @@ def VORJAX_ONERA_M6():
 
     segments = (
         WingSegment(
-            tag="ONERA M6",
+            name="ONERA M6",
             percent_span_location=0.0,
             root_chord_percent=1.0,
-            sweeps=WingSweeps(leading_edge=sweep_le, quarter_chord=sweep_qc),
-            airfoil=Airfoil.from_file("/home/jordan/dev/RCAIDE/Templates/Tests/VORJAX/SU2 Test Cases/onera_airfoil.txt")
+            sweeps=Sweeps(leading_edge=sweep_le, quarter_chord=sweep_qc),
+            airfoil=Airfoil.from_file("/home/jordan/dev/flowtangent/Templates/Tests/VORJAX/SU2 Test Cases/onera_airfoil.txt")
         ),
         WingSegment(
-            tag="Tip",
+            name="Tip",
             percent_span_location=1.0,
             root_chord_percent=taper,
-            airfoil=Airfoil.from_file("/home/jordan/dev/RCAIDE/Templates/Tests/VORJAX/SU2 Test Cases/onera_airfoil.txt")
+            airfoil=Airfoil.from_file("/home/jordan/dev/flowtangent/Templates/Tests/VORJAX/SU2 Test Cases/onera_airfoil.txt")
         )
     )
     
     onera_wing = Wing(
-        tag="Main Wing",
+        name="Main Wing",
         symmetric=True,
         segments=segments,
         aspect_ratio=AR,
         taper=0.56,
         origin=jnp.array([[0.0, 0.0, 0.0]]),
-        chords=WingChords(root=c_root, mean_aerodynamic=mac),
+        chords=Chords(root=c_root, mean_aerodynamic=mac),
         spans=WingDimensions(projected=2 * semispan),
     ).update_geometry(calculate_reference_area=True, calculate_wetted_area=True)
 
-    system = Aircraft(tag='ONERA M6 Container', areas=onera_wing.areas).add_subcomponent(onera_wing)
+    system = Aircraft(name='ONERA M6 Container', areas=onera_wing.areas).add_subcomponent(onera_wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system
@@ -406,14 +406,14 @@ def VORJAX_test_run(vehicle, alpha, Mach, n_sw=20, n_cw=6, grad_map=None, debug_
     initial_settings = eqx.tree_at(lambda s: s.analysis.aerodynamics, Settings(DEBUG_MODE=debug_mode), aero_settings)
 
     analysis = Process(
-        tag="VORJAX Test Run",
+        name="VORJAX Test Run",
         steps=(
             InitializeVLM(),
             VLM()
         ),
-        initial_state=initial_state,
-        initial_system=initial_system,
-        initial_settings=initial_settings
+        _initial_state=initial_state,
+        _initial_system=initial_system,
+        _initial_settings=initial_settings
     )
 
     results = analysis.run(
@@ -435,7 +435,7 @@ def plot_elliptical_convergence_plotly(n_segments, grad_AD, error, grad_truth):
     # Convert error to a percentage for cleaner reading
     error_percent = np.array(error) * 100.0
 
-    # 2. Add Trace: AD Gradient (Primary Y)
+    # 2. Add Flowtangent: AD Gradient (Primary Y)
     fig.add_trace(
         go.Scatter(
             x=n_segments, 
@@ -448,7 +448,7 @@ def plot_elliptical_convergence_plotly(n_segments, grad_AD, error, grad_truth):
         secondary_y=False,
     )
 
-    # 3. Add Trace: Analytical Truth (Primary Y)
+    # 3. Add Flowtangent: Analytical Truth (Primary Y)
     # Drawing a line from the first to the last x-coordinate
     fig.add_trace(
         go.Scatter(
@@ -461,7 +461,7 @@ def plot_elliptical_convergence_plotly(n_segments, grad_AD, error, grad_truth):
         secondary_y=False,
     )
 
-    # 4. Add Trace: Relative Error (Secondary Y)
+    # 4. Add Flowtangent: Relative Error (Secondary Y)
     fig.add_trace(
         go.Scatter(
             x=n_segments, 
@@ -528,7 +528,7 @@ def plot_fd_v_curve_plotly(step_sizes, fd_errors):
     
     fig = go.Figure()
 
-    # 1. Add Trace: FD Absolute Error
+    # 1. Add Flowtangent: FD Absolute Error
     fig.add_trace(
         go.Scatter(
             x=step_sizes, 
@@ -626,7 +626,7 @@ def plot_theoretical_error_comparison_plotly(step_sizes, fd_grads, exact_grad, g
 
     fig = go.Figure()
 
-    # 1. Add Trace: FD Relative Error vs Theory
+    # 1. Add Flowtangent: FD Relative Error vs Theory
     fig.add_trace(
         go.Scatter(
             x=step_sizes, 
@@ -639,7 +639,7 @@ def plot_theoretical_error_comparison_plotly(step_sizes, fd_grads, exact_grad, g
         )
     )
 
-    # 2. Add Trace: AD Relative Error vs Theory (Flat Line)
+    # 2. Add Flowtangent: AD Relative Error vs Theory (Flat Line)
     fig.add_trace(
         go.Scatter(
             x=[min(step_sizes), max(step_sizes)],
@@ -868,18 +868,18 @@ def plot_delta_convergence_and_memory_plotly(n_panels, grad_AD, memory_gb, grad_
 if __name__ == "__main__":
 
 
-    # geometry_file = '/home/jordan/dev/RCAIDE/Templates/Tests/V_and_V/AVL Test Cases/b737_wings_flat_no_af.avl'
+    # geometry_file = '/home/jordan/dev/flowtangent/Templates/Tests/V_and_V/AVL Test Cases/b737_wings_flat_no_af.avl'
 
     # avl_b737_data = parse_avl_file(Path(geometry_file))
-    # vehicle = convert_to_RCAIDE(avl_b737_data)
+    # vehicle = convert_to_Flowtangent(avl_b737_data)
     
 
     # AVL_basic_test(geometry_file, oper_mode="st")
 
-    alpha_path = ru.DataPath(("aerodynamics", "angles", "alpha"))
-    lift_path = ru.DataPath(("aerodynamics", "coefficients", "lift", "total"))
+    alpha_path = ru.TreePath(("aerodynamics", "angles", "alpha"))
+    lift_path = ru.TreePath(("aerodynamics", "coefficients", "lift", "total"))
 
-    grad_map = GradientMap(
+    grad_map = JacobianMap(
         state_inputs=(alpha_path,),
         state_outputs=(lift_path,)
     )
@@ -1013,10 +1013,10 @@ if __name__ == "__main__":
         alpha = [3.06 * units.deg] * 21
         Mach =  [0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
 
-        alpha_path = ru.DataPath(("aerodynamics", "angles", "alpha"))
-        lift_path = ru.DataPath(("aerodynamics", "coefficients", "lift", "total"))
+        alpha_path = ru.TreePath(("aerodynamics", "angles", "alpha"))
+        lift_path = ru.TreePath(("aerodynamics", "coefficients", "lift", "total"))
 
-        grad_map = GradientMap(
+        grad_map = JacobianMap(
             state_inputs=(alpha_path,),
             state_outputs=(lift_path,)
         )

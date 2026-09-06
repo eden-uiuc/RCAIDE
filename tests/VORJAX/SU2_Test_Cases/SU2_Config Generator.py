@@ -14,7 +14,7 @@ def generate_su2_dataclass(template_path, output_py_path):
     for line in lines:
         line = line.strip()
 
-        # Skip truly empty lines or internal source tags
+        # Skip truly empty lines or internal source names
         if not line or line.startswith('[source'):
             continue
 

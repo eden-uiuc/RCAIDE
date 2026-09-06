@@ -13,14 +13,14 @@ from dask import compute as dc
 
 from tqdm import tqdm
 
-from src.eden_trace.library.components.wings import Wing, WingChords, WingDimensions, WingSweeps
+from flowtangent.library.components.wings import Wing, Chords, WingDimensions, Sweeps
 
-from src.eden_trace.framework import Aircraft, State, Settings
-from src.eden_trace.framework.settings import AnalysisSettings
-from src.eden_trace.framework.Plotting import plot_vlm_panels
+from flowtangent.framework import Aircraft, State, Settings
+from flowtangent.core._settings import AnalysisSettings
+from flowtangent.framework.plotting import plot_vlm_panels
 
-from src.eden_trace.framework.analyses.aero.VORJAX import VORJAX_Settings, Vortices
-from src.eden_trace.framework.methods.aero.VORJAX import discretize_surfaces
+from flowtangent.framework.analyses.aero.VORJAX import VORJAX_Settings, Vortices
+from flowtangent.framework.methods.aero.VORJAX import discretize_surfaces
 
 def get_zarr_root():
     """
@@ -180,7 +180,7 @@ for i, col in enumerate(input_columns):
     ax.legend(fontsize=8)
 
 plt.tight_layout()
-plt.savefig("./Tests/VORJAX/Wing Data Generation/anomaly_distributions.png")
+plt.savefig("./tests/VORJAX/Wing Data Generation/anomaly_distributions.png")
 print("\nPlot saved as 'anomaly_distributions.png'")
 
 print("--- Extracting Anomaly Geometries ---")
@@ -190,18 +190,18 @@ def wing_generator(df_geometries):
     for row in df_geometries.itertuples(index=False):
 
         wing = Wing(
-            tag="W1 Wing",
+            name="W1 Wing",
             symmetric=True,
             taper=row.taper_ratio,
             dihedral=row.dihedral,
-            sweeps=WingSweeps(quarter_chord=row.sweep),
-            chords=WingChords(root=1.0),
+            sweeps=Sweeps(quarter_chord=row.sweep),
+            chords=Chords(root=1.0),
             twists=WingDimensions(tip=row.twist),
             spans=WingDimensions(projected=row.aspect_ratio * (1 + row.taper_ratio)/2),
             origin=jnp.array([[0., 0., 0.]]),
         ).update_geometry(calculate_reference_area=True, calculate_wetted_area=True)
 
-        system = Aircraft(tag=f"W1_System", areas=wing.areas).add_subcomponent(wing)
+        system = Aircraft(name=f"W1_System", areas=wing.areas).add_subcomponent(wing)
         system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
         meta = {
@@ -266,7 +266,7 @@ for anom in anomaly_types:
         print(unique_geom_df.to_string(index=False))
         
         # Save to CSV for your mesher
-        csv_filename = f"./Tests/VORJAX/Wing Data Generation/unique_failed_geometries_{anom}.csv"
+        csv_filename = f"./tests/VORJAX/Wing Data Generation/unique_failed_geometries_{anom}.csv"
         unique_geom_df.to_csv(csv_filename, index=False)
         print(f"-> Saved unique geometries to {csv_filename}")
 
@@ -274,7 +274,7 @@ for anom in anomaly_types:
 
         # for faulty_wing, meta in faulty_wing_gen:
             # wing_fig = wing_renderer(faulty_wing)
-            # wing_fig.write_html("./Tests/VORJAX/Wing Data Generation/Wing Renders/"+encode_wing_id(**meta, prefix=f"{anom}")+".html")
+            # wing_fig.write_html("./tests/VORJAX/Wing Data Generation/Wing Renders/"+encode_wing_id(**meta, prefix=f"{anom}")+".html")
         
     else:
         print(f"\n[ {anom.upper()} ] - 0 instances found.")

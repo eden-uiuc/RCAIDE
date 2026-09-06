@@ -3,20 +3,19 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "eden-trace"
+name = "flowtangent"
 version = "0.1.0"
 description = "A differentiable, GPU-accelerated aerospace systems design environment."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "equinox",
     "jax",
-    "jaxopt",
     "matplotlib",
     "networkx",
     "numcodecs",
-    "nvidia-ml-py",
     "numpy",
+    "optimistix",
     "pandas",
     "plotly",
     "scikit-learn",
@@ -25,12 +24,22 @@ dependencies = [
     "zarr"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "openmdao",
+    "pycycle",
+    "pytest",
+    "nvidia-ml-py",
+    "om-pycycle",
+    "ruff"
+]
+
 [tool.ruff]
 # Scientific codebases often need longer lines for complex equations
 line-length = 120 
 
-# Assume Python 3.10 as the minimum
-target-version = "py310"
+# Python 3.12 as the minimum
+target-version = "py312"
 
 [tool.ruff.lint]
 # Which rule sets to enable
@@ -57,29 +66,24 @@ ignore = [
 ]
 
 [tool.ruff.format]
-# Use double quotes for strings (standard Python convention)
-quote-style = "double"
-# Indent with 4 spaces
-indent-style = "space"
+quote-style = "double" # Use double quotes for strings
+indent-style = "space" # Indent with 4 spaces
+skip-magic-trailing-comma = false  # Don't auto collapse things on separate lines
+
+line-ending = "auto"
+
+docstring-code-format = true
+docstring-code-line-length = 60
 
 [tool.ruff.lint.isort]
 # Import block order
 section-order = [
     "future",
     "standard-library",   # Native Python (os, sys, etc.)
-    "third-party",        # Non-Trace packages (jax, equinox, numpy, etc.)
-    "trace-utils",        # Custom section 1
-    "trace-library",      # Custom section 2
-    "trace-framework",    # Custom section 3
-    "first-party",        # Catch-all for any other Trace imports
+    "third-party",        # Non-FT packages (jax, equinox, numpy, etc.)
+    "first-party",        # FT imports
     "local-folder"        # Relative imports (e.g., from . import utils)
 ]
-
-# Custom Import Sections
-[tool.ruff.lint.isort.sections]
-"trace-utils" = ["eden_trace.utils"] 
-"trace-library" = ["eden_trace.Library"]
-"trace-framework" = ["eden_trace.Framework"]
 
 # Catch numpy tracer errors (Brilliant addition, by the way)
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
@@ -88,4 +92,4 @@ section-order = [
 [tool.ruff.lint.per-file-ignores]
 # __init__.py files are designed to re-export modules. 
 # Ignore unused imports (F401) and import sorting (I) globally.
-"__init__.py" = ["F401", "I"]
+"__init__.py" = ["F401", "I","E402"]

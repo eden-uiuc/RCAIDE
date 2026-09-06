@@ -13,23 +13,21 @@ from plotly._subplots import make_subplots
 
 from scipy.stats import qmc, beta
 
-from src.eden_trace.utils import DataPath
+from flowtangent.utils import TreePath
 
-from src.eden_trace.library import units
-from src.eden_trace.library.components.wings import Wing, WingChords, WingDimensions, WingSweeps
+from flowtangent.data import units
+from flowtangent.library.components.wings import Wing, Chords, WingDimensions, Sweeps
 
-from src.eden_trace.framework import Aircraft, Settings, GradientMap
-from src.eden_trace.framework.settings import AnalysisSettings
-from src.eden_trace.framework.analyses.batched import ShardedDatasetGenerator
-from src.eden_trace.framework.analyses.aero.VORJAX import VORJAX_Settings, Vortices, BatchVORJAX
+from flowtangent.framework import Aircraft, Settings, JacobianMap
+from flowtangent.core._settings import AnalysisSettings
+from flowtangent.framework.analyses.batched import ShardedDatasetGenerator
+from flowtangent.framework.analyses.aero.VORJAX import VORJAX_Settings, Vortices, BatchVORJAX
 
 #-----------------------------------------------------------------------------------------------------------------------
 # One Segment Wing Data
 #-----------------------------------------------------------------------------------------------------------------------
 
-def generate_flow_state_grid(
-        
-):
+def generate_flow_state_grid():
     alphas = np.linspace(-5.0, 15.0, 81) * units.deg
     machs = np.linspace(0.1, 2.0, 20)
     betas = np.linspace(0.0, 10.0, 11) * units.deg
@@ -176,18 +174,18 @@ def wing_generator(df_geometries):
     for row in df_geometries.itertuples(index=False):
 
         wing = Wing(
-            tag="W1 Wing",
+            name="W1 Wing",
             symmetric=True,
             taper=row.taper_ratio,
             dihedral=row.dihedral,
-            sweeps=WingSweeps(quarter_chord=row.sweep),
-            chords=WingChords(root=1.0),
+            sweeps=Sweeps(quarter_chord=row.sweep),
+            chords=Chords(root=1.0),
             twists=WingDimensions(tip=row.twist),
             spans=WingDimensions(projected=row.aspect_ratio * (1 + row.taper_ratio)/2),
             origin=jnp.array([[0., 0., 0.]]),
         ).update_geometry(calculate_reference_area=True, calculate_wetted_area=True)
 
-        system = Aircraft(tag=f"W1_System", areas=wing.areas).add_subcomponent(wing)
+        system = Aircraft(name=f"W1_System", areas=wing.areas).add_subcomponent(wing)
         system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
         meta = {
@@ -232,21 +230,21 @@ if __name__ == "__main__":
         df_geometry_W1 = df_geometry_W1[cols]
 
         fig = plot_sampling_validation(df_geometry_W1, beta_distributions)
-        fig.write_image("./Tests/VORJAX/Wing Data Generation/sampling_validation.png")
+        fig.write_image("./tests/VORJAX/Wing Data Generation/sampling_validation.png")
         # fig.show()
 
         alphas, betas, machs = generate_flow_state_grid()
         
         solver=BatchVORJAX()
 
-        mach_path   = DataPath(("freestream", "mach_number"), tag="M")
-        alpha_path  = DataPath(("aerodynamics", "angles", "alpha"), tag="a")
-        beta_path   = DataPath(("aerodynamics", "angles", "beta"), tag="b")
+        mach_path   = TreePath(("freestream", "mach_number"), name="M")
+        alpha_path  = TreePath(("aerodynamics", "angles", "alpha"), name="a")
+        beta_path   = TreePath(("aerodynamics", "angles", "beta"), name="b")
 
-        lift_path   = DataPath(("aerodynamics", "coefficients", "lift", "total"), tag="CL")
-        drag_path   = DataPath(("aerodynamics", "coefficients", "drag", "total"), tag="CD")
+        lift_path   = TreePath(("aerodynamics", "coefficients", "lift", "total"), name="CL")
+        drag_path   = TreePath(("aerodynamics", "coefficients", "drag", "total"), name="CD")
 
-        GRAD_MAP = GradientMap(
+        GRAD_MAP = JacobianMap(
             state_inputs=(
                 mach_path,
                 alpha_path,
@@ -266,10 +264,10 @@ if __name__ == "__main__":
 
         generator = ShardedDatasetGenerator(
             batch_analysis=solver,
-            cache_dir="./Tests/VORJAX/Wing Data Generation/W1",
+            cache_dir="./tests/VORJAX/Wing Data Generation/W1",
             storage_dir="/media/jordan/Ashley_Backup/Wing Data Generation/W1",
             shard_size=3_000_000,
-            tag="W1"
+            name="W1"
         )
         
         generator.run(

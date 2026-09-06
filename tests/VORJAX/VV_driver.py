@@ -28,24 +28,24 @@ from jax import Array
 from tqdm import trange
 from plotly.subplots import make_subplots
 
-import src.eden_trace.utils as ru
+import flowtangent.utils as tu
 
-from src.eden_trace.library import units
-from src.eden_trace.library.components import ComponentAreas
-from src.eden_trace.library.components.wings import Wing, WingSegment, WingChords, WingDimensions, WingSweeps
-from src.eden_trace.library.components.airfoils import Airfoil, Airfoil_Data
+from flowtangent.data import units
+from flowtangent.library.components import Areas
+from flowtangent.library.components.wings import Wing, WingSegment, Chords, WingDimensions, Sweeps
+from flowtangent.library.components.airfoils import Airfoil, Airfoil_Data
 
-from src.eden_trace.library.methods.aero.Transonic import ensemble_CL_spline
+from flowtangent.library.methods.aero.Transonic import ensemble_CL_spline
 
-from src.eden_trace.framework import Process, State, Aircraft, Settings, GradientMap, System
-from src.eden_trace.framework.settings import AnalysisSettings
-from src.eden_trace.framework.conditions import Time
+from flowtangent.framework import Process, State, Aircraft, Settings, JacobianMap, System
+from flowtangent.core._settings import AnalysisSettings
+from flowtangent.core._state_data import Time
 
-from src.eden_trace.framework.analyses.aero.VORJAX import ComputeVORJAX, VORJAX_Settings, InitializeVORJAX, Vortices, SupersonicSettings, CorrectionFactors, BatchVORJAX
-from src.eden_trace.framework.analyses.batched import ShardedDatasetGenerator
+from flowtangent.framework.analyses.aero.VORJAX import ComputeVORJAX, VORJAX_Settings, InitializeVORJAX, Vortices, SupersonicSettings, CorrectionFactors, BatchVORJAX
+from flowtangent.framework.analyses.batched import ShardedDatasetGenerator
 
-from src.eden_trace.framework.Interfaces.AVL import parse_avl_file, convert_to_RCAIDE
-from src.eden_trace.framework.Plotting import plot_vlm_panels
+from flowtangent.framework.interfaces.AVL import parse_avl_file, convert_to_Flowtangent
+from flowtangent.framework.plotting import plot_vlm_panels
 
 # AVL Helper Functions -------------------------------------------------------------------------------------------------
 
@@ -111,7 +111,7 @@ def run_AVL_alpha_sweep(avl_file, alpha, run_name, oper_mode="st"):
 
     # 2. Loop through each alpha and build the execution sequence
     for i, a in enumerate(alpha):
-        file_name = f"./Tests/VORJAX/AVL Test Cases/{run_name}_{oper_mode}_a{i}.txt"
+        file_name = f"./tests/VORJAX/AVL Test Cases/{run_name}_{oper_mode}_a{i}.txt"
         output_files.append(file_name)
 
         # CRITICAL: Pre-delete the file so AVL never throws an overwrite prompt
@@ -223,7 +223,7 @@ def AVL_basic_test(geometry_file=None, run_name=None, oper_mode="st", alpha=2.0,
         run_name = Path(geometry_file).stem
 
     if geometry_file is None:
-        geometry_file = f"./Tests/VORJAX/AVL Test Cases/{run_name}.avl"
+        geometry_file = f"./tests/VORJAX/AVL Test Cases/{run_name}.avl"
         AVL_straight_wing(geometry_file, span=span, chord=chord)
 
     output_files = run_AVL_alpha_sweep(geometry_file, alpha=alpha, run_name=run_name, oper_mode=oper_mode)
@@ -249,9 +249,9 @@ def VORJAX_straight_wing(span=10.0, chord=1.0):
 
     wing_spans = WingDimensions(projected=span)
 
-    wing_chords = WingChords(root=chord, tip=chord, mean_aerodynamic=chord)
+    wing_chords = Chords(root=chord, tip=chord, mean_aerodynamic=chord)
 
-    wing_areas = ComponentAreas(reference=span * chord, wetted=2 * span * chord)
+    wing_areas = Areas(reference=span * chord, wetted=2 * span * chord)
 
     wing = Wing(
         symmetric=True,
@@ -262,7 +262,7 @@ def VORJAX_straight_wing(span=10.0, chord=1.0):
         aerodynamic_center=jnp.array([0.0, 0.0, 0.0])
     )
 
-    system = Aircraft(tag='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
+    system = Aircraft(name='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system
@@ -298,32 +298,32 @@ def VORJAX_elliptical_wing(AR=10., n_segments=1):
         sweep_c4 = jnp.arctan2(delta_x_c4, delta_y)
 
         segments += (WingSegment(
-            tag=f"{i}", 
+            name=f"{i}", 
             percent_span_location=eta_start, 
             root_chord_percent=chord_frac_start,
-            sweeps=WingSweeps(quarter_chord=sweep_c4)  # Inject sweep here!
+            sweeps=Sweeps(quarter_chord=sweep_c4)  # Inject sweep here!
         ),)
 
     # Tip segment doesn't need a sweep since there's no geometry after it
     segments += (WingSegment(
-        tag="Tip", 
+        name="Tip", 
         percent_span_location=1.0, 
         root_chord_percent=0.01
     ),)
 
-    wing_areas = ComponentAreas(reference=S_ref, wetted=2.0 * S_ref)
+    wing_areas = Areas(reference=S_ref, wetted=2.0 * S_ref)
 
-    wing = Wing(tag=f"Elliptical {n_segments}",
+    wing = Wing(name=f"Elliptical {n_segments}",
                 segments=segments,
                 symmetric=True,
                 spans=WingDimensions(projected=span),
-                chords=WingChords(root=c_root, tip=0.01 * c_root, mean_aerodynamic=c_root * 8.0 / (3 * jnp.pi)),
+                chords=Chords(root=c_root, tip=0.01 * c_root, mean_aerodynamic=c_root * 8.0 / (3 * jnp.pi)),
                 areas=wing_areas,
                 taper=0.01,
                 origin=jnp.array([[0.0, 0.0, 0.0]]),
                 aerodynamic_center=jnp.array([0.0, 0.0, 0.0])).update_geometry()
     
-    system = Aircraft(tag='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
+    system = Aircraft(name='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system  
@@ -344,31 +344,31 @@ def VORJAX_delta_wing(AR=2.0):
     
     segments = (
         WingSegment(
-            tag="Root_to_Tip",
+            name="Root_to_Tip",
             percent_span_location=0.0,
             root_chord_percent=1.0,
-            sweeps=WingSweeps(quarter_chord=sweep_c4)
+            sweeps=Sweeps(quarter_chord=sweep_c4)
         ),
         WingSegment(
-            tag="Tip",
+            name="Tip",
             percent_span_location=1.0,
             root_chord_percent=c_tip_ratio
         )
     )
 
-    wing_areas = ComponentAreas(reference=S_ref, wetted=2.0 * S_ref)
+    wing_areas = Areas(reference=S_ref, wetted=2.0 * S_ref)
 
-    wing = Wing(tag=f"Delta_AR_{AR}",
+    wing = Wing(name=f"Delta_AR_{AR}",
                 segments=segments,
                 symmetric=True,
                 spans=WingDimensions(projected=span),
-                chords=WingChords(root=c_root, tip=c_root * c_tip_ratio, mean_aerodynamic=2.0/3.0 * c_root),
+                chords=Chords(root=c_root, tip=c_root * c_tip_ratio, mean_aerodynamic=2.0/3.0 * c_root),
                 areas=wing_areas,
                 taper=c_tip_ratio,
                 origin=jnp.array([[0.0, 0.0, 0.0]]),
                 aerodynamic_center=jnp.array([0.0, 0.0, 0.0])).update_geometry()
     
-    system = Aircraft(tag='Delta Aircraft', areas=wing_areas).add_subcomponent(wing)
+    system = Aircraft(name='Delta Aircraft', areas=wing_areas).add_subcomponent(wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system
@@ -393,14 +393,14 @@ def VORJAX_ONERA_M6():
 
     segments = (
         WingSegment(
-            tag="ONERA M6",
+            name="ONERA M6",
             percent_span_location=0.0,
             root_chord_percent=1.0,
-            sweeps=WingSweeps(leading_edge=sweep_le, quarter_chord=sweep_qc),
+            sweeps=Sweeps(leading_edge=sweep_le, quarter_chord=sweep_qc),
             airfoil=Airfoil.from_file(Airfoil_Data/"ONERA_M6.txt")
         ),
         WingSegment(
-            tag="Tip",
+            name="Tip",
             percent_span_location=1.0,
             root_chord_percent=taper,
             airfoil=Airfoil.from_file(Airfoil_Data/"ONERA_M6.txt")
@@ -408,17 +408,17 @@ def VORJAX_ONERA_M6():
     )
     
     onera_wing = Wing(
-        tag="Main Wing",
+        name="Main Wing",
         symmetric=True,
         segments=segments,
         aspect_ratio=AR,
         taper=0.56,
         origin=jnp.array([[0.0, 0.0, 0.0]]),
-        chords=WingChords(root=c_root, mean_aerodynamic=mac),
+        chords=Chords(root=c_root, mean_aerodynamic=mac),
         spans=WingDimensions(projected=2 * semispan),
     ).update_geometry(calculate_reference_area=True, calculate_wetted_area=True)
 
-    system = Aircraft(tag='ONERA M6 Container', areas=onera_wing.areas).add_subcomponent(onera_wing)
+    system = Aircraft(name='ONERA M6 Container', areas=onera_wing.areas).add_subcomponent(onera_wing)
     system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
 
     return system
@@ -488,14 +488,14 @@ def VORJAX_test_run(
     initial_settings = eqx.tree_at(lambda s: s.analysis.aerodynamics, Settings(DEBUG_MODE=debug_mode), aero_settings)
 
     analysis = Process(
-        tag="VORJAX Test Run",
+        name="VORJAX Test Run",
         steps=(
             InitializeVORJAX(),
             ComputeVORJAX()
         ),
-        initial_state=initial_state,
-        initial_system=initial_system,
-        initial_settings=initial_settings
+        _initial_state=initial_state,
+        _initial_system=initial_system,
+        _initial_settings=initial_settings
     )
 
     results = analysis.run(
@@ -520,7 +520,7 @@ class NumpyEncoder(json.JSONEncoder):
             return float(obj)
         return super(NumpyEncoder, self).default(obj)
 
-def save_plot_cache(plot_key, filepath="./Tests/VORJAX/plotting.json", **kwargs):
+def save_plot_cache(plot_key, filepath="./tests/VORJAX/plotting.json", **kwargs):
     """Saves kwargs to a JSON file under a specific plot_key."""
     cache = {}
     if os.path.exists(filepath):
@@ -533,7 +533,7 @@ def save_plot_cache(plot_key, filepath="./Tests/VORJAX/plotting.json", **kwargs)
         json.dump(cache, f, cls=NumpyEncoder, indent=4)
     print(f"Cached data for '{plot_key}' to {filepath}")
 
-def load_plot_cache(key, filepath="./Tests/VORJAX/plotting.json"):
+def load_plot_cache(key, filepath="./tests/VORJAX/plotting.json"):
     """Loads the entire JSON cache dictionary."""
     if not os.path.exists(filepath):
         print(f"Warning: Cache file {filepath} not found.")
@@ -549,7 +549,7 @@ def plot_avl_validation_mpl(alpha, cl_vjx, cd_vjx, cm_vjx, cl_avl, cd_avl, cm_av
     plt.rcParams['font.serif'] = ['Times New Roman'] + plt.rcParams['font.serif']
     plt.rcParams['font.size'] = 10
 
-    # Trace styling
+    # Flowtangent styling
     avl_style = dict(color='black', linestyle='-', linewidth=1.5, label='AVL (Baseline)')
     vjx_style = dict(color='black', linestyle='None', marker='o', markersize=5,
                      markerfacecolor='none', markeredgecolor='black', label='VORJAX')
@@ -593,7 +593,7 @@ def plot_avl_validation_mpl(alpha, cl_vjx, cd_vjx, cm_vjx, cl_avl, cd_avl, cm_av
 
         # Save and close to prevent memory leaks
         plt.tight_layout()
-        plt.savefig("./Tests/VORJAX/plots/"+filename, format='pdf', bbox_inches='tight')
+        plt.savefig("./tests/VORJAX/plots/"+filename, format='pdf', bbox_inches='tight')
         plt.close(fig)
         print(f"Saved {filename}")
 
@@ -648,11 +648,11 @@ def plot_spanwise_loading_mpl(eta, gamma, CL, b, AR, v_inf):
     # 3. Initialize Figure (3.5 inch width for AIAA standard single column)
     _, ax = plt.subplots(figsize=(3.5, 2.6))
 
-    # 4. Add Trace: Theoretical Distribution (Smooth Dashed Line)
+    # 4. Add Flowtangent: Theoretical Distribution (Smooth Dashed Line)
     ax.plot(eta_dense, gamma_dense, color='black', linestyle='--', linewidth=1.5, 
             label='Lifting Surface Theory')
 
-    # 5. Add Trace: VORJAX Actual Results (Scatter points, no connecting line)
+    # 5. Add Flowtangent: VORJAX Actual Results (Scatter points, no connecting line)
     ax.plot(eta, gamma, color='black', linestyle='None', marker='o', 
             markersize=5, markerfacecolor='black', label='VORJAX Integration')
 
@@ -681,7 +681,7 @@ def plot_spanwise_loading_mpl(eta, gamma, CL, b, AR, v_inf):
     
     # 9. Export to native PDF vector graphic
     plt.tight_layout()
-    plt.savefig("./Tests/VORJAX/plots/spanwise_loading.pdf", format='pdf', bbox_inches='tight')
+    plt.savefig("./tests/VORJAX/plots/spanwise_loading.pdf", format='pdf', bbox_inches='tight')
 
 def plot_elliptical_convergence_mpl(n_segments, grad_AD, error, grad_truth):
     # Set global font to match LaTeX standard
@@ -695,17 +695,17 @@ def plot_elliptical_convergence_mpl(n_segments, grad_AD, error, grad_truth):
     # 1. Initialize figure (AIAA single column is ~3.5 inches wide. 3.5 x 2.6 is a good aspect ratio)
     _, ax1 = plt.subplots(figsize=(3.5, 2.6))
 
-    # 2. Add Trace: AD Gradient (Primary Y) - Solid line, filled circles
+    # 2. Add Flowtangent: AD Gradient (Primary Y) - Solid line, filled circles
     ax1.plot(n_segments, grad_AD, color='black', linestyle='-', linewidth=1.5, 
              marker='o', markersize=5, markerfacecolor='black', label='VORJAX AD Gradient')
 
-    # 3. Add Trace: Analytical Truth (Primary Y) - Dashed line, no markers
+    # 3. Add Flowtangent: Analytical Truth (Primary Y) - Dashed line, no markers
     ax1.axhline(y=grad_truth, color='black', linestyle='--', linewidth=1.5, label="Hembold's Equation")
 
     # 4. Initialize Secondary Y-axis
     ax2 = ax1.twinx()
 
-    # 5. Add Trace: Relative Error (Secondary Y) - Dotted line, open squares
+    # 5. Add Flowtangent: Relative Error (Secondary Y) - Dotted line, open squares
     ax2.plot(n_segments, error_percent, color='black', linestyle=':', linewidth=1.5, 
              marker='s', markersize=5, markerfacecolor='none', markeredgecolor='black', 
              label='Relative Error')
@@ -736,7 +736,7 @@ def plot_elliptical_convergence_mpl(n_segments, grad_AD, error, grad_truth):
     
     # 10. Export to native PDF vector graphic
     plt.tight_layout()
-    plt.savefig("./Tests/VORJAX/plots/elliptical_lift.pdf", format='pdf', bbox_inches='tight')
+    plt.savefig("./tests/VORJAX/plots/elliptical_lift.pdf", format='pdf', bbox_inches='tight')
 
 def plot_elliptical_drag_mpl(n_segments, grad_AD, field):
     # Set global font to match LaTeX standard
@@ -755,17 +755,17 @@ def plot_elliptical_drag_mpl(n_segments, grad_AD, field):
     # 1. Initialize figure (AIAA single column is ~3.5 inches wide. 3.5 x 2.6 is a good aspect ratio)
     _, ax1 = plt.subplots(figsize=(3.5, 2.6))
 
-    # 2. Add Trace: AD Gradient (Primary Y) - Solid line, filled circles
+    # 2. Add Flowtangent: AD Gradient (Primary Y) - Solid line, filled circles
     ax1.plot(n_segments, grad_AD, color='black', linestyle='-', linewidth=1.5, 
              marker='o', markersize=5, markerfacecolor='black', label='VORJAX AD Gradient')
 
-    # 3. Add Trace: Analytical Truth (Primary Y) - Dashed line, no markers
+    # 3. Add Flowtangent: Analytical Truth (Primary Y) - Dashed line, no markers
     ax1.axhline(y=grad_truth, color='black', linestyle='--', linewidth=1.5, label="Munk's Stagger Thm.")
 
     # 4. Initialize Secondary Y-axis
     ax2 = ax1.twinx()
 
-    # 5. Add Trace: Relative Error (Secondary Y) - Dotted line, open squares
+    # 5. Add Flowtangent: Relative Error (Secondary Y) - Dotted line, open squares
     ax2.plot(n_segments, error_percent, color='black', linestyle=':', linewidth=1.5, 
              marker='s', markersize=5, markerfacecolor='none', markeredgecolor='black', 
              label='Relative Error')
@@ -796,7 +796,7 @@ def plot_elliptical_drag_mpl(n_segments, grad_AD, field):
     
     # 10. Export to native PDF vector graphic
     plt.tight_layout()
-    plt.savefig(f"./Tests/VORJAX/plots/elliptical_drag_{field}.pdf", format='pdf', bbox_inches='tight')
+    plt.savefig(f"./tests/VORJAX/plots/elliptical_drag_{field}.pdf", format='pdf', bbox_inches='tight')
 
 def plot_elliptical_convergence_plotly(n_segments, grad_AD, error, grad_truth):
     
@@ -806,7 +806,7 @@ def plot_elliptical_convergence_plotly(n_segments, grad_AD, error, grad_truth):
     # Convert error to a percentage for cleaner reading
     error_percent = np.array(error) * 100.0
 
-    # 2. Add Trace: AD Gradient (Primary Y)
+    # 2. Add Flowtangent: AD Gradient (Primary Y)
     fig.add_trace(
         go.Scatter(
             x=n_segments, 
@@ -819,7 +819,7 @@ def plot_elliptical_convergence_plotly(n_segments, grad_AD, error, grad_truth):
         secondary_y=False,
     )
 
-    # 3. Add Trace: Analytical Truth (Primary Y)
+    # 3. Add Flowtangent: Analytical Truth (Primary Y)
     # Drawing a line from the first to the last x-coordinate
     fig.add_trace(
         go.Scatter(
@@ -832,7 +832,7 @@ def plot_elliptical_convergence_plotly(n_segments, grad_AD, error, grad_truth):
         secondary_y=False,
     )
 
-    # 4. Add Trace: Relative Error (Secondary Y)
+    # 4. Add Flowtangent: Relative Error (Secondary Y)
     fig.add_trace(
         go.Scatter(
             x=n_segments, 
@@ -899,7 +899,7 @@ def plot_fd_v_curve_plotly(step_sizes, fd_errors):
     
     fig = go.Figure()
 
-    # 1. Add Trace: FD Absolute Error
+    # 1. Add Flowtangent: FD Absolute Error
     fig.add_trace(
         go.Scatter(
             x=step_sizes, 
@@ -998,12 +998,12 @@ def plot_fd_v_curve_mpl(step_sizes, fd_errors):
     # 1. Initialize figure (AIAA single column is ~3.5 inches wide)
     fig, ax = plt.subplots(figsize=(3.5, 2.6))
 
-    # 2. Add Trace: FD Absolute Error (Solid line, filled circles)
+    # 2. Add Flowtangent: FD Absolute Error (Solid line, filled circles)
     ax.loglog(step_sizes, fd_errors, color='black', linestyle='-', linewidth=1.2,
               marker='o', markersize=4, markerfacecolor='black', 
               label='Central Difference Error')
 
-    # 3. Add Trace: AD Error Bound (Dotted line, no markers)
+    # 3. Add Flowtangent: AD Error Bound (Dotted line, no markers)
     # Using 1e-16 as the theoretical machine zero floor
     ax.axhline(y=1e-16, color='black', linestyle=':', linewidth=1.5, 
                label='VORJAX AD Error Bound (Machine Zero)')
@@ -1048,7 +1048,7 @@ def plot_fd_v_curve_mpl(step_sizes, fd_errors):
     
     # 7. Export to native PDF vector graphic
     plt.tight_layout()
-    plt.savefig("./Tests/VORJAX/plots/fd_v_curve.pdf", format='pdf', bbox_inches='tight')
+    plt.savefig("./tests/VORJAX/plots/fd_v_curve.pdf", format='pdf', bbox_inches='tight')
 
 def plot_theoretical_error_comparison_plotly(step_sizes, fd_grads, exact_grad, grad_truth):
     
@@ -1058,7 +1058,7 @@ def plot_theoretical_error_comparison_plotly(step_sizes, fd_grads, exact_grad, g
 
     fig = go.Figure()
 
-    # 1. Add Trace: FD Relative Error vs Theory
+    # 1. Add Flowtangent: FD Relative Error vs Theory
     fig.add_trace(
         go.Scatter(
             x=step_sizes, 
@@ -1071,7 +1071,7 @@ def plot_theoretical_error_comparison_plotly(step_sizes, fd_grads, exact_grad, g
         )
     )
 
-    # 2. Add Trace: AD Relative Error vs Theory (Flat Line)
+    # 2. Add Flowtangent: AD Relative Error vs Theory (Flat Line)
     fig.add_trace(
         go.Scatter(
             x=[min(step_sizes), max(step_sizes)],
@@ -1270,7 +1270,7 @@ def plot_delta_log_sweep_mpl(ARs, grad_AD):
               fontweight='bold')
 
     plt.tight_layout()
-    plt.savefig("./Tests/VORJAX/plots/delta_wing_ar_sweep.pdf", format='pdf', bbox_inches='tight')
+    plt.savefig("./tests/VORJAX/plots/delta_wing_ar_sweep.pdf", format='pdf', bbox_inches='tight')
 
 def plot_delta_convergence_and_memory_plotly(n_panels, grad_AD, memory_gb, grad_truth):
     
@@ -1419,7 +1419,7 @@ def plot_delta_convergence_and_memory_mpl(n_panels, grad_AD, memory_gb):
     plt.title(r"Delta Wing Convergence and VRAM", fontweight='bold')
 
     plt.tight_layout()
-    plt.savefig("./Tests/VORJAX/plots/delta_convergence_memory.pdf", format='pdf', bbox_inches='tight')
+    plt.savefig("./tests/VORJAX/plots/delta_convergence_memory.pdf", format='pdf', bbox_inches='tight')
 
 def plot_transonic_tuning(mach, cl_su2, cl_vorjax, M_sub, M_sup):
     """
@@ -1474,7 +1474,7 @@ def plot_transonic_tuning(mach, cl_su2, cl_vorjax, M_sub, M_sup):
         marker=dict(color='red', size=8, symbol='diamond', line=dict(width=1, color='darkred'))
     ))
     
-    # --- The Invisible Hover Trace ---
+    # --- The Invisible Hover Flowtangent ---
     fig.add_trace(go.Scatter(
         x=mach_su2_masked, y=cl_su2_masked, # Align with SU2 points
         mode='markers', name='Spline Error',
@@ -1589,29 +1589,29 @@ def plot_transonic_tuning_mpl(mach, cl_su2, cl_vorjax, M_sub, M_sup):
 
     # 7. Export
     plt.tight_layout()
-    plt.savefig("./Tests/VORJAX/plots/onera_transonic_spline.pdf", format='pdf', bbox_inches='tight')
+    plt.savefig("./tests/VORJAX/plots/onera_transonic_spline.pdf", format='pdf', bbox_inches='tight')
 # Execution ------------------------------------------------------------------------------------------------------------
 
 if __name__ == "__main__":
 
-    os.chdir(ru.get_RCAIDE_root())
+    os.chdir(tu.get_Flowtangent_root())
 
-    mach_path   = ru.DataPath(("freestream", "mach_number"), tag="M")
-    alpha_path  = ru.DataPath(("aerodynamics", "angles", "alpha"), tag="a")
-    beta_path   = ru.DataPath(("aerodynamics", "angles", "beta"), tag="b")
+    mach_path   = tu.TreePath(("freestream", "mach_number"), name="M")
+    alpha_path  = tu.TreePath(("aerodynamics", "angles", "alpha"), name="a")
+    beta_path   = tu.TreePath(("aerodynamics", "angles", "beta"), name="b")
 
-    p_path      = ru.DataPath(("stability", "static", "roll_rate"), tag="p")
-    q_path      = ru.DataPath(("stability", "static", "pitch_rate"), tag="q")
-    r_path      = ru.DataPath(("stability", "static", "yaw_rate"), tag="r")
+    p_path      = tu.TreePath(("stability", "static", "roll_rate"), name="p")
+    q_path      = tu.TreePath(("stability", "static", "pitch_rate"), name="q")
+    r_path      = tu.TreePath(("stability", "static", "yaw_rate"), name="r")
     
-    lift_path   = ru.DataPath(("aerodynamics", "coefficients", "lift", "total"), tag="CL")
-    drag_path   = ru.DataPath(("aerodynamics", "coefficients", "drag", "total"), tag="CD")
+    lift_path   = tu.TreePath(("aerodynamics", "coefficients", "lift", "total"), name="CL")
+    drag_path   = tu.TreePath(("aerodynamics", "coefficients", "drag", "total"), name="CD")
     
-    i_drag_path = ru.DataPath(("aerodynamics", "coefficients", "drag", "induced", "total"))
-    nf_drag_path = ru.DataPath(("aerodynamics", "coefficients", "drag", "induced", "near_field"))
-    ff_drag_path = ru.DataPath(("aerodynamics", "coefficients", "drag", "induced", "far_field"))
+    i_drag_path = tu.TreePath(("aerodynamics", "coefficients", "drag", "induced", "total"))
+    nf_drag_path = tu.TreePath(("aerodynamics", "coefficients", "drag", "induced", "near_field"))
+    ff_drag_path = tu.TreePath(("aerodynamics", "coefficients", "drag", "induced", "far_field"))
 
-    GRAD_MAP = GradientMap(
+    GRAD_MAP = JacobianMap(
         state_inputs=(
             mach_path,
             alpha_path,
@@ -1661,9 +1661,9 @@ if __name__ == "__main__":
 
             f_st, f_sys, f_setts = results
 
-            CL = ru.get_target(f_st, lift_path)
-            CD = ru.get_target(f_st, ru.DataPath(("aerodynamics", "coefficients", "drag", "total")))
-            C_m = ru.get_target(f_st, ru.DataPath(("aerodynamics", "coefficients", "moments", "pitch")))
+            CL = tu.get_target(f_st, lift_path)
+            CD = tu.get_target(f_st, tu.TreePath(("aerodynamics", "coefficients", "drag", "total")))
+            C_m = tu.get_target(f_st, tu.TreePath(("aerodynamics", "coefficients", "moments", "pitch")))
 
             data = f_sys.analysis_data
             # VORJAX_dCp = np.round(np.asarray(data["dCp"]), 5)
@@ -1720,7 +1720,7 @@ if __name__ == "__main__":
                 )
                 f_st, f_sys, f_setts, jac = results
 
-                CL.append(ru.get_target(f_st, lift_path).item(0))
+                CL.append(tu.get_target(f_st, lift_path).item(0))
                 grad_AD.append(jac.item(0))
                 error_AD.append(abs(jac.item(0) - grad_truth)/grad_truth)
 
@@ -1765,7 +1765,7 @@ if __name__ == "__main__":
                         vehicle,
                         alpha=(2.0 * units.deg) + h, Mach=0.00,
                         debug_mode=DEBUG)
-                    CL_fwd = ru.get_target(res_fwd[0], lift_path).item(0)
+                    CL_fwd = tu.get_target(res_fwd[0], lift_path).item(0)
                     
                     # Backward Step
                     res_bwd = VORJAX_test_run(
@@ -1773,7 +1773,7 @@ if __name__ == "__main__":
                         alpha=(2.0 * units.deg) - h,
                         Mach=0.00,
                         debug_mode=DEBUG)
-                    CL_bwd = ru.get_target(res_bwd[0], lift_path).item(0)
+                    CL_bwd = tu.get_target(res_bwd[0], lift_path).item(0)
                     
                     # Central Difference
                     g_FD = (CL_fwd - CL_bwd) / (2 * h)
@@ -1817,7 +1817,7 @@ if __name__ == "__main__":
                     vehicle,
                     alpha=alpha , Mach=0.00,
                     n_sw=max_segments,
-                    grad_map=GradientMap(
+                    grad_map=JacobianMap(
                         state_inputs=(alpha_path,),
                         state_outputs=(nf_drag_path, ff_drag_path)
                     ),
@@ -1826,10 +1826,10 @@ if __name__ == "__main__":
                 
                 f_st, f_sys, f_setts, jac = results
 
-                CDnf.append(ru.get_target(f_st, nf_drag_path).item(0))
+                CDnf.append(tu.get_target(f_st, nf_drag_path).item(0))
                 grad_nf.append(jac.item(0))
                 
-                CDff.append(ru.get_target(f_st, ff_drag_path).item(0))
+                CDff.append(tu.get_target(f_st, ff_drag_path).item(0))
                 grad_ff.append(jac.item(1))
             
             save_plot_cache(
@@ -1888,7 +1888,7 @@ if __name__ == "__main__":
                 peak_vram = info.used / (1024 ** 3)
                 vram_gb.append(peak_vram)
 
-                CL.append(ru.get_target(f_st, lift_path).item(0))
+                CL.append(tu.get_target(f_st, lift_path).item(0))
                 grad_AD.append(jac.item(0))
                 error_AD.append(abs(jac.item(0) - grad_jones)/grad_jones)
 
@@ -1925,7 +1925,7 @@ if __name__ == "__main__":
                     debug_mode=DEBUG
                 )
 
-                CL.append(ru.get_target(f_st, lift_path).item(0))
+                CL.append(tu.get_target(f_st, lift_path).item(0))
                 grad_AD.append(jac.item(0))
 
                 if PLOT_WINGS:
@@ -1965,8 +1965,8 @@ if __name__ == "__main__":
             )
             f_st, f_sys, f_setts, jac = results
 
-            CL  = ru.get_target(f_st, lift_path)
-            CDi = ru.get_target(f_st, i_drag_path)
+            CL  = tu.get_target(f_st, lift_path)
+            CDi = tu.get_target(f_st, i_drag_path)
             dCL_dMach = jnp.array([jac[i, 0, i] for i in range(len(alpha))]).reshape(CL.shape)
 
             cache_path = Path(os.path.join(os.path.dirname(__file__), 'SU2_Test_Cases/su2_run_cache.json'))
@@ -2020,7 +2020,7 @@ if __name__ == "__main__":
     # Batch Analysis Test ----------------------------------------------------------------------------------------------
     if TEST_BATCH:
         print("\n--- Batch Analysis Test ---")
-        db_path = "./Tests/VORJAX/batch_test"
+        db_path = "./tests/VORJAX/batch_test"
         if NEW_DATA:
             
             alpha = jnp.linspace(0.0, 5.0, 51) * units.deg
@@ -2072,10 +2072,10 @@ if __name__ == "__main__":
 
             generator = ShardedDatasetGenerator(
                 batch_analysis=solver,
-                cache_dir="./Tests/VORJAX/shard_test",
+                cache_dir="./tests/VORJAX/shard_test",
                 storage_dir="/media/jordan/Ashley_Backup/shard_test",
                 shard_size=3_000_000,
-                tag="Rectangle AR 10"
+                name="Rectangle AR 10"
             )
 
             generator.run(
