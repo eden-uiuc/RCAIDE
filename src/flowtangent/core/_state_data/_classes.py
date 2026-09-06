@@ -22,7 +22,7 @@ from flowtangent.utils import field
 #  Conditions
 # ----------------------------------------------------------------------------------------------------------------------
 
-STATIC_DATA = ("AtmosphericBreakpoints")
+STATIC_DATA = ("AtmosphericBreakpoints",)
 
 def _is_static_node(node):
         return hasattr(node, "__class__") and node.__class__.__name__ in STATIC_DATA
