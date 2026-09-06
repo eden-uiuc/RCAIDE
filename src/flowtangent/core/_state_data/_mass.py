@@ -20,6 +20,7 @@ from flowtangent.utils import empty_array, field, register
 #  Mass
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 @register
 class Mass(StateData):
     """

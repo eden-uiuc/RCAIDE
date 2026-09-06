@@ -8,33 +8,36 @@ from flowtangent.library.components.energy.jets.classes import TurbojetEngine
 
 from flowtangent.utils.io import _ft_root
 
-#-----------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------
 # Data Collection (Sourced from Mattingly)
-#-----------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------
 
 _DATA_DIR = _ft_root() / "library/data/turbo_engines"
 _JSON_DIR = _DATA_DIR / "JSONs"
+
 
 def load_csv_as_dicts(filepath):
     """Loads a standard CSV into a list of dictionaries."""
     if not os.path.exists(filepath):
         return []
-    with open(filepath, mode='r', encoding='utf-8') as f:
+    with open(filepath, mode="r", encoding="utf-8") as f:
         return list(csv.DictReader(f))
+
 
 def parse_value(val):
     """Converts string values to floats, handling textbook dashes."""
     val = val.strip()
-    if val == '-' or val == '':
+    if val == "-" or val == "":
         return None
-    elif val =="true":
+    elif val == "true":
         return True
-    elif val=="false":
+    elif val == "false":
         return False
     try:
         return float(val)
     except ValueError:
         return val
+
 
 def process_station_data(data_dir=_DATA_DIR):
     """
@@ -42,7 +45,7 @@ def process_station_data(data_dir=_DATA_DIR):
     Source: Mattingly, 2nd Ed.
     """
     # Load the thermal data (Table C.4)
-    with open(data_dir / 'station_data.csv', mode='r', encoding='utf-8') as f:
+    with open(data_dir / "station_data.csv", mode="r", encoding="utf-8") as f:
         reader = csv.reader(f)
         headers = next(reader)
         engine_names = headers[1:]  # Skip 'Parameter'
@@ -53,7 +56,7 @@ def process_station_data(data_dir=_DATA_DIR):
         for row in reader:
             param = row[0]
             for i, engine in enumerate(engine_names):
-                val = parse_value(row[i+1])
+                val = parse_value(row[i + 1])
                 # Separate general performance metrics from strict station arrays
                 if param in ["Bypass ratio", "Thrust (lbf)", "Airflow (lbm/s)"]:
                     thermal_data[engine][param] = val
@@ -61,14 +64,14 @@ def process_station_data(data_dir=_DATA_DIR):
                     thermal_data[engine]["station_data"][param] = val
 
     # Dump the pivoted thermal data to JSON files
-    os.makedirs('mattingly_json', exist_ok=True)
+    os.makedirs("mattingly_json", exist_ok=True)
 
     for engine, data in thermal_data.items():
         # Clean up filenames (e.g., F100-PW-100)
-        safe_name = engine.replace(' ', '_').replace('/', '_')
-        filepath = os.path.join('mattingly_json', f'{safe_name}_thermal.json')
+        safe_name = engine.replace(" ", "_").replace("/", "_")
+        filepath = os.path.join("mattingly_json", f"{safe_name}_thermal.json")
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(data, f, indent=4)
         print(f"Exported: {filepath}")
 
@@ -82,55 +85,53 @@ def process_design_data(csv_file):
         print(f"Warning: Could not find {csv_file}. Skipping.")
         return
 
-    category = csv_file.stem.split('_')[0].title()
+    category = csv_file.stem.split("_")[0].title()
 
     out_dir = _JSON_DIR
     os.makedirs(out_dir, exist_ok=True)
 
-    with open(csv_file, mode='r', encoding='utf-8') as f:
+    with open(csv_file, mode="r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             # Grab the model name to use as the filename, sanitizing any slashes or spaces
-            engine_name = row.get('Model no.', 'Unknown_Engine')
+            engine_name = row.get("Model no.", "Unknown_Engine")
             print(f"Exporting: {engine_name}")
-            engine_type = csv_file.stem.split('_')[1].title()[:-1]
-            safe_name = engine_name.replace('/', '_').replace(' ', '_').replace('-','_')
+            engine_type = csv_file.stem.split("_")[1].title()[:-1]
+            safe_name = engine_name.replace("/", "_").replace(" ", "_").replace("-", "_")
 
-            header_data = {
-                "category": category,
-                "type": engine_type
-            }
+            header_data = {"category": category, "type": engine_type}
 
             # Clean up the dictionary values
             clean_data = header_data | {k: parse_value(v) for k, v in row.items()}
 
-            #Assumed values for afterburner exit temperature
-            if row.get('AB', False):
+            # Assumed values for afterburner exit temperature
+            if row.get("AB", False):
                 if engine_type == "Turbojet":
-                    clean_data['AET (F)'] = 2600.0
+                    clean_data["AET (F)"] = 2600.0
                 elif engine_type == "Turbofan":
-                    clean_data['AET (F)'] = 3200.0
+                    clean_data["AET (F)"] = 3200.0
 
             if category == "Civil":
-                clean_data['TIT (F)'] = 2300.0
+                clean_data["TIT (F)"] = 2300.0
 
             # Concorde overrides for afterburning civil engine
             if "Olympus" in engine_name:
-                clean_data['AB'] = True
-                clean_data['AET (F)'] = 2600.0
-                clean_data['TIT (F)'] = 2200.0
-
+                clean_data["AB"] = True
+                clean_data["AET (F)"] = 2600.0
+                clean_data["TIT (F)"] = 2200.0
 
             # Write to JSON
             filepath = os.path.join(out_dir, f"{safe_name}.json")
-            with open(filepath, 'w') as out_f:
+            with open(filepath, "w") as out_f:
                 json.dump(clean_data, out_f, indent=4)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Engine Loading
 # ----------------------------------------------------------------------------------------------------------------------
 
 STUB_FILE = _ft_root() / "library/components/energy/jets/data.pyi"
+
 
 @lru_cache(maxsize=None)
 def _load_engine_from_disk(name: str):
@@ -139,6 +140,7 @@ def _load_engine_from_disk(name: str):
         raise AttributeError(f"Engine {name} not found in Flowtangent library ({_DATA_DIR}).")
 
     return TurbojetEngine.from_json(filepath=file_path)
+
 
 def __getattr__(name: str) -> Any:
     """Intercepts module-level attribute access."""
@@ -156,6 +158,7 @@ def __dir__():
         return [f.stem for f in _JSON_DIR.glob("*.json")]
     return []
 
+
 def generate_stub():
     lines = [
         "from .classes import TurbojetEngine",  # Update import path
@@ -164,16 +167,16 @@ def generate_stub():
 
     for eng_file in _JSON_DIR.glob("*.json"):
         # Write the attribute to the stub file
-        lines.append(f"{eng_file.stem}: {"TurbojetEngine"}")
+        lines.append(f"{eng_file.stem}: {'TurbojetEngine'}")
 
     STUB_FILE.write_text("\n".join(lines))
     print(f"Generated {STUB_FILE.name} with {len(lines) - 3} engines.")
 
 
 if __name__ == "__main__":
-    print("="*50 + "\nBuilding Engine Library from Mattingly Data...\n" + "-"*50)
-    process_design_data(_DATA_DIR/"CSVs/civil_turbofans.csv")
-    process_design_data(_DATA_DIR/"CSVs/military_turbofans.csv")
-    process_design_data(_DATA_DIR/"CSVs/military_turbojets.csv")
+    print("=" * 50 + "\nBuilding Engine Library from Mattingly Data...\n" + "-" * 50)
+    process_design_data(_DATA_DIR / "CSVs/civil_turbofans.csv")
+    process_design_data(_DATA_DIR / "CSVs/military_turbofans.csv")
+    process_design_data(_DATA_DIR / "CSVs/military_turbojets.csv")
     print("Library Build Complete.")
     generate_stub()

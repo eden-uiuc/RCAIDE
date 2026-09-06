@@ -24,8 +24,10 @@ from flowtangent.utils import field
 
 STATIC_DATA = ("AtmosphericBreakpoints",)
 
+
 def _is_static_node(node):
-        return hasattr(node, "__class__") and node.__class__.__name__ in STATIC_DATA
+    return hasattr(node, "__class__") and node.__class__.__name__ in STATIC_DATA
+
 
 class StateData(eqx.Module):
     name: str = field("Conditions", static=True)
@@ -98,6 +100,7 @@ class StateData(eqx.Module):
             if isinstance(first_leaf, jnp.ndarray):
                 return jnp.concatenate(leaves, axis=0)
             return first_leaf
+
         return jax.tree_util.tree_map(_concat, *states, is_leaf=_is_static_node)
 
     def truncate(self, size: int):

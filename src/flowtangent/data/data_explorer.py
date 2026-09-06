@@ -26,6 +26,7 @@ from flowtangent.core._settings import AnalysisSettings
 # Random seed for mock data
 rng = np.random.default_rng(seed=137)
 
+
 def filter_widget(
     label: str,
     min_val: float,
@@ -160,6 +161,7 @@ def wing_renderer(wing_system):
 # ----------------------------------------------------------------------------------------------------------------------
 # Data Functions
 # ----------------------------------------------------------------------------------------------------------------------
+
 
 @st.cache_data
 def load_mock_data():

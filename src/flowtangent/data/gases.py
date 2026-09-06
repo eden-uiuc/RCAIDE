@@ -28,6 +28,7 @@ jax.config.update("jax_enable_x64", True)
 
 _DB_PATH = _ft_root() / "data/thermo_database.json"
 
+
 @lru_cache(maxsize=1)
 def _load_database():
     """Loads the entire JSON database into memory on the first call."""
@@ -36,9 +37,10 @@ def _load_database():
     with open(_DB_PATH, "r") as f:
         return json.load(f)
 
+
 db = _load_database()
 SPECIES_LIST = list(db.keys())
-SPECIES_INDEX = {name:idx for idx, name in enumerate(SPECIES_LIST)}
+SPECIES_INDEX = {name: idx for idx, name in enumerate(SPECIES_LIST)}
 
 _MOL_LIST = []
 _LOW_LIST = []
@@ -52,13 +54,14 @@ for name in SPECIES_LIST:
     _MID_LIST.append(data["T_mid"])
     _HIGH_LIST.append(data["nasa_high_coeffs"])
 
-MOL_MASS    = jnp.array(_MOL_LIST, dtype=jnp.float64) * units.gram
-NASA_LOW    = jnp.array(_LOW_LIST, dtype=jnp.float64)
-NASA_MID    = jnp.array(_MID_LIST, dtype=jnp.float64)
-NASA_HIGH   = jnp.array(_HIGH_LIST, dtype=jnp.float64)
+MOL_MASS = jnp.array(_MOL_LIST, dtype=jnp.float64) * units.gram
+NASA_LOW = jnp.array(_LOW_LIST, dtype=jnp.float64)
+NASA_MID = jnp.array(_MID_LIST, dtype=jnp.float64)
+NASA_HIGH = jnp.array(_HIGH_LIST, dtype=jnp.float64)
 
 R_UNIV = 8.314462
 R_SPEC = R_UNIV / MOL_MASS
+
 
 def _eval_Cp(T):
     T_arr = jnp.asarray(T)
@@ -67,10 +70,11 @@ def _eval_Cp(T):
 
     T_vec = jnp.stack([jnp.ones_like(T_arr), T_arr, T_arr**2, T_arr**3, T_arr**4], axis=-1)
 
-    cp_low  = R_SPEC * jnp.dot(T_vec, NASA_LOW[:, :5].T)
+    cp_low = R_SPEC * jnp.dot(T_vec, NASA_LOW[:, :5].T)
     cp_high = R_SPEC * jnp.dot(T_vec, NASA_HIGH[:, :5].T)
 
     return jnp.where(jnp.expand_dims(T_arr, axis=-1) > NASA_MID, cp_high, cp_low)
+
 
 def _eval_h(T):
     """
@@ -82,49 +86,57 @@ def _eval_h(T):
     if T_arr.ndim > 1 and T_arr.shape[-1] == 1:
         T_arr = T_arr[..., 0]
 
-    T_vec = jnp.stack([
-        T_arr,
-        (T_arr**2) / 2.0,
-        (T_arr**3) / 3.0,
-        (T_arr**4) / 4.0,
-        (T_arr**5) / 5.0,
-        jnp.ones_like(T_arr),
-        jnp.zeros_like(T_arr)
-    ], axis=-1) # Shape (7, T.shape)
+    T_vec = jnp.stack(
+        [
+            T_arr,
+            (T_arr**2) / 2.0,
+            (T_arr**3) / 3.0,
+            (T_arr**4) / 4.0,
+            (T_arr**5) / 5.0,
+            jnp.ones_like(T_arr),
+            jnp.zeros_like(T_arr),
+        ],
+        axis=-1,
+    )  # Shape (7, T.shape)
 
     # Dot product across the coefficients for low and high temperature ranges
     # T_vec @ COEFFS yields a (N_species, T.shape) array
-    h_low   = R_SPEC * jnp.dot(T_vec, NASA_LOW.T)
-    h_high  = R_SPEC * jnp.dot(T_vec, NASA_HIGH.T)
+    h_low = R_SPEC * jnp.dot(T_vec, NASA_LOW.T)
+    h_high = R_SPEC * jnp.dot(T_vec, NASA_HIGH.T)
 
     return jnp.where(jnp.expand_dims(T_arr, axis=-1) > NASA_MID, h_high, h_low)
+
 
 def _eval_s0(T):
     T_arr = jnp.asarray(T)
     if T_arr.ndim > 1 and T_arr.shape[-1] == 1:
         T_arr = T_arr[..., 0]
 
-    T_vec = jnp.stack([
-        jnp.log(T_arr),
-        T_arr,
-        (T_arr**2) / 2.0,
-        (T_arr**3) / 3.0,
-        (T_arr**4) / 4.0,
-        jnp.zeros_like(T_arr),
-        jnp.ones_like(T_arr)
-    ], axis=-1)
+    T_vec = jnp.stack(
+        [
+            jnp.log(T_arr),
+            T_arr,
+            (T_arr**2) / 2.0,
+            (T_arr**3) / 3.0,
+            (T_arr**4) / 4.0,
+            jnp.zeros_like(T_arr),
+            jnp.ones_like(T_arr),
+        ],
+        axis=-1,
+    )
 
     # FIX: Use T_vec @ NASA.T so shapes perfectly align to (..., N_species)
-    s_low   = R_SPEC * jnp.dot(T_vec, NASA_LOW.T)
-    s_high  = R_SPEC * jnp.dot(T_vec, NASA_HIGH.T)
+    s_low = R_SPEC * jnp.dot(T_vec, NASA_LOW.T)
+    s_high = R_SPEC * jnp.dot(T_vec, NASA_HIGH.T)
 
     return jnp.where(jnp.expand_dims(T_arr, axis=-1) > NASA_MID, s_high, s_low)
+
 
 @register
 class Gas(eqx.Module):
     mass_fractions: jax.Array
 
-    def __init__(self, mass_fractions:Optional[jax.Array]=None, fractions_dict: Optional[dict] = None):
+    def __init__(self, mass_fractions: Optional[jax.Array] = None, fractions_dict: Optional[dict] = None):
         # If explicitly given an array (used by pure species and JAX internals)
         if mass_fractions is not None:
             self.mass_fractions = jnp.asarray(mass_fractions, dtype=jnp.float64)
@@ -184,7 +196,7 @@ class Gas(eqx.Module):
         h_ref = self.compute_absolute_enthalpy(298.15)
         return h_abs - h_ref
 
-    def invert_enthalpy(self, h_target: float | jnp.ndarray, T_guess: float | jnp.ndarray=1000.0, max_iter: int = 5):
+    def invert_enthalpy(self, h_target: float | jnp.ndarray, T_guess: float | jnp.ndarray = 1000.0, max_iter: int = 5):
         def step(T, _):
             h = self.compute_enthalpy(T)
             cp = self.compute_Cp(T)
@@ -217,12 +229,13 @@ class Gas(eqx.Module):
     def compute_absolute_viscosity(self, T: float | jnp.ndarray = 298.0):
         return 1.8e-5
 
+
 @lru_cache(maxsize=None)
 def _get_gas(name: str):
     """Fetches the gas from the cached database and builds the Equinox module."""
 
     if name not in SPECIES_INDEX:
-            raise AttributeError(f"Species '{name}' not found in the thermo database.")
+        raise AttributeError(f"Species '{name}' not found in the thermo database.")
 
     f_dict = {name: 1.0}
     return Gas(fractions_dict=f_dict)
@@ -248,9 +261,11 @@ def __dir__():
     available_species.extend(_CUSTOM_MIXTURES.keys())
     return available_species
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #  Custom Mixes
 # ----------------------------------------------------------------------------------------------------------------------
+
 
 @lru_cache(maxsize=1)
 def _build_air():
@@ -260,14 +275,16 @@ def _build_air():
             "O2":0.2314,
             "AR":0.0128,
             "CO2":0.0006,
-            "N2":0.7552
+            "N2":0.7552,
         },
     )
     return air
 
+
 _CUSTOM_MIXTURES = {
     "Air": _build_air,
 }
+
 
 def BurnedJetA(FAR: float | jax.Array) -> Gas:
     """
@@ -298,20 +315,13 @@ def BurnedJetA(FAR: float | jax.Array) -> Gas:
     fractions = fractions.at[..., SPECIES_INDEX["O2"]].set(
         jnp.maximum(m_O2_air - (O2_consumed * FAR_arr), 0.0) / m_total
     )
-    fractions = fractions.at[..., SPECIES_INDEX["CO2"]].set(
-        (m_CO2_air + (CO2_produced * FAR_arr)) / m_total
-    )
-    fractions = fractions.at[..., SPECIES_INDEX["H2O"]].set(
-        (H2O_produced * FAR_arr) / m_total
-    )
-    fractions = fractions.at[..., SPECIES_INDEX["AR"]].set(
-        m_Ar_air / m_total
-    )
-    fractions = fractions.at[..., SPECIES_INDEX["N2"]].set(
-        m_N2_air / m_total
-    )
+    fractions = fractions.at[..., SPECIES_INDEX["CO2"]].set((m_CO2_air + (CO2_produced * FAR_arr)) / m_total)
+    fractions = fractions.at[..., SPECIES_INDEX["H2O"]].set((H2O_produced * FAR_arr) / m_total)
+    fractions = fractions.at[..., SPECIES_INDEX["AR"]].set(m_Ar_air / m_total)
+    fractions = fractions.at[..., SPECIES_INDEX["N2"]].set(m_N2_air / m_total)
 
     return Gas(mass_fractions=fractions)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  CHEMKIN Harvester
@@ -324,7 +334,7 @@ ATOMIC_MASSES = {
     "N": 14.007,
     "O": 15.999,
     "AR": 39.948,
-    "S": 32.065
+    "S": 32.065,
 }
 
 def parse_chemkin_thermo(filepath: str, output_path: str):

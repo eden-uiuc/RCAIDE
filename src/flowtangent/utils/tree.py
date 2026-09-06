@@ -32,13 +32,14 @@ from jax.tree_util import (
 # FLOWTANGENT WRAPPERS
 # -----------------------------------------------------------------------------
 
-@overload
-def update(obj: Any, where_or_updates: Callable, val: Any) -> Any:
-    ...
 
 @overload
-def update(obj: Any, where_or_updates: TreePath | tuple | Sequence[TreePath | tuple]) -> Any:
-    ...
+def update(obj: Any, where_or_updates: Callable, val: Any) -> Any: ...
+
+
+@overload
+def update(obj: Any, where_or_updates: TreePath | tuple | Sequence[TreePath | tuple]) -> Any: ...
+
 
 def update(obj, where_or_updates, val=None):
     """
@@ -62,14 +63,12 @@ def update(obj, where_or_updates, val=None):
         paths = [TreePath.cast(u) for u in where_or_updates]
 
     else:
-        raise TypeError(
-            "update() requires a lambda function, a TreePath, a path tuple, "
-            "or a sequence of updates."
-        )
+        raise TypeError("update() requires a lambda function, a TreePath, a path tuple, or a sequence of updates.")
 
     where_fn = partial(get_all_targets, input_map=paths)
     vals = tuple(p.value for p in paths)
     return eqx.tree_at(where_fn, obj, vals)
+
 
 # -----------------------------------------------------------------------------
 # CORE PYTREE UTILITIES
@@ -82,7 +81,7 @@ class TreePath:
     name: str
 
     @classmethod
-    def cast(cls, item: Any) -> 'TreePath':
+    def cast(cls, item: Any) -> "TreePath":
         """Convenience method to intelligently cast strings and tuples into TreePaths."""
         if isinstance(item, cls):
             return item
@@ -96,12 +95,12 @@ class TreePath:
         raise TypeError(f"Cannot automatically cast {type(item)} into a TreePath.")
 
     def __init__(
-            self,
-            path: tuple | str | 'TreePath' = ('state',),
-            value: Optional[Any] = None,
-            path_slice: slice = slice(None),
-            name: Optional[str] = None,
-        ):
+        self,
+        path: tuple | str | "TreePath" = ("state",),
+        value: Optional[Any] = None,
+        path_slice: slice = slice(None),
+        name: Optional[str] = None,
+    ):
 
         if isinstance(path, TreePath):
             object.__setattr__(self, "path", path.path)
@@ -113,7 +112,7 @@ class TreePath:
             if isinstance(path, tuple):
                 path_tuple = path
             elif isinstance(path, str):
-                path_tuple = tuple(path.split('.'))
+                path_tuple = tuple(path.split("."))
             else:
                 raise ValueError("TreePath path must be a tuple or string.")
 
@@ -122,7 +121,7 @@ class TreePath:
             object.__setattr__(self, "path_slice", path_slice)
 
             if name is None:
-                path_name = '.'.join(self.path)
+                path_name = ".".join(self.path)
             else:
                 path_name = name
 
@@ -133,6 +132,7 @@ class TreePath:
 
     def _snip_lead(self):
         return update(self, lambda p: p.path, self.path[1:])
+
 
 def get_parent_target(obj: Any, path: str | tuple | TreePath) -> Any:
     """Gets the full PyTree leaf, ignoring the slice."""
@@ -160,6 +160,7 @@ def get_all_parents(s: Any, input_map: Sequence[str | tuple | TreePath]) -> tupl
 
 def get_all_targets(s: Any, input_map: Sequence[str | tuple | TreePath]) -> tuple:
     return tuple(get_target(s, path) for path in input_map)
+
 
 def is_equivalent(a, b):
     """Safely checks deep equality between any two PyTrees, arrays, or scalars."""
@@ -194,6 +195,7 @@ def is_equivalent(a, b):
 
     return True
 
+
 def compute_tree_delta(old_tree, new_tree):
     """Find changes between two identically structured PyTrees."""
     old_leaves, _ = tree_flatten(old_tree)
@@ -214,6 +216,7 @@ def compute_tree_delta(old_tree, new_tree):
 
     return changed_indices, changed_leaves
 
+
 def apply_tree_delta(base_tree, delta_indices, delta_leaves):
     """Reconstructs new tree from base tree and delta."""
     old_leaves, treedef = tree_flatten(base_tree)
@@ -223,11 +226,13 @@ def apply_tree_delta(base_tree, delta_indices, delta_leaves):
 
     return tree_unflatten(treedef, new_leaves)
 
+
 def io_partition(tree, active_ids: set[int]):
     """
     Partitions a PyTree in dynamic and static halves based on an IO whitelist.
     Only JAX arrays whose paths are in the whitelist are kept dynamic.
     """
+
     def is_active(leaf):
         return is_array_like(leaf) and id(leaf) in active_ids
 
@@ -235,10 +240,11 @@ def io_partition(tree, active_ids: set[int]):
     dyn, stat = partition(tree, mask)
     return dyn, stat, mask
 
+
 # -----------------------------------------------------------------------------
 # DEBUGGING UTILITIES
 # -----------------------------------------------------------------------------
-def inspect_leaves(tree, mask, settings: Settings, tree_name:str="Tree", depth:int=3):
+def inspect_leaves(tree, mask, settings: Settings, tree_name: str = "Tree", depth: int = 3):
     """Groups PyTree leaves by their hierarchical path and outputs the summary."""
     leaves_with_path, _ = tree_flatten_with_path(tree)
     mask_leaves, _ = tree_flatten(mask)
@@ -248,11 +254,11 @@ def inspect_leaves(tree, mask, settings: Settings, tree_name:str="Tree", depth:i
     for (path, leaf), is_kept in zip(leaves_with_path, mask_leaves):
         path_strs = []
         for p in path:
-            if hasattr(p, 'name'):
+            if hasattr(p, "name"):
                 path_strs.append(f".{p.name}")
-            elif hasattr(p, 'key'):
+            elif hasattr(p, "key"):
                 path_strs.append(f"['{p.key}']")
-            elif hasattr(p, 'idx'):
+            elif hasattr(p, "idx"):
                 path_strs.append(f"[{p.idx}]")
             else:
                 path_strs.append(str(p))
@@ -271,15 +277,15 @@ def inspect_leaves(tree, mask, settings: Settings, tree_name:str="Tree", depth:i
             summary[prefix]["types"].add(type(leaf).__name__)
 
     lines = []
-    header = f"{'PyTree Path (Depth ' +
-                str(depth) +
-                ')':<{35 + 15 * depth}} | {'Kept':<6} | {'Pruned':<6} | {'Common Kept Types'}"
+    header = f"{'PyTree Path (Depth ' + str(depth) + ')':<{35 + 15 * depth}} | {'Kept':<6} | {'Pruned':<6} | {
+        'Common Kept Types'
+    }"
     lines.append(header)
     lines.append("-" * 100)
 
     for prefix, counts in sorted(summary.items()):
-        if counts['kept'] > 0 or counts['pruned'] > 0:
-            types_str = ", ".join(sorted(list(counts['types']))[:3])
+        if counts["kept"] > 0 or counts["pruned"] > 0:
+            types_str = ", ".join(sorted(list(counts["types"]))[:3])
             lines.append(f"{prefix:<{35 + 15 * depth}} | {counts['kept']:<6} | {counts['pruned']:<6} | {types_str}")
 
     output_text = "\n".join(lines)
@@ -290,12 +296,13 @@ def inspect_leaves(tree, mask, settings: Settings, tree_name:str="Tree", depth:i
     if settings.logging.log_dir is not None:
         output_file = Path(settings.logging.log_dir) / f"{tree_name}_structure.log"
         os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             f.write(output_text)
-        if getattr(settings, 'verbose', False):
+        if getattr(settings, "verbose", False):
             print(f"\n - {tree_name.title()} leaf structure log saved to {output_file}")
 
-def scan_for_invalid_JAX_types(pytree, name: Optional[str]=None) -> None:
+
+def scan_for_invalid_JAX_types(pytree, name: Optional[str] = None) -> None:
     tree_name = getattr(pytree, "name", "PyTree")
     scan_name = tree_name if name is None else tree_name
     print(f"--- Scanning {scan_name} for invalid dynamic leaves ---")
@@ -326,6 +333,7 @@ def scan_for_invalid_JAX_types(pytree, name: Optional[str]=None) -> None:
     if not found_invalid:
         print(f"{scan_name} is a valid PyTree.\n")
 
+
 # -----------------------------------------------------------------------------
 # EXPLICIT FACADE EXPORTS
 # -----------------------------------------------------------------------------
@@ -341,10 +349,8 @@ __all__ = [
     "combine",
     "is_array",
     "is_array_like",
-
     # FlowTangent API Wrappers
     "update",
-
     # FlowTangent Custom Functions
     "TreePath",
     "get_parent_target",

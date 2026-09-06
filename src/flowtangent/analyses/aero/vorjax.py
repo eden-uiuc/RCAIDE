@@ -1,5 +1,3 @@
-
-
 # ============================================================================
 # initialization.py
 # ============================================================================
@@ -128,6 +126,7 @@ def initialize_VORJAX_data(state: State, system: Aircraft, settings: Settings):
     )
 
     return state, updated_system, settings
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # VortexDistribution Data Structure
@@ -878,6 +877,7 @@ def discretize_surfaces(state: State, system: "Aircraft", settings: Settings):
 
     return state, updated_system, updated_settings
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #  Freestream Checking
 # ----------------------------------------------------------------------------------------------------------------------
@@ -904,6 +904,7 @@ def check_freestream(state: State, system: Aircraft, settings: Settings):
 
     return current_state, system, settings
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #  VLM Boundary Conditions (Vortex Strength Right Hand Side Matrix)
 # ----------------------------------------------------------------------------------------------------------------------
@@ -919,8 +920,9 @@ def check_freestream(state: State, system: Aircraft, settings: Settings):
     "state.stability.static.pitch_rate",
     "state.stability.static.yaw_rate",
 )
-@io.outputs("system.analysis_data['boundary_conditions']",
-         "system.analysis_data['relative_velocity']")
+@io.outputs(
+    "system.analysis_data['boundary_conditions']",
+    "system.analysis_data['relative_velocity']",)
 def compute_boundary_conditions(state: State, system: Aircraft, settings: Settings):
     """
     Computes the Neumann boundary condition (RHS) for the VLM.
@@ -980,6 +982,7 @@ def compute_boundary_conditions(state: State, system: Aircraft, settings: Settin
     updated_system = eqx.tree_at(lambda s: s.analysis_data, system, updated_analysis_data)
 
     return state, updated_system, settings
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Helper Functions
@@ -1360,6 +1363,7 @@ def compute_C_ij(VD, Mach):
 
     return C_ij.astype(jnp.float64), singularity_flag
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #  Wing Induced Velocity Calculation
 # ----------------------------------------------------------------------------------------------------------------------
@@ -1388,9 +1392,11 @@ def compute_induced_velocity(state: State, system: Aircraft, settings: Settings)
 
     return state, updated_system, settings
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #  Compute VLM Vortex Strength
 # ----------------------------------------------------------------------------------------------------------------------
+
 
 @io.inputs(
     "system.analysis_data['vortex_distribution']",
@@ -1440,6 +1446,7 @@ def compute_vortex_strength(state: State, system: Aircraft, settings: Settings):
     updated_system = eqx.tree_at(lambda s: s.analysis_data, system, updated_analysis_data)
 
     return state, updated_system, settings
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Apply Aerodynamic Forces
@@ -1580,6 +1587,7 @@ def compute_panel_pressures(state: State, system: Aircraft, settings: Settings):
 
     return state, updated_system, settings
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #  Lift and Drag Calculation
 # ----------------------------------------------------------------------------------------------------------------------
@@ -1623,6 +1631,7 @@ def _compute_trefftz_drag(tp_y_ctrl, tp_z_ctrl, tp_y_L, tp_y_R, tp_z_L, tp_z_R, 
 # ---------------------------------------------------------
 # Full Coefficient Calculation
 # ---------------------------------------------------------
+
 
 @jax.jit
 def _compute_aerodynamic_coefficients(VD, dCp, Gamma, state, system, settings):
@@ -1934,6 +1943,7 @@ def compute_coefficients(state: State, system: Aircraft, settings: Settings):
 
     return state, system, settings
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #  VLM Settings
 # ----------------------------------------------------------------------------------------------------------------------
@@ -1943,9 +1953,9 @@ class SupersonicSettings(eqx.Module):
     begin_blend_mach: float = 0.5
     end_blend_mach: float = 2.0
 
-    peak_CL_multiplier: float = 1.15 # noqa: N815
+    peak_CL_multiplier: float = 1.15  # noqa: N815
     peak_mach_number: Optional[float] = None
-    _transonic_CL_blender: Callable = method_field(ensemble_CL_spline) #noqa: N815
+    _transonic_CL_blender: Callable = method_field(ensemble_CL_spline)  # noqa: N815
 
     begin_drag_rise_mach_number: float = 0.95
     end_drag_rise_mach_number: float = 1.2
@@ -2127,7 +2137,7 @@ class InitializeVORJAX(Process):
     name: str = field("Initialize VORJAX", static=True)
     steps: tuple = field(_default_VORJAX_init_steps)
 
-    def __init__(self, name="Initialize VORJAX", steps = _default_VORJAX_init_steps()) -> None:
+    def __init__(self, name="Initialize VORJAX", steps=_default_VORJAX_init_steps()) -> None:
         super().__init__(name=name, steps=steps)
 
 
@@ -2154,9 +2164,9 @@ class ComputeVORJAX(Process):
     steps: tuple = field(_default_VORJAX_compute_steps)
 
     def __init__(
-            self,
-            name: str="Compute VORJAX",
-            steps: tuple = _default_VORJAX_compute_steps(),
+        self,
+        name: str = "Compute VORJAX",
+        steps: tuple = _default_VORJAX_compute_steps(),
     ) -> None:
         super().__init__(name=name, steps=steps)
 
@@ -2167,7 +2177,7 @@ class VORJAX(Process):
 
     def __init__(self,
                  name: str = "Aerodynamics",
-                 steps: tuple = (InitializeVORJAX(), ComputeVORJAX())
+                 steps: tuple = (InitializeVORJAX(), ComputeVORJAX()),
                  ) -> None:
         super().__init__(name=name, steps=steps)
 

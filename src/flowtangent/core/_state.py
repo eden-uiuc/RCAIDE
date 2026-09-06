@@ -30,9 +30,9 @@ from flowtangent.utils import empty_array, field, register
 #  State
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 @register
 class State[EnergyType: NetworkState](StateData):
-
     name: str = field("State", static=True)
 
     initials: eqx.Module | None = None
@@ -51,4 +51,3 @@ class State[EnergyType: NetworkState](StateData):
     def freeze_initials(self):
         frozen_initials = eqx.tree_at(lambda s: s.initials, self, None, is_leaf=lambda x: x is None)
         return replace(self, initials=frozen_initials)
-

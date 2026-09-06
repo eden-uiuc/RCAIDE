@@ -18,6 +18,7 @@ from .nodes import EnergyStore, FuelTank, GraphInput, GraphNode, Splitter
 #  Energy Line
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 @register
 class EnergyLine(GraphNode):
     name: str = field("Line", static=True)
@@ -36,19 +37,20 @@ class EnergyLine(GraphNode):
 
 # Turbojet ---------------------------------------------------------------------
 
+
 def _TurbojetLineSetup():
     return TurbojetEngine(), FuelTank()
 
+
 @register
 class TurbojetLine(EnergyLine):
-
     subcomponents: tuple = field(_TurbojetLineSetup)
 
     inputs: tuple | GraphInput = field(
         (
             GraphInput("fuel", "self.engine"),
             GraphInput("force", "self.engine"),
-            GraphInput("residual", "self.engine")
+            GraphInput("residual", "self.engine"),
         ),
         static=True,
     )
@@ -59,7 +61,7 @@ class TurbojetLine(EnergyLine):
         lambda: {
             "engines": TurbojetEngine,
             "stores": FuelTank,
-            "fuel_tanks": FuelTank
+            "fuel_tanks": FuelTank,
         },
         static=True,
     )
@@ -128,7 +130,7 @@ class TurbojetLine(EnergyLine):
             (
                 self.apply_domain_op(jnp.sum, updated_state, "force", "thrust"),
                 self.apply_domain_op(jnp.sum, updated_state, "residual", "thrust"),
-            )
+            ),
         )
 
         # Power Imbalance ------------------------------------------------------
@@ -144,14 +146,14 @@ class TurbojetLine(EnergyLine):
 
 # Turbofan ---------------------------------------------------------------------
 
+
 def _TurbofanLineSetup():
     return TurbofanEngine(), FuelTank()
+
 
 def TurbofanLine(**kwargs):
 
     if "subcomponents" not in kwargs:
-        kwargs['subcomponents'] = _TurbofanLineSetup()
+        kwargs["subcomponents"] = _TurbofanLineSetup()
 
-    return TurbojetLine(
-        **kwargs
-    )
+    return TurbojetLine(**kwargs)

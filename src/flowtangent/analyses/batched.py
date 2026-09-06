@@ -39,33 +39,35 @@ from .implicit import ImplicitAnalysis
 #  Batch Analysis
 # ----------------------------------------------------------------------------------------------------------------------
 
-class BatchedAnalysis(Process):
 
+class BatchedAnalysis(Process):
     name: str = field("Batched Analysis")
 
     analyze: Process = field(Process)
     state_inputs: tuple[TreePath, ...] = field(())
 
     def __init__(
-                self,
-                name: str = "Batched Analysis",
-                analyze: Process = Process(name="Batched Analysis"),
-                state_inputs: tuple[TreePath, ...] = ()
-                ):
-            super().__init__(name=name)
+        self,
+        name: str = "Batched Analysis",
+        analyze: Process = Process(name="Batched Analysis"),
+        state_inputs: tuple[TreePath, ...] = (),
+    ):
+        super().__init__(name=name)
 
-            self.analyze = analyze
+        self.analyze = analyze
 
-            if not isinstance(self.analyze, ImplicitAnalysis):
-                self.state_inputs = state_inputs
-            else:
-                ctrls = self.analyze.controls
-                ctrl_inputs = tuple(TreePath(
-                    path=c.state_path.path,
-                    value=jnp.atleast_3d(c.initial_value)) for c in ctrls)
-                self.state_inputs = self.state_inputs + ctrl_inputs
+        if not isinstance(self.analyze, ImplicitAnalysis):
+            self.state_inputs = state_inputs
+        else:
+            ctrls = self.analyze.controls
+            #fmt: off
+            ctrl_inputs = tuple(TreePath(
+                path=c.state_path.path,
+                value=jnp.atleast_3d(c.initial_value)) for c in ctrls)
+            self.state_inputs = self.state_inputs + ctrl_inputs
+            #fmt: on
 
-    def _batch_inputs(self, mode='mesh'):
+    def _batch_inputs(self, mode="mesh"):
 
         batch_arrays = []
 
@@ -102,16 +104,16 @@ class BatchedAnalysis(Process):
             raise ValueError("Batch mode must be 'zip' or 'mesh'.")
 
         total_states = batch_arrays[0].shape[0]
-        name_groups = [p.name.split('.') for p in self.state_inputs]
+        name_groups = [p.name.split(".") for p in self.state_inputs]
         leading_state = [int(g[0] == "state") for g in name_groups]
-        state_names = ['.'.join(g[slice(leading_state[i], None)]) for i, g in enumerate(name_groups)]
+        state_names = [".".join(g[slice(leading_state[i], None)]) for i, g in enumerate(name_groups)]
 
         state_inputs = tuple(
             TreePath(
                 name=p.name,
                 path=state_names[idx],
                 path_slice=p.path_slice,
-                value=batch_arrays[idx]
+                value=batch_arrays[idx],
             )
             for idx, p in enumerate(self.state_inputs)
         )
@@ -119,8 +121,8 @@ class BatchedAnalysis(Process):
         return state_inputs, total_states
 
     @staticmethod
-    def _update_inputs(pytree: State | System, idx: int, batch_size: int, inputs:Sequence[TreePath]):
-        input_arrays = tuple(si.value[idx:idx+batch_size] for si in inputs)
+    def _update_inputs(pytree: State | System, idx: int, batch_size: int, inputs: Sequence[TreePath]):
+        input_arrays = tuple(si.value[idx : idx + batch_size] for si in inputs)
         actual_size = input_arrays[0].shape[0]
 
         if actual_size < batch_size:
@@ -131,7 +133,7 @@ class BatchedAnalysis(Process):
 
         return eqx.tree_at(lambda p: get_all_targets(p, inputs), pytree, padded_arrays)
 
-    def __call__(self, state:State, system:System, settings:Settings) -> Tuple[State, System, Settings]:
+    def __call__(self, state: State, system: System, settings: Settings) -> Tuple[State, System, Settings]:
 
         batch_size = settings.numerical.batch_size
         batch_mode = settings.numerical.batch_mode
@@ -151,7 +153,7 @@ class BatchedAnalysis(Process):
         batch_states = []
         for batch_idx in pbar:
             updated_state = self._update_inputs(batch_state, batch_idx, batch_size, state_inputs)
-            b_st,  _ ,  _ = batch_analyze(updated_state, system, settings)
+            b_st, _, _ = batch_analyze(updated_state, system, settings)
             actual_size = min(batch_size, total_states - batch_idx)
             if actual_size < batch_size:
                 b_st = b_st.truncate(actual_size)
@@ -160,6 +162,7 @@ class BatchedAnalysis(Process):
         f_st = State.concatenate(batch_states)
 
         return f_st, system, settings
+
 
 # Old BatchAnalysis Class
 # class BatchAnalysis:

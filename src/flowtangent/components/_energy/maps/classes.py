@@ -21,14 +21,15 @@ def get_fractional_coords(grid_1d, value):
     idx = jnp.interp(value, grid_1d, jnp.arange(len(grid_1d)))
     return idx
 
+
 def interp_2d_extrapolate(x, y, x_grid, y_grid, z_table):
     """
     Performs 2D bilinear interpolation with linear extrapolation.
     z_table must have shape (len(x_grid), len(y_grid)).
     """
     # 1. Find indices, subtract 1 to get the lower bound of the box
-    idx_x = jnp.searchsorted(x_grid, x, side='right') - 1
-    idx_y = jnp.searchsorted(y_grid, y, side='right') - 1
+    idx_x = jnp.searchsorted(x_grid, x, side="right") - 1
+    idx_y = jnp.searchsorted(y_grid, y, side="right") - 1
 
     # 2. Clip indices to ensure we always grab a valid 2x2 box at the edges
     # If x is off the map to the right, this anchors the box at the highest 2 grid points.
@@ -51,12 +52,15 @@ def interp_2d_extrapolate(x, y, x_grid, y_grid, z_table):
     z11 = z_table[idx_x + 1, idx_y + 1]
 
     # 5. Bilinear combination (carries the gradients smoothly everywhere)
+    #fmt: off
     z = (1.0 - tx) * (1.0 - ty) * z00 + \
         tx * (1.0 - ty) * z10 + \
         (1.0 - tx) * ty * z01 + \
         tx * ty * z11
+    # fmt: on
 
     return z
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Map Classes
@@ -248,4 +252,5 @@ class TurbineMap(eqx.Module):
             Np_grid=Np_grid,
             PR_grid=PR_grid,
             Wp_table=Wp_table,
-            eff_table=eff_table,)
+            eff_table=eff_table,
+        )

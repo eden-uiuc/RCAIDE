@@ -38,14 +38,16 @@ from .graph_network import build_analysis_from_network
 #  Jet Analysis Settings
 # ----------------------------------------------------------------------------------------------------------------------
 
-class JetSettings(EnergyAnalysisSettings):
 
+class JetSettings(EnergyAnalysisSettings):
     design_mode: bool = field(False, static=True)
     statics: bool = field(False, static=True)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Single Point Design Analysis
 # ----------------------------------------------------------------------------------------------------------------------
+
 
 def _design_update(state: State, system: Aircraft, settings: Settings) -> tuple[State, System, Settings, Process]:
 
@@ -72,9 +74,10 @@ def _design_update(state: State, system: Aircraft, settings: Settings) -> tuple[
         state.expand_time(1),
         (
             jnp.atleast_2d(M0),
-            jnp.array([[0., 0., -alt]]),
+            jnp.array([[0.0, 0.0, -alt]]),
             jnp.atleast_2d(jnp.array([[a0 * M0, 0.0, 0.0]])),
-        ))
+        ),
+    )
 
     # System Setup -------------------------------------------------------------
 
@@ -82,67 +85,67 @@ def _design_update(state: State, system: Aircraft, settings: Settings) -> tuple[
     if statics:
         MN_dict = des.exit_mach_numbers.as_dict()
         for node in MN_dict:
-            engine = eqx.tree_at(
-                lambda e: getattr(e, node).design_parameters.exit_mach_number,
-                engine,
-                MN_dict[node])
+            engine = eqx.tree_at(lambda e: getattr(e, node).design_parameters.exit_mach_number, engine, MN_dict[node])
 
     # Approximate 20:4:3 pressure ratio stage split
     OPR = des.overall_pressure_ratio
     if isinstance(des, TurbofanDesign):
-        k = (OPR / 240.0 ) ** (1.0 / 3.0)
+        k = (OPR / 240.0) ** (1.0 / 3.0)
         fan_PR = 3.0 * k
         LPC_PR = 4.0 * k
         HPC_PR = 20.0 * k
 
-        des_engine = eqx.tree_at(lambda e: (
-            e.inlet.design_parameters.pressure_recovery,
-            e.fan.design_parameters.rotation_speed,
-            e.fan.design_parameters.pressure_ratio,
-            e.lpc.design_parameters.rotation_speed,
-            e.lpc.design_parameters.pressure_ratio,
-            e.hpc.design_parameters.rotation_speed,
-            e.hpc.design_parameters.pressure_ratio,
-            e.burner.design_parameters.pressure_ratio,
-            e.burner.design_parameters.output_temperature,
-            e.hpt.design_parameters.rotation_speed,
-            e.lpt.design_parameters.rotation_speed,
-        ),
-        engine,(
-            des.inlet_pressure_recovery,
-            des.lp_rotation_speed,
-            fan_PR,
-            des.lp_rotation_speed,
-            LPC_PR,
-            des.hp_rotation_speed,
-            HPC_PR,
-            des.burner_pressure_ratio,
-            des.turbine_intake_temperature,
-            des.hp_rotation_speed,
-            des.lp_rotation_speed,
-        ))
+        des_engine = eqx.tree_at(
+            lambda e: (
+                e.inlet.design_parameters.pressure_recovery,
+                e.fan.design_parameters.rotation_speed,
+                e.fan.design_parameters.pressure_ratio,
+                e.lpc.design_parameters.rotation_speed,
+                e.lpc.design_parameters.pressure_ratio,
+                e.hpc.design_parameters.rotation_speed,
+                e.hpc.design_parameters.pressure_ratio,
+                e.burner.design_parameters.pressure_ratio,
+                e.burner.design_parameters.output_temperature,
+                e.hpt.design_parameters.rotation_speed,
+                e.lpt.design_parameters.rotation_speed,
+            ),
+            engine,
+            (
+                des.inlet_pressure_recovery,
+                des.lp_rotation_speed,
+                fan_PR,
+                des.lp_rotation_speed,
+                LPC_PR,
+                des.hp_rotation_speed,
+                HPC_PR,
+                des.burner_pressure_ratio,
+                des.turbine_intake_temperature,
+                des.hp_rotation_speed,
+                des.lp_rotation_speed,
+            ),
+        )
     else:
-        des_engine = eqx.tree_at(lambda e: (
-            e.compressor.design_parameters.rotation_speed,
-            e.compressor.design_parameters.pressure_ratio,
-            e.burner.design_parameters.pressure_ratio,
-            e.burner.design_parameters.output_temperature,
-            e.turbine.design_parameters.rotation_speed,
-            e.turbine.design_parameters.pressure_ratio
-        ),
-        engine,(
-            des.rotation_speed,
-            OPR,
-            des.burner_pressure_ratio,
-            des.turbine_intake_temperature,
-            des.rotation_speed,
-            des.turbine_PR
-        ))
+        des_engine = eqx.tree_at(
+            lambda e: (
+                e.compressor.design_parameters.rotation_speed,
+                e.compressor.design_parameters.pressure_ratio,
+                e.burner.design_parameters.pressure_ratio,
+                e.burner.design_parameters.output_temperature,
+                e.turbine.design_parameters.rotation_speed,
+                e.turbine.design_parameters.pressure_ratio,
+            ),
+            engine,
+            (
+                des.rotation_speed,
+                OPR,
+                des.burner_pressure_ratio,
+                des.turbine_intake_temperature,
+                des.rotation_speed,
+                des.turbine_PR,
+            ),
+        )
 
-    des_system = eqx.tree_at(
-        lambda s: s.energy.line.engine,
-        system,
-        des_engine)
+    des_system = eqx.tree_at(lambda s: s.energy.line.engine, system, des_engine)
 
     # Intialize and build analysis
     if not isinstance(settings.analysis.energy, JetSettings):
@@ -158,13 +161,19 @@ def _design_update(state: State, system: Aircraft, settings: Settings) -> tuple[
     des_state = eqx.tree_at(
         lambda s: (s.energy.target_thrust, s.energy.target_temperature),
         des_state,
-        (jnp.atleast_2d(des.thrust), jnp.atleast_2d(des.turbine_intake_temperature,))
+        (
+            jnp.atleast_2d(des.thrust),
+            jnp.atleast_2d(
+                des.turbine_intake_temperature,
+            ),
+        ),
     )
 
     des_state, des_system, des_settings = update_freestream(des_state, des_system, des_settings)
     base_analysis = build_analysis_from_network(des_system.energy)
 
     return des_state, des_system, des_settings, base_analysis
+
 
 def build_turbojet_design(state: State, system: Aircraft, settings: Settings):
 
@@ -179,7 +188,7 @@ def build_turbojet_design(state: State, system: Aircraft, settings: Settings):
         initial_value=des.mass_flow_rate,
         bounds=(
             1e-3 * units.kg / units.s,
-            5e3  * units.kg / units.s,
+            5e3 * units.kg / units.s,
         ),
     )
 
@@ -190,15 +199,9 @@ def build_turbojet_design(state: State, system: Aircraft, settings: Settings):
         bounds=(1.001, 1e2),
     )
 
-    d_thrust = Residual(
-        name="Design Thrust",
-        get_value=lambda s: s.energy.residual.thrust
-    )
+    d_thrust = Residual(name="Design Thrust", get_value=lambda s: s.energy.residual.thrust)
 
-    d_power = Residual(
-        name="Power Imbalance",
-        get_value=lambda s: s.energy.residual.power
-    )
+    d_power = Residual(name="Power Imbalance", get_value=lambda s: s.energy.residual.power)
 
     design_analysis = ImplicitAnalysis(
         name="Turbojet Design",
@@ -208,6 +211,7 @@ def build_turbojet_design(state: State, system: Aircraft, settings: Settings):
     )
 
     return des_state, des_system, des_settings, design_analysis
+
 
 def turbofan_design(state: State, system: Aircraft, settings: Settings) -> ImplicitAnalysis:
 
@@ -223,7 +227,7 @@ def turbofan_design(state: State, system: Aircraft, settings: Settings) -> Impli
         initial_value=des.mass_flow_rate,
         bounds=(
             1e-3 * units.kg / units.s,
-            5e3  * units.kg / units.s,
+            5e3 * units.kg / units.s,
         ),
     )
 
@@ -242,29 +246,25 @@ def turbofan_design(state: State, system: Aircraft, settings: Settings) -> Impli
     )
 
     # Residuals Setup
-    d_thrust = Residual(
-        name="Design Thrust",
-        get_value=lambda s: s.energy.residual.thrust
-    )
+    d_thrust = Residual(name="Design Thrust", get_value=lambda s: s.energy.residual.thrust)
 
     d_LP_power = Residual(
-        name="LP Power Imbalance",
-        get_value=lambda s: s.energy.nodes['network.line.engine.lp_shaft'].residual.power
+        name="LP Power Imbalance", get_value=lambda s: s.energy.nodes["network.line.engine.lp_shaft"].residual.power
     )
 
     d_HP_power = Residual(
-        name="HP Power Imbalance",
-        get_value=lambda s: s.energy.nodes['network.line.engine.hp_shaft'].residual.power
+        name="HP Power Imbalance", get_value=lambda s: s.energy.nodes["network.line.engine.hp_shaft"].residual.power
     )
 
     design_analysis = ImplicitAnalysis(
         name="Turbofan Design",
         analyze=base_analysis,
         controls=(mass_ctrl, LPT_ctrl, HPT_ctrl),
-        residuals=(d_thrust, d_LP_power, d_HP_power)
+        residuals=(d_thrust, d_LP_power, d_HP_power),
     )
 
     return design_analysis
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Off-Design Performance Analysis
@@ -272,27 +272,27 @@ def turbofan_design(state: State, system: Aircraft, settings: Settings) -> Impli
 
 def build_turbojet_performance(
         network: TurbojetNetwork,
-        operating_parameters:  TurbojetOpPoint
+        operating_parameters:  TurbojetOpPoint,
     ):
 
     op = operating_parameters
 
     # Compressor Map Bounds ----------------------------------------------------
 
-    comp =  network.line.engine.compressor
+    comp = network.line.engine.compressor
     c_map: CompressorMap = comp.map
 
     R_bnds = (min(c_map.Rline_grid).item() * 0.5,
-              max(c_map.Rline_grid).item() * 1.5)
+              max(c_map.Rline_grid).item() * 1.5,)
 
     # Turbine Map Bounds -------------------------------------------------------
 
-    turb =  network.line.engine.turbine
+    turb = network.line.engine.turbine
     t_map: TurbineMap = turb.map
 
 
     PR_bnds = (min(t_map.PR_grid).item() * 0.5,
-               max(t_map.PR_grid).item() * 1.5)
+               max(t_map.PR_grid).item() * 1.5,)
 
     # Composite Bounds ---------------------------------------------------------
 
@@ -305,7 +305,7 @@ def build_turbojet_performance(
         state_path=TreePath(("energy", "compressor_Rline")),
         initial_value=op.compressor_Rline,
         bounds=R_bnds,
-        scaling='logistic'
+        scaling="logistic",
     )
 
     turb_PR = Control(
@@ -313,7 +313,7 @@ def build_turbojet_performance(
         state_path=TreePath(("energy", "turbine_PR")),
         initial_value=op.turbine_PR,
         bounds=PR_bnds,
-        scaling='logistic'
+        scaling="logistic",
     )
 
     N = Control(
@@ -321,7 +321,7 @@ def build_turbojet_performance(
         state_path=TreePath(("energy", "rotation_speed")),
         initial_value=op.rotation_speed,
         bounds=(op.rotation_speed * 0.5, op.rotation_speed * 2.0),
-        scaling='logistic'
+        scaling="logistic",
     )
 
     W = Control(
@@ -329,7 +329,7 @@ def build_turbojet_performance(
         state_path=TreePath(("energy", "mass_flow_rate")),
         initial_value=op.mass_flow_rate,
         bounds=(op.mass_flow_rate * 0.5, op.mass_flow_rate * 2.0),
-        scaling='logistic'
+        scaling="logistic",
     )
 
     FAR = Control(
@@ -337,7 +337,7 @@ def build_turbojet_performance(
         state_path=TreePath(("energy", "fuel_air_ratio")),
         initial_value=op.FAR,
         bounds=FAR_bnds,
-        scaling='logistic'
+        scaling="logistic",
     )
 
     # Residual Setup -----------------------------------------------------------
@@ -370,50 +370,51 @@ def build_turbojet_performance(
         name="Turbojet Performance",
         analyze=build_analysis_from_network(network),
         controls=ctrls,
-        residuals=res
+        residuals=res,
     )
+
 
 def turbofan_performance(network: TurbofanNetwork):
 
     # Fan Map Bounds -----------------------------------------------------------
 
-    fan =  network.line.engine.fan
+    fan = network.line.engine.fan
     fan_map: CompressorMap = fan.map
 
     fan_R_bnds = (min(fan_map.Rline_grid).item() * 0.5,
-                  max(fan_map.Rline_grid).item() * 1.5)
+                  max(fan_map.Rline_grid).item() * 1.5,)
 
     # LPC Map Bounds -----------------------------------------------------------
 
-    lpc =  network.line.engine.lpc
+    lpc = network.line.engine.lpc
     lpc_map: CompressorMap = lpc.map
 
     lpc_R_bnds = (min(lpc_map.Rline_grid).item() * 0.5,
-                  max(lpc_map.Rline_grid).item() * 1.5)
+                  max(lpc_map.Rline_grid).item() * 1.5,)
 
     # HPC Map Bounds -----------------------------------------------------------
 
-    hpc =  network.line.engine.hpc
+    hpc = network.line.engine.hpc
     hpc_map: CompressorMap = hpc.map
 
     hpc_R_bnds = (min(hpc_map.Rline_grid).item() * 0.5,
-                  max(hpc_map.Rline_grid).item() * 1.5)
+                  max(hpc_map.Rline_grid).item() * 1.5,)
 
     # HPT Map Bounds -----------------------------------------------------------
 
-    hpt =  network.line.engine.hpt
+    hpt = network.line.engine.hpt
     hpt_map: TurbineMap = hpt.map
 
     hpt_PR_bnds = (min(hpt_map.PR_grid).item() * 0.5,
-                   max(hpt_map.PR_grid).item() * 1.5)
+                   max(hpt_map.PR_grid).item() * 1.5,)
 
     # LPT Map Bounds -----------------------------------------------------------
 
-    lpt =  network.line.engine.lpt
+    lpt = network.line.engine.lpt
     lpt_map: TurbineMap = lpt.map
 
     lpt_PR_bnds = (min(lpt_map.PR_grid).item() * 0.5,
-                   max(lpt_map.PR_grid).item() * 1.5)
+                   max(lpt_map.PR_grid).item() * 1.5,)
 
     # Control Setup -----------------------------------------------------------
 
@@ -471,7 +472,7 @@ def turbofan_performance(network: TurbofanNetwork):
         state_path=TreePath(("energy", "mass_flow_rate")),
         initial_value=network.line.engine.design_parameters.mass_flow_rate,
         # bounds=lpc_Wc_bnds,
-        scaling='linear'
+        scaling="linear",
     )
 
     FAR = Control(
@@ -496,22 +497,22 @@ def turbofan_performance(network: TurbofanNetwork):
     d_lWp = Residual(name="LPT Mass Flow", get_value=lambda s: s.energy.residual.lpt_Wp)
     d_hWp = Residual(name="HPT Mass Flow", get_value=lambda s: s.energy.residual.hpt_Wp)
 
-    d_thrust = Residual(name="Thrust",     get_value=lambda s: s.energy.residual.thrust)
+    d_thrust = Residual(name="Thrust", get_value=lambda s: s.energy.residual.thrust)
 
     d_LP_power = Residual(
-        name="LP Power Imbalance",
-        get_value=lambda s: s.energy.nodes['network.line.engine.lp_shaft'].residual.power)
+        name="LP Power Imbalance", get_value=lambda s: s.energy.nodes["network.line.engine.lp_shaft"].residual.power
+    )
 
     d_HP_power = Residual(
-        name="HP Power Imbalance",
-        get_value=lambda s: s.energy.nodes['network.line.engine.hp_shaft'].residual.power)
+        name="HP Power Imbalance", get_value=lambda s: s.energy.nodes["network.line.engine.hp_shaft"].residual.power
+    )
 
     d_W_core = Residual(
-        name="Core MFR",
-        get_value=lambda s: s.energy.nodes['network.line.engine.core_nozzle'].residual.mass_flow_rate)
+        name="Core MFR", get_value=lambda s: s.energy.nodes["network.line.engine.core_nozzle"].residual.mass_flow_rate
+    )
     d_W_byp = Residual(
-        name="Bypass MFR",
-        get_value=lambda s: s.energy.nodes['network.line.engine.fan_nozzle'].residual.mass_flow_rate)
+        name="Bypass MFR", get_value=lambda s: s.energy.nodes["network.line.engine.fan_nozzle"].residual.mass_flow_rate
+    )
 
     # Variable Setup -----------------------------------------------------------
 
@@ -519,15 +520,20 @@ def turbofan_performance(network: TurbofanNetwork):
         FAN_Rline, LP_Rline, HP_Rline,
         HPT_PR, LPT_PR,
         HPN, LPN,
-        W, FAR, BPR
+        W, FAR, BPR,
     )
 
     res = (
-        d_fWc, d_lWc, d_hWc,
-        d_lWp, d_hWp,
+        d_fWc,
+        d_lWc,
+        d_hWc,
+        d_lWp,
+        d_hWp,
         d_thrust,
-        d_LP_power, d_HP_power,
-        d_W_core, d_W_byp,
+        d_LP_power,
+        d_HP_power,
+        d_W_core,
+        d_W_byp,
     )
 
     # Construct Analysis -------------------------------------------------------
@@ -536,21 +542,22 @@ def turbofan_performance(network: TurbofanNetwork):
         name="Turbofan Performance",
         analyze=build_analysis_from_network(network),
         controls=ctrls,
-        residuals=res
+        residuals=res,
     )
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 #  Multi-Point Design Analysis
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 def _design_update_batched(
-        state: State,
-        system: Aircraft,
-        settings: Settings
-    ) -> tuple[State, Aircraft, Settings, Process]:
+    state: State, system: Aircraft, settings: Settings
+) -> tuple[State, Aircraft, Settings, Process]:
 
     engine = system.energy.line.engine
     design_points = engine.design_parameters
-    assert(len(design_points) > 1)
+    assert len(design_points) > 1
 
     # Design Point Setup
     analysis_settings = replace(settings.analysis.energy, design_mode=True)
@@ -560,18 +567,20 @@ def _design_update_batched(
     des_system = eqx.tree_at(lambda s: s.energy.line.engine.design_parameters, des_system, design_points[0])
     des_e_setts = replace(des_settings.analysis.energy, design_mode=True)
     des_n_setts = replace(des_settings.numerical, sum_residuals=True)
-    des_settings = eqx.tree_at(lambda s:(
-        s.numerical,
-        s.analysis.energy,
-    ), des_settings, (
-        des_n_setts,
-        des_e_setts
-    ))
+    des_settings = eqx.tree_at(
+        lambda s: (
+            s.numerical,
+            s.analysis.energy,
+        ),
+        des_settings,
+        (des_n_setts, des_e_setts),
+    )
 
     # Set Up State Inputs
     OD_points = design_points[1:]
     n_OD = len(OD_points)
 
+    #fmt: off
     alt_val = jnp.array([d.altitude for d in OD_points]).reshape((-1, 1))
     a0_val  = des_state.freestream.atmosphere.compute_speed_of_sound(alt_val)
     M0_val  = jnp.array([d.mach_number for d in OD_points]).reshape((-1, 1))
@@ -589,11 +598,19 @@ def _design_update_batched(
     # Outer Loop Controls
     F       = TreePath("state.energy.target_thrust", value=F_val)
     T       = TreePath("state.energy.target_temperature", value=T_val)
+    #fmt: on
 
     OD_analysis = BatchedAnalysis(
         name="Off-Design Analysis",
         analyze=turbofan_performance(des_system.energy),
-        state_inputs=(alt, M0, x, v, F, T,)
+        state_inputs=(
+            alt,
+            M0,
+            x,
+            v,
+            F,
+            T,
+        ),
     )
 
     return des_state, des_system, des_settings, OD_analysis
@@ -609,7 +626,7 @@ def design_turbofan_mp(state: State, system: Aircraft, settings: Settings) -> tu
 
     engine = system.energy.line.engine
     design_points = engine.design_parameters
-    assert(len(design_points)>1), "Multipoint turbofan design called with only one design point specified."
+    assert len(design_points) > 1, "Multipoint turbofan design called with only one design point specified."
 
     # Set up Outer Loop
 
@@ -620,33 +637,30 @@ def design_turbofan_mp(state: State, system: Aircraft, settings: Settings) -> tu
         name="Design Thrust",
         state_path=TreePath(("energy", "target_thrust")),
         initial_value=design_guess.thrust,
-        bounds=(1.0, 1e6)
+        bounds=(1.0, 1e6),
     )
     T_ctrl = Control(
         name="Design TIT",
         state_path=TreePath(("energy", "target_temperature")),
         initial_value=design_guess.turbine_intake_temperature,
-        bounds=(1.0, 3e3))
+        bounds=(1.0, 3e3),
+    )
 
-    OD_F = jnp.array([d.thrust for d in OD_points]).reshape((-1, 1)).at[0,0].set(0.0)
-    d_F = Residual(
-        "Off-Design Thrust",
-        get_value=lambda s: jnp.where(OD_F, s.energy.residual.thrust, OD_F))
+    OD_F = jnp.array([d.thrust for d in OD_points]).reshape((-1, 1)).at[0, 0].set(0.0)
+    d_F = Residual("Off-Design Thrust", get_value=lambda s: jnp.where(OD_F, s.energy.residual.thrust, OD_F))
 
     OD_TSFC = jnp.array([d.TSFC for d in OD_points]).reshape((-1, 1))
     d_TSFC = Residual(
         name="Off-Design TSFC",
         get_value=lambda s: jnp.where(
-            OD_TSFC,
-            (s.energy.nodes['network.line.engine'].fuel.TSFC - OD_TSFC)/OD_TSFC, OD_TSFC)
-        )
+            OD_TSFC, (s.energy.nodes["network.line.engine"].fuel.TSFC - OD_TSFC) / OD_TSFC, OD_TSFC
+        ),
+    )
 
     def split_residuals(swap_state, swap_system, swap_settings):
 
         updated_settings = eqx.tree_at(
-            lambda s: s.numerical,
-            swap_settings,
-            replace(swap_settings.numerical, sum_residuals=False)
+            lambda s: s.numerical, swap_settings, replace(swap_settings.numerical, sum_residuals=False)
         )
 
         return swap_state, swap_system, updated_settings
@@ -656,7 +670,7 @@ def design_turbofan_mp(state: State, system: Aircraft, settings: Settings) -> tu
         updated_settings = eqx.tree_at(
             lambda s: s.analysis.energy,
             swap_settings,
-            replace(swap_settings.analysis.energy, design_mode=False)
+            replace(swap_settings.analysis.energy, design_mode=False),
         )
 
         return swap_state, swap_system, updated_settings
@@ -672,7 +686,7 @@ def design_turbofan_mp(state: State, system: Aircraft, settings: Settings) -> tu
             ProcessStep(name="Design Handover", function=design_handover),
             OD_analysis,
             ProcessStep(name="Outer Residual Switch", function=settings_reset),
-        )
+        ),
     )
 
     MP_outer_loop = ImplicitAnalysis(

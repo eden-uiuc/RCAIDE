@@ -7,4 +7,4 @@
 #  IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
 
-from .graph_network import build_analysis_from_network as PACT #noqa: N812
+from .graph_network import build_analysis_from_network as PACT  # noqa: N812

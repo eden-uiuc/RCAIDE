@@ -263,32 +263,16 @@ class StaticDerivatives(StateData):
     # Attribute     Type            Default Value
     name: str = field("Static Stability Coefficients Derivatives", static=True)
 
-    Clift: Sensitivities = field(
-        lambda: Sensitivities(name="Lift Coefficient Static Stability Derivatives")
-    )
-    Cdrag: Sensitivities = field(
-        lambda: Sensitivities(name="Drag Coefficient Static Stability Derivatives")
-    )
+    Clift: Sensitivities = field(lambda: Sensitivities(name="Lift Coefficient Static Stability Derivatives"))
+    Cdrag: Sensitivities = field(lambda: Sensitivities(name="Drag Coefficient Static Stability Derivatives"))
 
-    CX: Sensitivities = field(
-        lambda: Sensitivities(name="X Coefficient Static Stability Derivatives")
-    )
-    CY: Sensitivities = field(
-        lambda: Sensitivities(name="Y Coefficient Static Stability Derivatives")
-    )
-    CZ: Sensitivities = field(
-        lambda: Sensitivities(name="Z Coefficient Static Stability Derivatives")
-    )
+    CX: Sensitivities = field(lambda: Sensitivities(name="X Coefficient Static Stability Derivatives"))
+    CY: Sensitivities = field(lambda: Sensitivities(name="Y Coefficient Static Stability Derivatives"))
+    CZ: Sensitivities = field(lambda: Sensitivities(name="Z Coefficient Static Stability Derivatives"))
 
-    CL: Sensitivities = field(
-        lambda: Sensitivities(name="L Coefficient Static Stability Derivatives")
-    )
-    CM: Sensitivities = field(
-        lambda: Sensitivities(name="M Coefficient Static Stability Derivatives")
-    )
-    CN: Sensitivities = field(
-        lambda: Sensitivities(name="N Coefficient Static Stability Derivatives")
-    )
+    CL: Sensitivities = field(lambda: Sensitivities(name="L Coefficient Static Stability Derivatives"))
+    CM: Sensitivities = field(lambda: Sensitivities(name="M Coefficient Static Stability Derivatives"))
+    CN: Sensitivities = field(lambda: Sensitivities(name="N Coefficient Static Stability Derivatives"))
 
 
 @register

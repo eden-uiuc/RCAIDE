@@ -17,6 +17,7 @@ initialize_jax_cache(
 
 # 1. Early Boot (Must happen first)
 from .utils.backend import numerical_environment, initialize_jax_cache
+
 numerical_environment()
 
 # Framework Hoists
@@ -34,17 +35,17 @@ from .utils import (
     static_field,
     method_field,
     null_step,
-    Module
+    Module,
 )
 
 from .analyses import (
     BatchedAnalysis,
     ImplicitAnalysis,
-    PACT
+    PACT,
 )
 
 # 4. Short-Name Namespace Routing
-from . import functional as F # noqa: N812
+from . import functional as F  # noqa: N812
 from . import components as comp
 from . import data
 from . import analyses as solve

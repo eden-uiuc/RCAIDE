@@ -20,6 +20,7 @@ from flowtangent.utils import empty_array, field, register
 #  Frames
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 @register
 class Frame(StateData):
     # Attribute             Type        Default Value
@@ -29,6 +30,7 @@ class Frame(StateData):
 
     total_force_vector: jnp.ndarray = empty_array((0, 3))
     total_moment_vector: jnp.ndarray = empty_array((0, 3))
+
 
 @register
 class Inertial(Frame):
@@ -48,6 +50,7 @@ class Inertial(Frame):
     time: jnp.ndarray = empty_array((0))
     system_range: jnp.ndarray = empty_array((0))
 
+
 @register
 class Body(Frame):
     # Attribute             Type        Default Value
@@ -56,6 +59,7 @@ class Body(Frame):
     inertial_rotations: jnp.ndarray = empty_array((0, 3))
     thrust_force_vector: jnp.ndarray = empty_array((0, 3))
     moment_vector: jnp.ndarray = empty_array((0, 3))
+
 
 @register
 class Wind(Frame):
@@ -69,6 +73,7 @@ class Wind(Frame):
     force_vector: jnp.ndarray = empty_array((0, 3))
     moment_vector: jnp.ndarray = empty_array((0, 3))
 
+
 @register
 class Planet(Frame):
     # Attribute     Type            Default Value
@@ -80,6 +85,7 @@ class Planet(Frame):
     longitude: jnp.ndarray = field(lambda: jnp.array([73.7797]))
 
     true_course: jnp.ndarray = empty_array()
+
 
 @register
 class FrameData(StateData):

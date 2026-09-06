@@ -7,5 +7,5 @@ from ._wings import (
     WingSegment,
     Sweeps as WingSweeps,
     Chords as WingChords,
-    WingControlSurface as ControlSurface
+    WingControlSurface as ControlSurface,
 )

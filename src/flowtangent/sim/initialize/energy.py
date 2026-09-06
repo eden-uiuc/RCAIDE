@@ -54,8 +54,8 @@ def initialize_energy(state: State, system: System, settings: Settings):
 
         updated_system = updated_system.replace_subcomponent(updated_network)
 
-        if str(network.__class__.__name__ ) in conditions_map:
-            network_state = conditions_map[str(network.__class__.__name__ )]()
+        if str(network.__class__.__name__) in conditions_map:
+            network_state = conditions_map[str(network.__class__.__name__)]()
             updated_state = eqx.tree_at(lambda s: s.energy, updated_state, network_state)
 
         updated_state = eqx.tree_at(lambda s: s.energy.nodes, updated_state, node_states)

@@ -16,6 +16,7 @@ import jax.numpy as jnp
 #  Stateful/Framework Version
 # -------------------------------------------------------------------------------
 
+
 def update_mass_and_weight(
     state: State,
     system: System,
@@ -35,15 +36,9 @@ def update_mass_and_weight(
 
     # Update State
     updated_state = eqx.tree_at(
-        lambda s: (
-            s.mass.total,
-            s.frames.inertial.gravity_force_vector
-        ),
-            state,
-        (
-            integrated_mass,
-            state.frames.inertial.gravity_force_vector.at[:, 2].set(integrated_weight[:, 0])
-        ),
+        lambda s: (s.mass.total, s.frames.inertial.gravity_force_vector),
+        state,
+        (integrated_mass, state.frames.inertial.gravity_force_vector.at[:, 2].set(integrated_weight[:, 0])),
     )
 
     return updated_state, system, settings

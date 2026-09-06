@@ -21,6 +21,7 @@ from flowtangent.utils import empty_array, field, register
 #  Energy Interfaces
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 @register
 class MechanicalOutputs(StateData):
     name: str = field("Mechanical Outputs", static=True)
@@ -76,6 +77,7 @@ class FlowOutputs(StateData):
     Cp: jnp.ndarray = empty_array()
     R: jnp.ndarray = empty_array()
 
+
 @register
 class ResidualOutputs(StateData):
     name: str = field("Residual Outputs", static=True)
@@ -101,6 +103,7 @@ class ResidualOutputs(StateData):
     lpt_Wp: jnp.ndarray = empty_array()
     hpt_Wp: jnp.ndarray = empty_array()
 
+
 @register
 class ForceOutputs(StateData):
     name: str = field("Force Outputs", static=True)
@@ -123,9 +126,11 @@ class NodeState(StateData):
 
     mass: jnp.ndarray = empty_array()
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #  Energy Stores
 # ----------------------------------------------------------------------------------------------------------------------
+
 
 @register
 class BatteryCellConditions(NodeState):
@@ -176,7 +181,6 @@ class NetworkState(NodeState):
 
 @register
 class TurbojetState(NetworkState):
-
     name: str = field("Turbojet Network", static=True)
 
     # Control hooks
@@ -189,9 +193,9 @@ class TurbojetState(NetworkState):
     target_thrust: jnp.ndarray = empty_array()
     target_temperature: jnp.ndarray = empty_array()
 
+
 @register
 class TurbofanState(NetworkState):
-
     name: str = field("Turbofan Network", static=True)
 
     # Control hooks
@@ -211,4 +215,3 @@ class TurbofanState(NetworkState):
     bypass_ratio: jnp.ndarray = empty_array()
     target_thrust: jnp.ndarray = empty_array()
     target_temperature: jnp.ndarray = empty_array()
-

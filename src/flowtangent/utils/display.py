@@ -6,7 +6,8 @@ def format_array(v, precision=3, width=10):
     v_np = np.asarray(v)
     if v_np.size == 1:
         return f"{v_np.item():>{width}.{precision}e}"
-    return np.array2string(v_np, precision=precision, separator=', ')
+    return np.array2string(v_np, precision=precision, separator=", ")
+
 
 MERMAID_STYLES = {
     "default": "",

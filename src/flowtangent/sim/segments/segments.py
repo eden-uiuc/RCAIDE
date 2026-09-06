@@ -25,8 +25,8 @@ import jax.numpy as jnp
 from flowtangent.core._processes import null_step
 from flowtangent.core._state_data._controls import Control, Residual
 from flowtangent.framework import Process, ProcessStep
-from flowtangent.framework.simulation.initialize import *  #noqa: F403
-from flowtangent.framework.simulation.update import *  #noqa: F403
+from flowtangent.framework.simulation.initialize import *  # noqa: F403
+from flowtangent.framework.simulation.update import *  # noqa: F403
 from flowtangent.utils import field, scan_for_invalid_JAX_types
 
 from . import profiles as pf
@@ -313,7 +313,6 @@ class IterateSegment(Process):
                     x0 = state.solver.unknowns
                     unknowns, opt_state = self._run_gauss_newton_solver(x0, state, system, settings)
 
-
                     if settings.DEBUG_MODE:
                         unknowns.block_until_ready()
 
@@ -458,11 +457,11 @@ class Segment(Process):
     active_residuals: tuple[NamedResidual, ...] = field(tuple)
     controls_initial_guess: tuple[jnp.ndarray | float, ...] = (0.0, 0.0)
 
-    course_profile:     pf.CourseProfile = field(pf.ConstantCourse)
-    position_profile:   pf.PositionProfile = field(pf.ConstantAltitude)
-    speed_profile:      pf.SpeedProfile = field(pf.ConstantSpeed)
-    velocity_profile:   pf.VelocityProfile = field(pf.ConstantAltitudeChangeRate)
-    duration_profile:   pf.DurationProfile = field(pf.FixedDistance)
+    course_profile: pf.CourseProfile = field(pf.ConstantCourse)
+    position_profile: pf.PositionProfile = field(pf.ConstantAltitude)
+    speed_profile: pf.SpeedProfile = field(pf.ConstantSpeed)
+    velocity_profile: pf.VelocityProfile = field(pf.ConstantAltitudeChangeRate)
+    duration_profile: pf.DurationProfile = field(pf.FixedDistance)
 
     # Global dynamics variables
     sideslip_angle: float = 0.0

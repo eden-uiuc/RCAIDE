@@ -27,6 +27,7 @@ from flowtangent.utils import field
 
 # TODO: Convert Atmospheres to Standardized Tables Like Gases
 
+
 class AtmosphericBreakpoints(eqx.Module):
     altitude: jnp.ndarray
     temperature: jnp.ndarray
@@ -100,7 +101,7 @@ def generate_us_standard_atmosphere(max_alt=84852.0, step=10.0):
         (47000.0, 270.65, 110.906, 0.0),
         (51000.0, 270.65, 66.9389, -0.0028),
         (71000.0, 214.65, 3.95642, -0.002),
-        (84852.0, 186.95, 0.3734, 0.0)
+        (84852.0, 186.95, 0.3734, 0.0),
     ]
 
     R = 287.0528
@@ -113,8 +114,8 @@ def generate_us_standard_atmosphere(max_alt=84852.0, step=10.0):
     hb, Tb, Pb, L = layers[0]
     for i, h in enumerate(alts):
         # Find which layer we are in
-        for j in range(len(layers)-1):
-            if layers[j][0] <= h < layers[j+1][0] or (j == len(layers)-2 and h >= layers[j+1][0]):
+        for j in range(len(layers) - 1):
+            if layers[j][0] <= h < layers[j + 1][0] or (j == len(layers) - 2 and h >= layers[j + 1][0]):
                 hb, Tb, Pb, L = layers[j]
                 break
 
@@ -123,10 +124,10 @@ def generate_us_standard_atmosphere(max_alt=84852.0, step=10.0):
         temps[i] = T
 
         # Calculate P
-        if L == 0.0: # Isothermal
+        if L == 0.0:  # Isothermal
             press[i] = Pb * np.exp(-g0 * (h - hb) / (R * Tb))
-        else:        # Gradient
-            press[i] = Pb * (T / Tb)**(-g0 / (R * L))
+        else:  # Gradient
+            press[i] = Pb * (T / Tb) ** (-g0 / (R * L))
 
     densities = press / (R * temps)
 
@@ -134,12 +135,14 @@ def generate_us_standard_atmosphere(max_alt=84852.0, step=10.0):
         altitude=jnp.array(alts),
         temperature=jnp.array(temps),
         pressure=jnp.array(press),
-        density=jnp.array(densities)
+        density=jnp.array(densities),
     )
+
 
 class USStandard1976(Atmosphere):
     name: str = field("US Standard Atmosphere, 1976", static=True)
     breaks: AtmosphericBreakpoints = field(generate_us_standard_atmosphere)
+
 
 def _ConstantTempBreaks(self):
     return AtmosphericBreakpoints(

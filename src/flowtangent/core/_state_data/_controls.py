@@ -26,6 +26,7 @@ from .._component import Component
 #  Controls
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 def get_active(cond: StateData) -> tuple[StateData, ...]:
     """
     Returns the active controls/residuals
@@ -49,8 +50,8 @@ class Residual(StateData):
 
     _active: bool = field(False, static=True)
 
-class DynamicsConditions(StateData):
 
+class DynamicsConditions(StateData):
     name: str = field("Dynamics", static=True)
 
     @property
@@ -80,6 +81,7 @@ class Control(StateData):
         The current value of the control variable. Initialized as a 1x1 zero array.
 
     """
+
     name: str = field("Control", static=True)
 
     state_path: TreePath = field(TreePath, static=True)
@@ -123,7 +125,7 @@ class Control(StateData):
                                jnp.clip(
                                    self.initial_value,
                                    self.bounds[0] * 1.10,
-                                   self.bounds[1] * 0.90)
+                                   self.bounds[1] * 0.90,),
                                 )
 
 class SurfaceControl(Control):
@@ -161,12 +163,15 @@ class SurfaceControl(Control):
 class ControlsConditions(StateData):
     name: str = field("Controls", static=True)
 
-    _default_paths: dict = field(lambda: {
-        "bank_angle": (("frames", "body", "inertial_rotations"), slice(None)),
-        "body_angle": (("frames", "body", "inertial_rotations"), slice(None)),
-        "velocity": (("frames", "inertial", "velocity_vector"), slice(None)),
-        "altitude": (("frames", "inertial", "position_vector") , slice(None, 2)),
-    }, static=True)
+    _default_paths: dict = field(
+        lambda: {
+            "bank_angle": (("frames", "body", "inertial_rotations"), slice(None)),
+            "body_angle": (("frames", "body", "inertial_rotations"), slice(None)),
+            "velocity": (("frames", "inertial", "velocity_vector"), slice(None)),
+            "altitude": (("frames", "inertial", "position_vector"), slice(None, 2)),
+        },
+        static=True,
+    )
 
     def __post_init__(self):
         for ctrl, (ctrl_path, path_slice) in self._default_paths.items():
@@ -174,7 +179,7 @@ class ControlsConditions(StateData):
                 self,
                 ctrl,
                 Control(
-                    name=ctrl.replace('_', " ").title(),
+                    name=ctrl.replace("_", " ").title(),
                     state_path=TreePath(path=ctrl_path, path_slice=path_slice),
                 ),
             )
@@ -183,5 +188,3 @@ class ControlsConditions(StateData):
     @property
     def active_controls(self) -> tuple[Control, ...]:
         return get_active(self)
-
-

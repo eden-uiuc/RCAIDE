@@ -17,36 +17,38 @@ from .tree import is_equivalent
 # Input/Output Function Decorators
 # ---------------------------------------------------------
 
+
 def inputs(*dependencies: str):
     def decorator(func: Callable):
         func._inputs = set(dependencies)
         return func
+
     return decorator
+
 
 def outputs(*outputs: str):
     def decorator(func: Callable):
         func._outputs = set(outputs)
         return func
+
     return decorator
+
 
 def parse_io(io_string: str, var_map: dict | Any) -> set:
     io_parts = io_string.split(":")
     io_string = io_parts[0].strip()
 
-    required_keys = [
-        tup[1] for tup in string.Formatter().parse(io_string)
-        if tup[1] is not None
-    ]
+    required_keys = [tup[1] for tup in string.Formatter().parse(io_string) if tup[1] is not None]
 
     if not required_keys:
         return {io_string}
 
     normalized_map = {}
     for full_key in required_keys:
-        safe_key = full_key.replace('.', '___')
+        safe_key = full_key.replace(".", "___")
         io_string = io_string.replace(f"{{{full_key}}}", f"{{{safe_key}}}")
 
-        parts = full_key.split('.')
+        parts = full_key.split(".")
         base_key = parts[0]
         attrs = parts[1:]
 
@@ -58,7 +60,7 @@ def parse_io(io_string: str, var_map: dict | Any) -> set:
             try:
                 resolved_item = item
                 for attr in attrs:
-                    if attr.endswith('()'):
+                    if attr.endswith("()"):
                         resolved_item = getattr(resolved_item, attr[:-2])()
                     else:
                         resolved_item = getattr(resolved_item, attr)
@@ -78,28 +80,33 @@ def parse_io(io_string: str, var_map: dict | Any) -> set:
 
     return resolved_paths
 
+
 def jax_path_string(jax_path: tuple) -> str:
     """Converts internal JAX path tuple into standard Python syntax."""
     path_str = ""
     for p in jax_path:
-        if hasattr(p, 'name'):
+        if hasattr(p, "name"):
             path_str += f".{p.name}"
-        elif hasattr(p, 'key'):
+        elif hasattr(p, "key"):
             path_str += f"['{p.key}']"
-        elif hasattr(p, 'idx'):
+        elif hasattr(p, "idx"):
             path_str += f"[{p.idx}]"
     return path_str.lstrip(".")
+
 
 # ----------------------------------------------------------
 # Saving and Loading
 # ----------------------------------------------------------
+
 
 def _ft_root() -> Path:
     """Returns the absolute path to the src/flowtangent directory."""
     # .parent steps up from src/flowtangent/utils to src/flowtangent
     return Path(os.path.dirname(os.path.abspath(__file__))).resolve().parent
 
+
 FlowTangent_REGISTRY = {}
+
 
 def register(cls):
     """Decorator to safely register any class for standalone serialization."""
@@ -107,6 +114,7 @@ def register(cls):
         raise ValueError(f"Class '{cls.__name__}' is already registered.")
     FlowTangent_REGISTRY[cls.__name__] = cls
     return cls
+
 
 def serialize_node(obj):
     if isinstance(obj, (jnp.ndarray, np.ndarray)):
@@ -153,6 +161,7 @@ def serialize_node(obj):
         warnings.warn(f"Attempted to save '{name}' with unregistered class {type(obj).__name__}.", UserWarning)
         return {"__type__": "unknown", "data": str(obj)}
 
+
 def deserialize_node(data):
     if not isinstance(data, dict):
         return data
@@ -184,6 +193,7 @@ def deserialize_node(data):
 
     return data
 
+
 def save_data(obj, filename: str | Path):
     file_path = Path(filename).resolve()
     file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -192,19 +202,26 @@ def save_data(obj, filename: str | Path):
         warnings.filterwarnings("ignore", category=RuntimeWarning)
         payload = serialize_node(obj)
 
-    with gzip.open(file_path, 'wt', encoding='utf-8') as f:
+    with gzip.open(file_path, "wt", encoding="utf-8") as f:
         json.dump(payload, f)
 
     name = getattr(obj, "name", "")
-    print(f"Successfully saved {type(obj).__name__} '{name}' to {file_path}" if name
-          else f"Successfully saved {type(obj).__name__} to {file_path}")
+    print(
+        f"Successfully saved {type(obj).__name__} '{name}' to {file_path}"
+        if name
+        else f"Successfully saved {type(obj).__name__} to {file_path}"
+    )
+
 
 def load_data(filename: str | Path) -> Any:
-    with gzip.open(filename, 'rt', encoding='utf-8') as f:
+    with gzip.open(filename, "rt", encoding="utf-8") as f:
         payload = json.load(f)
 
     obj = deserialize_node(payload)
     name = getattr(obj, "name", "")
-    print(f"Successfully loaded {type(obj).__name__} '{name}' from {filename}" if name
-          else f"Successfully loaded {type(obj).__name__} from {filename}")
+    print(
+        f"Successfully loaded {type(obj).__name__} '{name}' from {filename}"
+        if name
+        else f"Successfully loaded {type(obj).__name__} from {filename}"
+    )
     return obj

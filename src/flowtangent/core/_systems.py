@@ -39,6 +39,7 @@ class VehicleEnvelope(eqx.Module):
 #  System
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 @register
 class System(Component):
     name: str = field("System", static=True)
@@ -50,12 +51,14 @@ class System(Component):
 #  Aircraft
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 @register
 class AircraftReferenceGeometry(eqx.Module):
     mean_aerodynamic_chord: jnp.ndarray = empty_array()
     projected_span: jnp.ndarray = empty_array()
     aerodynamic_center: jnp.ndarray = empty_array((0, 3))
     center_of_gravity: jnp.ndarray = empty_array((0, 3))
+
 
 @register
 class AircraftMassProperties(MassProperties):
@@ -65,9 +68,9 @@ class AircraftMassProperties(MassProperties):
     max_zero_fuel: float = 0.0
     cargo: float = 0.0
 
+
 @register
 class AircraftDesign(eqx.Module):
-
     ac_class: AircraftClass = field(MediumRange, static=True)
     envelope: VehicleEnvelope = field(VehicleEnvelope, static=True)
 
@@ -76,6 +79,7 @@ class AircraftDesign(eqx.Module):
     mach_number: float = field(0.0, static=True)
     range: float = field(0.0, static=True)
     cruise_alt: float = field(0.0, static=True)
+
 
 @register
 class Aircraft[EnergyType: GraphNetwork](System):
@@ -105,4 +109,3 @@ class Aircraft[EnergyType: GraphNetwork](System):
     def update_network_topology(self) -> Aircraft:
         sorted_network = self.energy.update_node_topology()
         return self.replace_subcomponent(sorted_network)
-

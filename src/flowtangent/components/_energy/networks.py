@@ -36,13 +36,14 @@ from .nodes import BleedFlow, GraphDomain, GraphInput, GraphNode
 #  Design Conditions
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 @register
 class NetworkDesign(eqx.Module):
-
     altitude: float = 0.0
     mach_number: float = 0.01
     thrust: float = 1.0 * units.N
     atmosphere_model: Atmosphere = field(USStandard1976)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Energy Networks
@@ -74,11 +75,13 @@ def _resolve_namespaces(node, parent_prefix=""):
             else:
                 return parent_prefix + "." + flat_input_parts[-1]
 
+    #fmt: off
     new_inputs = tuple(
         i if i._assigned
         else replace(i, network_id=parse_input(i.network_id), _assigned=True)
         for i in node.inputs
     )
+    #fmt: on
 
     # Update the node itself
     node = replace(
@@ -92,7 +95,7 @@ def _resolve_namespaces(node, parent_prefix=""):
         node = replace(
             node,
             parent_ID=parent_prefix,
-            grandparent_ID=parent_prefix + ".mixer"
+            grandparent_ID=parent_prefix + ".mixer",
         )
 
     # Recurse through any subcomponents
@@ -105,7 +108,6 @@ def _resolve_namespaces(node, parent_prefix=""):
 
 @register
 class GraphNetwork[DesignType: NetworkDesign](GraphNode):
-
     name: str = field("Network", static=True)
     network_id: str = field("network", static=True)
 
@@ -169,7 +171,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
         updated_network = eqx.tree_at(
             lambda n: n.subcomponents,
             updated_network,
-            tuple(resolved_lines)
+            tuple(resolved_lines),
         ).update_node_topology()
 
         return updated_network
@@ -209,6 +211,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
         back onto their original positions in the nested subcomponents tree.
         Clears nodes dict and execution order.
         """
+
         def _walk_and_sync(component):
             # If we hit an EnergyNode, replace it with the latest version from the dict
             if isinstance(component, GraphNode):
@@ -231,13 +234,14 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
             self,
             subcomponents=synced_subcomponents,
             nodes={},
-            _execution_order=()
+            _execution_order=(),
         )
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Turbojet Energy Networks
 # ----------------------------------------------------------------------------------------------------------------------
+
 
 class _JetNetwork[DesignType: JetNetDesign](GraphNetwork[DesignType]):
     """
@@ -252,14 +256,14 @@ class _JetNetwork[DesignType: JetNetDesign](GraphNetwork[DesignType]):
     )
 
     @tu.inputs(
-            "state.energy.nodes['{force_inputs.network_id}'].force.thrust",
-            "state.energy.nodes['{residual_inputs.network_id}'].residual.power",
-            "state.energy.target_thrust",
+        "state.energy.nodes['{force_inputs.network_id}'].force.thrust",
+        "state.energy.nodes['{residual_inputs.network_id}'].residual.power",
+        "state.energy.target_thrust",
     )
     @tu.outputs(
-            "state.energy.total_force_vector",
-            "state.energy.residual.thrust",
-            "state.energy.residual.power",
+        "state.energy.total_force_vector",
+        "state.energy.residual.thrust",
+        "state.energy.residual.power",
     )
     def transmit(self, state: State, system: System, settings: Settings):
 
@@ -277,7 +281,8 @@ class _JetNetwork[DesignType: JetNetDesign](GraphNetwork[DesignType]):
             ),
             updated_state,(
                 total_force_vector,
-                (total_thrust - state.energy.target_thrust)/state.energy.target_thrust))
+                (total_thrust - state.energy.target_thrust)/state.energy.target_thrust),
+            )
 
         # Power Imbalance (Single Spool Only) ----------------------------------
 
@@ -287,15 +292,18 @@ class _JetNetwork[DesignType: JetNetDesign](GraphNetwork[DesignType]):
 
         return updated_state, system, settings
 
+
 # Turbojet ---------------------------------------------------------------------
+
 
 def _TurbojetNetworkSetup():
     return (TurbojetLine(name="Line"),)
 
+
 @register
 class JetNetDesign(NetworkDesign):
-
     number_of_engines: int = field(1, static=True)
+
 
 @register
 class TurbojetNetwork(_JetNetwork[JetNetDesign]):
@@ -304,6 +312,7 @@ class TurbojetNetwork(_JetNetwork[JetNetDesign]):
 
 
 # Turbofan ---------------------------------------------------------------------
+
 
 def _TurbofanNetworkSetup():
     return (TurbofanLine(),)

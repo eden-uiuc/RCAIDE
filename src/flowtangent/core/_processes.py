@@ -90,15 +90,15 @@ class ProcessStep(eqx.Module):
             if len(sig.parameters) != 3:
                 raise ValueError(
                     f"Process functions must take and return (State, System, Settings). "
-                    f"Found function '{step_name}' with signature '{sig}'.")
+                    f"Found function '{step_name}' with signature '{sig}'."
+                )
             return cls(name=step_name, function=step)
         else:
             raise ValueError(f"Cannot create a ProcessStep from instance of '{type(step)}'.")
 
-
     def _profile_complexity(self, state: State, system: System, settings: Settings, top_n=5):
         try:
-            assert(isinstance(self.function, Callable))
+            assert isinstance(self.function, Callable)
             jaxpr_obj = jax.make_jaxpr(self.function)(state, system, settings)
         except Exception as e:
             return f" - {self.name} | Could not trace ({e})"
@@ -107,8 +107,11 @@ class ProcessStep(eqx.Module):
 
         # 1. Define everything we want the profiler to IGNORE
         exclude_strings = [
-            "jax/", "jax\\", "equinox", "jaxtyping", # Core internals
-            "residual.py",                          # Orchestrator
+            "jax/",
+            "jax\\",
+            "equinox",
+            "jaxtyping",  # Core internals
+            "residual.py",  # Orchestrator
             "graph_network.py",
         ]
 
@@ -124,15 +127,11 @@ class ProcessStep(eqx.Module):
 
                     # 3. Also ignore the wrapper function by name, just to be safe
                     func_name = getattr(frame, "code_name", None) or getattr(frame, "name", "")
-                    is_wrapper_func = func_name in [
-                        "make_node_function",
-                        "transmit",
-                        "net_transmit"
-                    ]
+                    is_wrapper_func = func_name in ["make_node_function", "transmit", "net_transmit"]
 
                     if file_name != "" and not is_ignored and not is_wrapper_func:
                         line_num = getattr(frame, "line_num", None) or getattr(frame, "lineno", "?")
-                        short_file = file_name.split('/')[-1].split('\\')[-1]
+                        short_file = file_name.split("/")[-1].split("\\")[-1]
                         user_location = f"{func_name} ({short_file}:{line_num})"
                         break
 
@@ -174,12 +173,13 @@ class ProcessStep(eqx.Module):
     def outputs(self) -> set:
         return getattr(self.function, "_outputs", set())
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #  Process Class
 # ----------------------------------------------------------------------------------------------------------------------
 
-def array_barrier(state:State, system:System, settings:Settings):
 
+def array_barrier(state: State, system: System, settings: Settings):
     """
     Forces every numerical leaf of state (at least 2d) and system (at least 1d) to become JAX arrays.
     This both standardizes the shape of the arrays and ensures they don't share memory
@@ -216,8 +216,8 @@ def array_barrier(state:State, system:System, settings:Settings):
 
     return arr_state, arr_system, settings
 
-class Process(ProcessStep):
 
+class Process(ProcessStep):
     name: str = field("Process", static=True)
     steps: tuple[ProcessStep, ...] = ()
 
@@ -230,9 +230,7 @@ class Process(ProcessStep):
 
     _val_and_jac_fn: Optional[Callable] = field(None, static=True)
     _cached_grad_map: Optional[JacobianMap] = field(None, static=True)
-    _filter_map: dict = field(lambda _:{
-            "energy": r"state\.energy\.nodes\.\[*\]."
-        }, static=True)
+    _filter_map: dict = field(lambda _: {"energy": r"state\.energy\.nodes\.\[*\]."}, static=True)
 
     def __init__(
         self,
@@ -268,7 +266,7 @@ class Process(ProcessStep):
 
         # Handle mutable dictionary default safely
         self._filter_map = _filter_map if _filter_map is not None else {
-            "energy": r"state\.energy\.nodes\.\[*\]."
+            "energy": r"state\.energy\.nodes\.\[*\].",
         }
 
         self.steps = tuple(ProcessStep.from_function(step) for step in steps)
@@ -303,7 +301,6 @@ class Process(ProcessStep):
 
     def __call__(self, state: State, system: System, settings: Settings) -> tuple[State, System, Settings]:
         if settings.DEBUG_MODE or settings._DEV_MODE:
-
             start_time = datetime.fromtimestamp(time.time()).strftime(settings.logging.date_format)
             print(f"Beginning Process: '{self.name}' | {start_time}")
 
@@ -322,8 +319,9 @@ class Process(ProcessStep):
                 final_st = eqx.tree_at(lambda s: s.process_jacobian, final_st, jacobian_matrix)
                 return final_st, final_sys, final_setts
             else:
-                warnings.warn(f"Process '{self.name}' Jacobian called with no Jacbian Map set. "
-                              "Jacobian will not be calculated.")
+                warnings.warn(
+                    f"Process '{self.name}' Jacobian called with no Jacbian Map set. Jacobian will not be calculated."
+                )
 
         # Standard Execution Path
         for step in self.steps[self.initial_step :]:
@@ -368,12 +366,12 @@ class Process(ProcessStep):
                 objective_fn, flat_st, flat_sys, base_state, base_system, base_settings, has_aux=True
             )
 
-            is_coupled_time = getattr(base_settings.numerical, 'coupled_time_jacobian', False)
+            is_coupled_time = getattr(base_settings.numerical, "coupled_time_jacobian", False)
 
             # Determine shapes based on your strict (B, T, F) or (T, F) rules
             ndim = out_array.ndim
             N_o = out_array.shape[-1]
-            has_B = (ndim == 3)
+            has_B = ndim == 3
 
             B = out_array.shape[0] if has_B else 1
             T = out_array.shape[1] if has_B else out_array.shape[0]
@@ -388,13 +386,16 @@ class Process(ProcessStep):
 
                 jac_tuple = jax.vmap(vjp_fn)(basis_st)
 
-                jac_st = jnp.moveaxis(jac_tuple[0], 0, -2) # -> (B, T, N_o, N_st) or (T, N_o, N_st)
+                jac_st = jnp.moveaxis(jac_tuple[0], 0, -2)  # -> (B, T, N_o, N_st) or (T, N_o, N_st)
 
                 if flat_sys.size > 0:
                     # System is usually dense across the batch
                     B_total = B * T
-                    basis_sys = (jnp.eye(B_total * N_o).reshape(B_total * N_o, B, T, N_o) if has_B
-                                 else jnp.eye(B_total * N_o).reshape(B_total * N_o, T, N_o))
+                    basis_sys = (
+                        jnp.eye(B_total * N_o).reshape(B_total * N_o, B, T, N_o)
+                        if has_B
+                        else jnp.eye(B_total * N_o).reshape(B_total * N_o, T, N_o)
+                    )
                     jac_sys_tuple = jax.vmap(vjp_fn)(basis_sys)
 
                     jac_sys = jac_sys_tuple[1].reshape(B, T, N_o, -1) if has_B else jac_sys_tuple[1].reshape(T, N_o, -1)
@@ -415,48 +416,52 @@ class Process(ProcessStep):
                     basis_st = jnp.eye(T_No).reshape(T_No, 1, T, N_o)
                     basis_st = jnp.broadcast_to(basis_st, (T_No, B, T, N_o))
 
-                    jac_tuple = jax.vmap(vjp_fn)(basis_st) # Output: (T*N_o, B, T, N_st)
-                    jac_st = jnp.moveaxis(jac_tuple[0], 1, 0) # -> (B, T*N_o, T, N_st)
-                    jac_st = jac_st.reshape(B, T, N_o, T, -1) # -> (B, T_out, N_o, T_in, N_st)
+                    jac_tuple = jax.vmap(vjp_fn)(basis_st)  # Output: (T*N_o, B, T, N_st)
+                    jac_st = jnp.moveaxis(jac_tuple[0], 1, 0)  # -> (B, T*N_o, T, N_st)
+                    jac_st = jac_st.reshape(B, T, N_o, T, -1)  # -> (B, T_out, N_o, T_in, N_st)
                 else:
                     basis_st = jnp.eye(T_No).reshape(T_No, T, N_o)
-                    jac_tuple = jax.vmap(vjp_fn)(basis_st) # Output: (T*N_o, T, N_st)
-                    jac_st = jac_tuple[0].reshape(T, N_o, T, -1) # -> (T_out, N_o, T_in, N_st)
+                    jac_tuple = jax.vmap(vjp_fn)(basis_st)  # Output: (T*N_o, T, N_st)
+                    jac_st = jac_tuple[0].reshape(T, N_o, T, -1)  # -> (T_out, N_o, T_in, N_st)
 
                 if flat_sys.size > 0:
                     # System is dense across everything
                     B_total = B * T if has_B else T
-                    basis_sys = (jnp.eye(B_total * N_o).reshape(B_total * N_o, B, T, N_o) if has_B
-                                 else jnp.eye(B_total * N_o).reshape(B_total * N_o, T, N_o))
+                    basis_sys = (
+                        jnp.eye(B_total * N_o).reshape(B_total * N_o, B, T, N_o)
+                        if has_B
+                        else jnp.eye(B_total * N_o).reshape(B_total * N_o, T, N_o)
+                    )
                     jac_sys_tuple = jax.vmap(vjp_fn)(basis_sys)
 
                     jac_sys = jac_sys_tuple[1].reshape(B, T, N_o, -1) if has_B else jac_sys_tuple[1].reshape(T, N_o, -1)
                     # Note: Concatenating State with System requires flattening the time dimensions for the solver
-                    batched_jacobian = (jac_st, jac_sys) # Returned as a tuple for optimal control solvers
+                    batched_jacobian = (jac_st, jac_sys)  # Returned as a tuple for optimal control solvers
                 else:
                     batched_jacobian = jac_st
 
             return batched_jacobian, aux[0], aux[1], aux[2]
 
-
         return batched_jacrev_fn
 
     @overload
     def run(
-        self, state: State, system: System, settings: Settings, *,
-        initialize: bool = ..., track_history: Literal[True]
+        self, state: State, system: System, settings: Settings, *, initialize: bool = ..., track_history: Literal[True]
     ) -> tuple[State, System, Settings, Process]: ...
 
     @overload
     def run(
-        self, state: State, system: System, settings: Settings, *,
-        initialize: bool = ..., track_history: Literal[False] = ...
+        self,
+        state: State,
+        system: System,
+        settings: Settings,
+        *,
+        initialize: bool = ...,
+        track_history: Literal[False] = ...,
     ) -> tuple[State, System, Settings]: ...
 
     def run(
-        self,
-        state: State, system: System, settings: Settings, *,
-        initialize: bool = True, track_history: bool = False
+        self, state: State, system: System, settings: Settings, *, initialize: bool = True, track_history: bool = False
     ):
 
         state, system, settings = array_barrier(state, system, settings)
@@ -467,7 +472,6 @@ class Process(ProcessStep):
         # Direct call if not tracking history
         if not track_history:
             return self(state, system, settings)
-
 
         f_st, f_sys, f_setts, raw_hist = self._run_with_raw_history(state, system, settings)
 

@@ -36,6 +36,7 @@ class Fineness(eqx.Module):
     def __repr__(self):
         return f"Eff.: {self.effective}"
 
+
 @register
 class Dimensions(eqx.Module):
     # Attribute         Type    Default Value
@@ -53,6 +54,7 @@ class Dimensions(eqx.Module):
 
     def __repr__(self):
         return ""
+
 
 @register
 class Areas(eqx.Module):
@@ -217,7 +219,7 @@ class Component(eqx.Module):
 
         return eqx.tree_at(lambda c: c.subcomponents, self, new_subcomponents)
 
-    def replace_subcomponent(self, subcomponent: "Component", index: Optional[int]=None):
+    def replace_subcomponent(self, subcomponent: "Component", index: Optional[int] = None):
         if index is not None:
             new_subcomponents = self.subcomponents[:index] + (subcomponent,) + self.subcomponents[index + 1 :]
 

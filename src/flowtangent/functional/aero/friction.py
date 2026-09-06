@@ -34,7 +34,7 @@ def func_compressible_mixed_flat_plate(Re, M, T, x_t):
 
     Re_x = jnp.maximum(Re * x_t, 1.01)
 
-    theta = 0.671 * x_t / (Re_x ** 0.5)
+    theta = 0.671 * x_t / (Re_x**0.5)
     x_eff = (27.78 * theta * Re**0.2) ** 1.25
     Re_x_t = jnp.maximum(Re * (1 - x_t + x_eff), 1.01)
 

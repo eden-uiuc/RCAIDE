@@ -41,7 +41,7 @@ g0 = 9.80665 * m / s**2  # Standard gravity
 # TIME
 # ==============================================================================
 
-mins = s  * 60.0
+mins = s * 60.0
 hr = mins * 60.0
 day = hr * 24.0
 wk = day * 7.0
@@ -119,6 +119,7 @@ R = 5.0 / 9.0 * K  # Rankine
 
 btu = J / 1055.06
 
+
 # ==============================================================================
 # UNIT STRING PARSER
 # ==============================================================================
@@ -141,4 +142,3 @@ def parse(unit_string: str) -> float:
         return eval(unit_string, {"__builtins__": None}, module_dict)
     except Exception as e:
         raise ValueError(f"Failed to parse unit string '{unit_string}'. Error: {e}")
-

@@ -47,6 +47,7 @@ class PACTNetwork(Process):
 
         return G
 
+
 def build_analysis_from_network(network: GraphNetwork):
 
     analysis_network = network.assign_network_ids()
@@ -95,13 +96,13 @@ def build_analysis_from_network(network: GraphNetwork):
     node_steps = tuple(
             ProcessStep(
                 name=f"{ID}",
-                function=make_node_function(ID)
+                function=make_node_function(ID),
             ) for ID in analysis_network._execution_order
         )
 
     net_step = ProcessStep(
         name=f"{analysis_network.network_id}",
-        function=make_network_function()
+        function=make_network_function(),
     )
 
     full_steps = node_steps + (net_step,)

@@ -37,10 +37,10 @@ from flowtangent.utils import TreePath, field, get_all_parents, get_all_targets
 
 
 class ReductionFactors(eqx.Module):
-    main_wing:  float = 0.0
-    fuselage:   float = 0.0
-    empennage:  float = 0.0
-    systems:    float = 0.0
+    main_wing: float = 0.0
+    fuselage: float = 0.0
+    empennage: float = 0.0
+    systems: float = 0.0
 
 
 class SizingFractions(eqx.Module):
@@ -51,7 +51,9 @@ class MassAnalysisSettings(eqx.Module):
     reduction_factors: ReductionFactors = field(ReductionFactors)
     sizing_fractions: SizingFractions = field(SizingFractions)
 
+
 # Energy Analysis --------------------------------------------------------------
+
 
 class EnergyAnalysisSettings(eqx.Module):
     report_units: Literal["SI", "Imperial"] = field("SI", static=True)
@@ -67,6 +69,7 @@ class AnalysisSettings[E_Type: EnergyAnalysisSettings](eqx.Module):
 
 
 #  Numerical Settings --------------------------------------------------------------------------------------------------
+
 
 class JacobianMap(eqx.Module):
     inputs: tuple[TreePath, ...] = eqx.field(static=True)
@@ -93,13 +96,15 @@ class JacobianMap(eqx.Module):
         self.inputs = tuple(TreePath(i) for i in inputs)
         self.outputs = tuple(TreePath(o) for o in outputs)
 
-        _filter_in = lambda str: tuple(p for p in self.inputs if p.path[0].lower()==str) #noqa: E731
-        _filter_out = lambda str: tuple(p for p in self.inputs if p.path[0].lower()==str) #noqa: E731
+        _filter_in = lambda str: tuple(p for p in self.inputs if p.path[0].lower() == str)  # noqa: E731
+        _filter_out = lambda str: tuple(p for p in self.inputs if p.path[0].lower() == str)  # noqa: E731
 
+        #fmt: off
         self.state_inputs   = _filter_in("state") if state_inputs is None else state_inputs
         self.system_inputs  = _filter_in("system") if system_inputs is None else system_inputs
         self.state_outputs  = _filter_out("state") if state_outputs is None else state_outputs
         self.system_outputs = _filter_out("system") if system_outputs is None else system_outputs
+        #fmt: on
 
         self._n_st = len(self.state_inputs)
         self._n_sys = len(self.system_inputs)
@@ -107,7 +112,7 @@ class JacobianMap(eqx.Module):
     def flatten_inputs(self, base_state, base_system):
         # Dynamically detect B from the base state (if any arrays are 3D)
         arr = next((l for l in jax.tree_util.tree_leaves(base_state) if isinstance(l, (jax.Array, np.ndarray))), None)
-        has_B = (arr is not None and arr.ndim == 3)
+        has_B = arr is not None and arr.ndim == 3
         B = arr.shape[0] if has_B else None
 
         flat_st = []
@@ -125,7 +130,7 @@ class JacobianMap(eqx.Module):
         return flat_st_array, flat_sys_array
 
     def update_inputs(self, flat_st, flat_sys, base_state, base_system):
-        has_B = (flat_st.ndim == 2)
+        has_B = flat_st.ndim == 2
         B = flat_st.shape[0] if has_B else None
 
         st, sys = base_state, base_system
@@ -140,8 +145,10 @@ class JacobianMap(eqx.Module):
             new_slices = [s.reshape((B,) + shp) if has_B else s.reshape(shp) for s, shp in zip(splits, shapes)]
 
             parents = get_all_parents(st, self.state_inputs)
-            updated = [p.at[pth.path_slice].set(n) if pth.path_slice != slice(None)
-                       else n for p, n, pth in zip(parents, new_slices, self.state_inputs)]
+            updated = [
+                p.at[pth.path_slice].set(n) if pth.path_slice != slice(None) else n
+                for p, n, pth in zip(parents, new_slices, self.state_inputs)
+            ]
             st = eqx.tree_at(lambda t: get_all_parents(t, self.state_inputs), st, tuple(updated))
 
         # Update System
@@ -154,8 +161,10 @@ class JacobianMap(eqx.Module):
             new_slices = [s.reshape(shp) for s, shp in zip(splits, shapes)]
 
             parents = get_all_parents(sys, self.system_inputs)
-            updated = [p.at[pth.path_slice].set(n) if pth.path_slice != slice(None)
-                        else n for p, n, pth in zip(parents, new_slices, self.system_inputs)]
+            updated = [
+                p.at[pth.path_slice].set(n) if pth.path_slice != slice(None) else n
+                for p, n, pth in zip(parents, new_slices, self.system_inputs)
+            ]
             sys = eqx.tree_at(lambda t: get_all_parents(t, self.system_inputs), sys, tuple(updated))
 
         return st, sys
@@ -167,7 +176,7 @@ class JacobianMap(eqx.Module):
         if self.system_outputs:
             outputs.extend(get_all_targets(f_sys, self.system_outputs))
 
-        has_B = (outputs[0].ndim == 3)
+        has_B = outputs[0].ndim == 3
         B = outputs[0].shape[0] if has_B else None
 
         if has_B:
@@ -175,14 +184,14 @@ class JacobianMap(eqx.Module):
         else:
             return jnp.concatenate([out.reshape(-1) for out in outputs], axis=-1)
 
-class JacobianSettings(eqx.Module):
 
+class JacobianSettings(eqx.Module):
     calculate: bool = field(False, static=True)
     couple_time: bool = field(True, static=True)
     mapping: Optional[JacobianMap] = field(None, static=True)
 
-class NumericalSettings(eqx.Module):
 
+class NumericalSettings(eqx.Module):
     relative_tolerance: float = field(1e-5, static=True)
     absolute_tolerance: float = field(1e-5, static=True)
 
@@ -190,7 +199,7 @@ class NumericalSettings(eqx.Module):
     step_size: float | None = field(None, static=True)
 
     batch_size: int = field(1, static=True)
-    batch_mode: Literal['zip', 'mesh'] = field('zip', static=True)
+    batch_mode: Literal["zip", "mesh"] = field("zip", static=True)
 
     number_of_control_points: int = field(1, static=True)
     maximum_graph_complexity: int = field(1e6, static=True)
@@ -199,10 +208,11 @@ class NumericalSettings(eqx.Module):
 
     jacobian: JacobianSettings = field(JacobianSettings, static=True)
 
+
 #  Numerical Settings --------------------------------------------------------------------------------------------------
 
-class JAXCompileFilter(logging.Filter):
 
+class JAXCompileFilter(logging.Filter):
     def __init__(self, name: str = "", whitelist: Optional[tuple[str]] = None) -> None:
         super().__init__(name)
         self.whitelist = whitelist
@@ -238,7 +248,6 @@ class JAXCompileFilter(logging.Filter):
 
 
 class LoggingSettings(eqx.Module):
-
     handle: Optional[str] = field(None, static=True)
     log_dir: Optional[str | Path] = field(None, static=True)
 
@@ -269,7 +278,7 @@ class LoggingSettings(eqx.Module):
             if self.log_dir is not None:
                 log_dir = Path(self.log_dir)
                 log_dir.mkdir(parents=True, exist_ok=True)
-                timestamp = datetime.now().strftime(self.date_format).replace(' ', '_').replace(':','-')
+                timestamp = datetime.now().strftime(self.date_format).replace(" ", "_").replace(":", "-")
                 logfile = log_dir / f"main_{timestamp}.log"
                 fh = logging.FileHandler(logfile)
                 fh.setLevel(logging.INFO)
@@ -296,7 +305,9 @@ class LoggingSettings(eqx.Module):
 
             return
 
+
 #  Full Settings -------------------------------------------------------------------------------------------------------
+
 
 class Settings(eqx.Module):
     name: str = field("Settings", static=True)

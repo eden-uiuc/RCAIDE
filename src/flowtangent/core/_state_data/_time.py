@@ -86,13 +86,13 @@ class Time(StateData):
             name="Dimensionless Time",
             control_points=jnp.atleast_2d(x).T,
             differentiate=D,
-            integrate=I
+            integrate=I,
         )
 
         updated_time = eqx.tree_at(
             lambda s: s.dimensionless,
             self,
-            updated_dimensionless
+            updated_dimensionless,
         )
 
         return updated_time

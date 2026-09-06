@@ -19,6 +19,7 @@ from flowtangent.utils import field
 #  Propellants
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 class MaxPropellantMassFractions(eqx.Module):
     Air: float = field(0.0, static=True)
     O2: float = field(0.0, static=True)
@@ -57,8 +58,9 @@ def _JetATemperatures():
         flash=311.15 * units.K,
         autoignition=483.15 * units.K,
         freeze=233.15 * units.K,
-        boiling=0.0 * units.K
+        boiling=0.0 * units.K,
     )
+
 
 class JetA(Propellant):
     oxidizer: Gas = field(O2)
@@ -66,8 +68,8 @@ class JetA(Propellant):
     density: float = field(820.0, static=True)
 
     # Specific energy is higher than reference value (43.15 MJ/kg) due to stoichiometric burn assumption
-    specific_energy: float = field(42.7984e6 * units.parse('J/kg'), static=True)
-    energy_density: float = field(35.3e6 * units.parse('J/m**3'), static=True)
+    specific_energy: float = field(42.7984e6 * units.parse("J/kg"), static=True)
+    energy_density: float = field(35.3e6 * units.parse("J/m**3"), static=True)
 
     max_mass_fraction: MaxPropellantMassFractions = field(_JetAFractions, static=True)
 
