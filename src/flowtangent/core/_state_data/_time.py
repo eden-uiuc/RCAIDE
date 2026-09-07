@@ -9,13 +9,12 @@
 
 
 # package imports
-import equinox as eqx
 import jax.numpy as jnp
 
 from flowtangent.core._state_data import StateData
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register
+from flowtangent.utils import empty_array, field, register, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Time Conditions
@@ -89,11 +88,7 @@ class Time(StateData):
             integrate=I,
         )
 
-        updated_time = eqx.tree_at(
-            lambda s: s.dimensionless,
-            self,
-            updated_dimensionless,
-        )
+        updated_time = update(self, "dimensionless", updated_dimensionless)
 
         return updated_time
 

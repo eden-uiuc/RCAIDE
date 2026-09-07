@@ -14,8 +14,9 @@ if TYPE_CHECKING:
     from flowtangent.framework import Settings, State, System
 
 # package imports
-import equinox as eqx
 import jax.numpy as jnp
+
+from ...utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Update Freestream
@@ -30,11 +31,11 @@ def update_freestream(
 
     # Update Altitude
     alt = -state.frames.inertial.position_vector[:, 2][:, None]  # Z is negative by right hand rule convention
-    state = eqx.tree_at(lambda s: s.freestream.altitude, state, alt)
+    state = update(state, "freestream.altitude", alt)
 
     # Update gravity
     G = state.freestream.planet.compute_gravity()
-    state = eqx.tree_at(lambda s: s.freestream.gravity, state, jnp.atleast_2d(G))
+    state = update(state, "freestream.gravity", jnp.atleast_2d(G))
 
     # Update Atmospheric Properties
     atmo = state.freestream.atmosphere
@@ -46,28 +47,19 @@ def update_freestream(
     Cp = atmo.compute_Cp(alt)
     gamma = atmo.compute_gamma(alt)
 
-    updated_fs = eqx.tree_at(
-        lambda f: (
-            f.density,
-            f.pressure,
-            f.temperature,
-            f.speed_of_sound,
-            f.dynamic_viscosity,
-            f.gamma,
-            f.Cp,
-        ),
+    updated_fs = update(
         state.freestream,
         (
-            r,
-            P,
-            T,
-            a,
-            m,
-            gamma,
-            Cp,
+            ("density", r),
+            ("pressure", P),
+            ("temperature", T),
+            ("speed_of_sound", a),
+            ("dynamic_viscosity", m),
+            ("gamma", gamma),
+            ("Cp", Cp),
         ),
     )
-    state = eqx.tree_at(lambda s: s.freestream, state, updated_fs)
+    state = update(state, "freestream", updated_fs)
 
     # Speed
     v = state.frames.inertial.velocity_vector
@@ -87,23 +79,15 @@ def update_freestream(
     # Reynolds Number (per meter)
     Re = r * v_mag / m
 
-    state = eqx.tree_at(
-        lambda s: (
-            s.freestream.speed,
-            s.freestream.mach_number,
-            s.freestream.reynolds_number,
-            s.freestream.dynamic_pressure,
-            s.freestream.stagnation_pressure,
-            s.freestream.stagnation_temperature,
-        ),
+    state = update(
         state,
         (
-            v_mag,
-            M,
-            Re,
-            q,
-            P_t,
-            T_t,
+            ("freestream.speed",             v_mag),
+            ("freestream.mach_number",             M),
+            ("freestream.reynolds_number",             Re),
+            ("freestream.dynamic_pressure",             q),
+            ("freestream.stagnation_pressure",             P_t),
+            ("freestream.stagnation_temperature",             T_t),
         ),
     )
 

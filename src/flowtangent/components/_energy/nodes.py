@@ -13,8 +13,8 @@ from typing import TYPE_CHECKING, Callable, Iterable, Literal, cast, get_args
 
 # --- Framework Imports (Strictly for Type Hinting to avoid Circular Imports) ---
 if TYPE_CHECKING:
-    from flowtangent.framework import Settings, State, System
-    from flowtangent.framework.analyses.energy.jets import JetSettings
+    from ... import Settings, State, System
+    from ...analyses.energy.jets import JetSettings
 
 import warnings
 from dataclasses import replace
@@ -23,10 +23,10 @@ from functools import reduce
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from flowtangent.library import Component
 
+from flowtangent import Component
 from flowtangent.data.gases import Air, Gas
-from flowtangent.utils import field, register
+from flowtangent.utils import field, register, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Graph Nodes
@@ -196,14 +196,16 @@ class Splitter(GraphNode):
             else:
                 frac = self.value_fractions
 
-            split_input = eqx.tree_at(
-                lambda t: getattr(t, value),
+            split_input = update(
                 domain_input,
+                lambda t: getattr(t, value),
                 jnp.atleast_2d(total_input * frac),
             )
 
-            updated_state = eqx.tree_at(
-                lambda s: getattr(s.energy.nodes[self.network_id], domain), updated_state, split_input
+            updated_state = update(
+                updated_state,
+                lambda s: getattr(s.energy.nodes[self.network_id], domain),
+                split_input,
             )
 
         return updated_state, system, settings
@@ -244,9 +246,9 @@ class BleedFlow(GraphNode):
 
     def transmit(self, state: State, system: System, settings: Settings):
 
-        updated_state = eqx.tree_at(
-            lambda s: s.energy.nodes[self.network_id].flow,
+        updated_state = update(
             state,
+            lambda s: s.energy.nodes[self.network_id].flow,
             state.energy.nodes[self.grandparent_id].flow,
         )
 
@@ -264,18 +266,18 @@ class BleedFlow(GraphNode):
             else:
                 bleed_value = in_value + (out_value - in_value) * frac
 
-            updated_state = eqx.tree_at(
-                lambda s: getattr(s.energy.nodes[self.network_id].flow, attr),
+            updated_state = update(
                 updated_state,
+                lambda s: getattr(s.energy.nodes[self.network_id].flow, attr),
                 bleed_value,
             )
 
             if attr == "stagnation_enthalpy":
                 fluid: Gas = state.energy.nodes[self.parent_id].flow.fluid
                 T_t = fluid.invert_enthalpy(bleed_value)
-                updated_state = eqx.tree_at(
-                    lambda s: s.energy.nodes[self.network_id].flow.stagnation_temperature,
+                updated_state = update(
                     updated_state,
+                    lambda s: s.energy.nodes[self.network_id].flow.stagnation_temperature,
                     T_t,
                 )
 
@@ -523,15 +525,11 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
                     mdot=W_out,
                 )
 
-                updated_design_parameters = eqx.tree_at(
-                    lambda d: d.A_exit,
-                    self.design_parameters,
-                    A_out.squeeze(),
-                )
+                updated_design_parameters = update(self.design_parameters,("A_exit", A_out.squeeze()))
 
-                updated_system = eqx.tree_at(
-                    lambda s: s.energy.nodes[self.network_id].design_parameters,
+                updated_system = update(
                     updated_system,
+                    lambda s: s.energy.nodes[self.network_id].design_parameters,
                     updated_design_parameters,
                 )
 
@@ -542,23 +540,23 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
 
         outputs = state.energy.nodes[self.network_id].flow
 
-        outputs = eqx.tree_at(lambda o: o.mass_flow_rate, outputs, jnp.atleast_2d(W_out))
-        outputs = eqx.tree_at(lambda o: o.stagnation_pressure, outputs, jnp.atleast_2d(P_t_out))
-        outputs = eqx.tree_at(lambda o: o.stagnation_temperature, outputs, jnp.atleast_2d(T_t_out))
-        outputs = eqx.tree_at(lambda o: o.stagnation_enthalpy, outputs, jnp.atleast_2d(h_t_out))
-        outputs = eqx.tree_at(lambda o: o.fuel_air_ratio, outputs, jnp.atleast_2d(FAR))
+        outputs = update(outputs, "mass_flow_rate", jnp.atleast_2d(W_out))
+        outputs = update(outputs, "stagnation_pressure", jnp.atleast_2d(P_t_out))
+        outputs = update(outputs, "stagnation_temperature", jnp.atleast_2d(T_t_out))
+        outputs = update(outputs, "stagnation_enthalpy", jnp.atleast_2d(h_t_out))
+        outputs = update(outputs, "fuel_air_ratio", jnp.atleast_2d(FAR))
 
         if statics:
-            outputs = eqx.tree_at(lambda o: o.temperature, outputs, jnp.atleast_2d(T_out))
-            outputs = eqx.tree_at(lambda o: o.pressure, outputs, jnp.atleast_2d(P_out))
-            outputs = eqx.tree_at(lambda o: o.speed, outputs, jnp.atleast_2d(u_out))
-            outputs = eqx.tree_at(lambda o: o.mach_number, outputs, jnp.atleast_2d(M_out))
-            outputs = eqx.tree_at(lambda o: o.enthalpy, outputs, jnp.atleast_2d(h_out))
-            outputs = eqx.tree_at(lambda o: o.area, outputs, jnp.atleast_2d(A_out))
+            outputs = update(outputs, "temperature", jnp.atleast_2d(T_out))
+            outputs = update(outputs, "pressure", jnp.atleast_2d(P_out))
+            outputs = update(outputs, "speed", jnp.atleast_2d(u_out))
+            outputs = update(outputs, "mach_number", jnp.atleast_2d(M_out))
+            outputs = update(outputs, "enthalpy", jnp.atleast_2d(h_out))
+            outputs = update(outputs, "area", jnp.atleast_2d(A_out))
 
-        updated_state = eqx.tree_at(
-            lambda s: s.energy.nodes[self.network_id].flow,
+        updated_state = update(
             updated_state,
+            lambda s: s.energy.nodes[self.network_id].flow,
             outputs,
         )
 

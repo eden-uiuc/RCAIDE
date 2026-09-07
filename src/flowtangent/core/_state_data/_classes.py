@@ -16,7 +16,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 
-from flowtangent.utils import field
+from flowtangent.utils import field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Conditions
@@ -132,19 +132,19 @@ class StateData(eqx.Module):
     def add_subcondition(self, subcondition: "StateData"):
 
         new_subconditions = self.subconditions + (subcondition,)
-        new_self = eqx.tree_at(lambda c: c.subconditions, self, new_subconditions)
+        new_self = update(self, "subconditions", new_subconditions)
 
         return new_self
 
     def insert_subcondition(self, subcondition: "StateData", index: int):
         new_subconditions = self.subconditions[:index] + (subcondition,) + self.subconditions[index:]
 
-        return eqx.tree_at(lambda c: c.subconditions, self, new_subconditions)
+        return update(self, "subconditions", new_subconditions)
 
     def replace_subcondition(self, subcondition: "StateData", index: int):
         new_subconditions = self.subconditions[:index] + (subcondition,) + self.subconditions[index + 1 :]
 
-        return eqx.tree_at(lambda c: c.subconditions, self, new_subconditions)
+        return update(self, "subconditions", new_subconditions)
 
     def __repr__(self):
         repr_str = self.name + " - Subconditions: [" + ", ".join([sc.name for sc in self.subconditions]) + "]"

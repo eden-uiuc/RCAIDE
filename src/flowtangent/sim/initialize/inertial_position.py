@@ -13,9 +13,8 @@
 # Flowtangent Imports
 from __future__ import annotations
 
-import equinox as eqx
-
 from ... import Settings, State, System
+from ...utils import update
 
 
 def initialize_inertial_position(
@@ -40,10 +39,12 @@ def initialize_inertial_position(
     new_position_vector = p_current + delta_p
     new_system_range = R_current + delta_R
 
-    state = eqx.tree_at(
-        lambda s: (s.frames.inertial.position_vector, s.frames.inertial.system_range),
+    state = update(
         state,
-        (new_position_vector, new_system_range),
+        (
+            ("frames.inertial.position_vector", new_position_vector),
+            ("frames.inertial.system_range", new_system_range),
+        ),
     )
 
     return state, system, settings

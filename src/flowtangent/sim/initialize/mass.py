@@ -9,9 +9,8 @@
 # Flowtangent Imports
 from __future__ import annotations
 
-import equinox as eqx
-
 from ... import Settings, State, System
+from ...utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Initialize Mass
@@ -32,6 +31,6 @@ def initialize_mass(
 
     m_current = state.mass.total[0, 0]
 
-    state = eqx.tree_at(lambda s: s.mass.total, state, state.mass.total + (m_initial - m_current))
+    state = update(state, "mass.total", state.mass.total + (m_initial - m_current))
 
     return state, system, settings

@@ -11,10 +11,10 @@
 # Flowtangent imports
 from __future__ import annotations
 
-import equinox as eqx
 import jax.numpy as jnp
 
 from ... import Settings, State, System
+from ...utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Update Angular Acceleration
@@ -30,6 +30,6 @@ def update_angular_acceleration(
     w = state.frames.inertial.angular_velocity_vector
     D = state.numerics.time.differentiate
 
-    state = eqx.tree_at(lambda s: s.frames.inertial.angular_acceleration_vector, state, jnp.dot(D, w))
+    state = update(state, "frames.inertial.angular_acceleration_vector", jnp.dot(D, w))
 
     return state, system, settings

@@ -203,7 +203,7 @@ def off_design_point(
     )
 
     new_settings = JetSettings(design_mode=False, statics=od_settings.analysis.energy.statics)
-    od_settings = eqx.tree_at(lambda s: s.analysis.energy, od_settings, new_settings)
+    od_settings = update(od_settings, "analysis.energy", new_settings)
     od_state, od_system, od_settings = od_analysis.run(od_state, od_system, od_settings, initialize=True)
 
     return od_state, od_system, od_settings

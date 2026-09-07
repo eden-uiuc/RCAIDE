@@ -19,7 +19,7 @@ import jax.numpy as jnp
 from flowtangent.data.solids import Aluminum, Solid
 
 # Flowtangent imports
-from flowtangent.utils import field, register
+from flowtangent.utils import field, register, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Component
@@ -195,35 +195,35 @@ class Component(eqx.Module):
             new_segments = self.segments[:index] + (segment,) + self.segments[index:]
 
         # Functionally replace and return the new Component
-        return eqx.tree_at(lambda c: c.segments, self, new_segments)
+        return update(self, "segments", new_segments)
 
     def insert_segment(self, segment: "Component", index: int):
         new_segments = self.segments[:index] + (segment,) + self.segments[index:]
 
-        return eqx.tree_at(lambda c: c.segments, self, new_segments)
+        return update(self, "segments", new_segments)
 
     def replace_segment(self, segment: "Component", index: int):
         new_segments = self.segments[:index] + (segment,) + self.segments[index + 1 :]
 
-        return eqx.tree_at(lambda c: c.segments, self, new_segments)
+        return update(self, "segments", new_segments)
 
     def add_subcomponent(self, subcomponent: "Component"):
 
         new_subcomponents = self.subcomponents + (subcomponent,)
-        new_self = eqx.tree_at(lambda c: c.subcomponents, self, new_subcomponents)
+        new_self = update(self, "subcomponents", new_subcomponents)
 
         return new_self
 
     def insert_subcomponent(self, subcomponent: "Component", index: int):
         new_subcomponents = self.subcomponents[:index] + (subcomponent,) + self.subcomponents[index:]
 
-        return eqx.tree_at(lambda c: c.subcomponents, self, new_subcomponents)
+        return update(self, "subcomponents", new_subcomponents)
 
     def replace_subcomponent(self, subcomponent: "Component", index: Optional[int] = None):
         if index is not None:
             new_subcomponents = self.subcomponents[:index] + (subcomponent,) + self.subcomponents[index + 1 :]
 
-            return eqx.tree_at(lambda c: c.subcomponents, self, new_subcomponents)
+            return update(self, "subcomponents", new_subcomponents)
         else:
             matched_types = [s for s in self.subcomponents if isinstance(s, type(subcomponent))]
             if len(matched_types) == 1:
@@ -236,7 +236,7 @@ class Component(eqx.Module):
     def remove_subcomponent(self, index: int):
         new_subcomponents = self.subcomponents[:index] + self.subcomponents[index + 1 :]
 
-        return eqx.tree_at(lambda c: c.subcomponents, self, new_subcomponents)
+        return update(self, "subcomponents", new_subcomponents)
 
 
 class ControlComponent(Component):

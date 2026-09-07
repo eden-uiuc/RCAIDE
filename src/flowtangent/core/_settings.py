@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Literal, Optional
 
 if TYPE_CHECKING:
-    from ..framework import Settings
+    from .. import Settings
 
 import logging
 from datetime import datetime
@@ -24,7 +24,7 @@ import jax.numpy as jnp
 import numpy as np  # For calculating Jacobian shape on JAX array metadata
 
 # Flowtangent imports
-from flowtangent.utils import TreePath, field, get_all_parents, get_all_targets
+from flowtangent.utils import TreePath, field, get_all_parents, get_all_targets, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Settings
@@ -149,7 +149,7 @@ class JacobianMap(eqx.Module):
                 p.at[pth.path_slice].set(n) if pth.path_slice != slice(None) else n
                 for p, n, pth in zip(parents, new_slices, self.state_inputs)
             ]
-            st = eqx.tree_at(lambda t: get_all_parents(t, self.state_inputs), st, tuple(updated))
+            st = update(st, lambda t: get_all_parents(t, self.state_inputs), tuple(updated))
 
         # Update System
         if self._n_sys > 0:
@@ -165,7 +165,7 @@ class JacobianMap(eqx.Module):
                 p.at[pth.path_slice].set(n) if pth.path_slice != slice(None) else n
                 for p, n, pth in zip(parents, new_slices, self.system_inputs)
             ]
-            sys = eqx.tree_at(lambda t: get_all_parents(t, self.system_inputs), sys, tuple(updated))
+            sys = update(sys, lambda t: get_all_parents(t, self.system_inputs), tuple(updated))
 
         return st, sys
 

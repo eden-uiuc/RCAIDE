@@ -9,7 +9,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from typing import TYPE_CHECKING
 
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     from flowtangent.core._state import State
     from flowtangent.core._systems import System
 
-from flowtangent.utils import inputs, outputs
+from flowtangent.utils import inputs, outputs, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Viscous Induced Drag
@@ -65,12 +64,11 @@ def compute_viscous_induced_drag(state: "State", system: "System", settings: "Se
     CDiv_all = func_viscous_induced_drag(CL_all, CDp_all, K)
     total_induced_drag = state.aerodynamics.coefficients.drag.induced.inviscid.total + CDiv_all
 
-    updated_induced_drag = eqx.tree_at(
-        lambda i: (i.total, i.viscous.total),
+    updated_induced_drag = update(
         state.aerodynamics.coefficients.drag.induced,
-        (total_induced_drag, CDiv_all),
+        (("total", total_induced_drag), ("viscous.total", CDiv_all)),
     )
 
-    updated_state = eqx.tree_at(lambda s: s.aerodynamics.coefficients.drag.induced, state, updated_induced_drag)
+    updated_state = update(state, "aerodynamics.coefficients.drag.induced", updated_induced_drag)
 
     return updated_state, system, settings

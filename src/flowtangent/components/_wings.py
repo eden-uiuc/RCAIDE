@@ -7,13 +7,12 @@
 # IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
 
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 
-from flowtangent.library import Component, Dimensions
-from flowtangent.library.components.airfoils import Airfoil
-from flowtangent.utils import empty_array, field
+from ..core._component import Component, Dimensions
+from ..utils import empty_array, field, update
+from . import Airfoil
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Wing
@@ -146,7 +145,7 @@ class Wing(Component):
             else:
                 tip = new_chords.root * self.segments[idx + 1].root_chord_percent
 
-            new_seg = eqx.tree_at(lambda s: s.chords, seg, Chords(root=root, tip=tip))
+            new_seg = update(seg, "chords", Chords(root=root, tip=tip))
             updated_segments.append(new_seg)
 
         object.__setattr__(self, "segments", updated_segments)
@@ -175,11 +174,11 @@ class Wing(Component):
 
             if tip == 0.0:
                 # Update the nested frozen child module cleanly
-                new_chords = eqx.tree_at(lambda c: c.tip, new_chords, root * taper)
+                new_chords = update(new_chords, "tip", root * taper)
             elif taper == 0.0:
                 new_taper = tip / root
             elif root == 0.0:
-                new_chords = eqx.tree_at(lambda c: c.root, new_chords, tip / taper)
+                new_chords = update(new_chords, "root", tip / taper)
 
             return new_taper, new_chords
 
@@ -355,7 +354,7 @@ class Wing(Component):
             thickness_to_chord=self.thickness_to_chord,
         )
         if hasattr(self, "airfoil") and self.airfoil is not None:
-            root_segment = eqx.tree_at(lambda s: s.airfoil, root_segment, self.airfoil)
+            root_segment = update(root_segment, "airfoil", self.airfoil)
 
         # 2. Build Tip Segment
         tip_sweeps = Sweeps(
@@ -374,7 +373,7 @@ class Wing(Component):
         )
 
         if hasattr(self, "airfoil") and self.airfoil is not None:
-            tip_segment = eqx.tree_at(lambda s: s.airfoil, tip_segment, self.airfoil)
+            tip_segment = update(tip_segment, "airfoil", self.airfoil)
 
         return (root_segment, tip_segment)
 
@@ -439,48 +438,36 @@ class Wing(Component):
         for i in range(len(new_segments) - 1):
             seg = new_segments[i]
             # Assuming you have an immutable dataclass or tree update method here
-            new_seg = eqx.tree_at(
-                lambda s: (s.chords.mean_aerodynamic, s.areas.reference, s.areas.exposed, s.areas.wetted),
+            new_seg = update(
                 seg,
-                (macs[i], s_ref_seg[i], s_exposed_seg[i], s_wet_seg[i]),
+                (
+                    ("chords.mean_aerodynamic", macs[i]),
+                    ("areas.reference", s_ref_seg[i]),
+                    ("areas.exposed", s_exposed_seg[i]),
+                    ("areas.wetted", s_wet_seg[i]),
+                ),
             )
             updated_segments.append(new_seg)
         updated_segments.append(new_segments[-1])  # Append the tip node unaltered
 
         # 5. Create and return the updated wing
-        return eqx.tree_at(
-            lambda w: (
-                w.segments,
-                w.areas.reference,
-                w.areas.wetted,
-                w.aspect_ratio,
-                w.spans.total,
-                w.chords.mean_geometric,
-                w.chords.mean_aerodynamic,
-                w.chords.tip,
-                w.taper,
-                w.sweeps.quarter_chord,
-                w.sweeps.leading_edge,
-                w.aerodynamic_center,
-                w.single_side_aerodynamic_center,
-                w.lengths.total,
-            ),
+        return update(
             self,
             (
-                updated_segments,
-                total_s_ref,
-                total_s_wet,
-                ar,
-                total_span,
-                mgc,
-                global_mac,
-                c_tip[-1],
-                tapers[-1] * (c_root[-1] / c_root[0]),
-                c_4_sweep,
-                le_sweep_total,
-                ac,
-                ss_ac,
-                total_length,
+                ("segments", updated_segments),
+                ("areas.reference", total_s_ref),
+                ("areas.wetted", total_s_wet),
+                ("aspect_ratio", ar),
+                ("spans.total", total_span),
+                ("chords.mean_geometric", mgc),
+                ("chords.mean_aerodynamic", global_mac),
+                ("chords.tip", c_tip[-1]),
+                ("taper", tapers[-1] * (c_root[-1] / c_root[0])),
+                ("sweeps.quarter_chord", c_4_sweep),
+                ("sweeps.leading_edge", le_sweep_total),
+                ("aerodynamic_center", ac),
+                ("single_side_aerodynamic_center", ss_ac),
+                ("lengths.total", total_length),
             ),
         )
 
@@ -488,13 +475,13 @@ class Wing(Component):
 
         if isinstance(subcomponent, WingSegment):
             new_segments = self.segments + (subcomponent,)
-            new_wing = eqx.tree_at(lambda s: s.segments, self, new_segments)
+            new_wing = update(self, "segments", new_segments)
             if self.update_geometry:
                 new_wing = new_wing.update_geometry()
             return new_wing
 
         elif isinstance(subcomponent, WingControlSurface):
             new_controls = self.control_surfaces.add_subcomponent(subcomponent)
-            return eqx.tree_at(lambda s: s.control_surfaces, self, new_controls)
+            return update(self, "control_surfaces", new_controls)
 
         return super().add_subcomponent(subcomponent)

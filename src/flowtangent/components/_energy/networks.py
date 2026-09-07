@@ -11,10 +11,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from flowtangent.framework import Settings, State, System
-
     from flowtangent.core._state_data._controls import Control, Residual
     from flowtangent.data.atmospheres import Atmosphere
+
+    from ... import Settings, State, System
 
 from dataclasses import replace
 from graphlib import CycleError, TopologicalSorter
@@ -27,7 +27,7 @@ import jax.numpy as jnp
 import flowtangent.utils as tu
 from flowtangent.data import units
 from flowtangent.data.atmospheres import USStandard1976
-from flowtangent.utils import field, register
+from flowtangent.utils import field, register, update
 
 from .lines import EnergyLine, TurbofanLine, TurbojetLine
 from .nodes import BleedFlow, GraphDomain, GraphInput, GraphNode
@@ -101,7 +101,7 @@ def _resolve_namespaces(node, parent_prefix=""):
     # Recurse through any subcomponents
     if hasattr(node, "subcomponents") and node.subcomponents:
         resolved_children = tuple(_resolve_namespaces(child, parent_prefix=absolute_id) for child in node.subcomponents)
-        node = eqx.tree_at(lambda n: n.subcomponents, node, resolved_children)
+        node = update(node, "subcomponents", resolved_children)
 
     return node
 
@@ -153,7 +153,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
 
         def _apply(node):
             if isinstance(node, GraphNode) and node.network_id in corrected_fractions:
-                return eqx.tree_at(lambda n: n.extraction_fraction, node, corrected_fractions[node.network_id])
+                return update(node, "extraction_fraction", corrected_fractions[node.network_id])
             return node
 
         return jax.tree_util.tree_map(_apply, self, is_leaf=lambda x: isinstance(x, GraphNode))
@@ -168,11 +168,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
             resolved_line = _resolve_namespaces(line, parent_prefix=f"{updated_network.get_field_name()}")
             resolved_lines.append(resolved_line)
 
-        updated_network = eqx.tree_at(
-            lambda n: n.subcomponents,
-            updated_network,
-            tuple(resolved_lines),
-        ).update_node_topology()
+        updated_network = update(updated_network, "subcomponents", tuple(resolved_lines)).update_node_topology()
 
         return updated_network
 
@@ -187,7 +183,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
                     _recurse(comp.subcomponents)
 
         _recurse(self.subcomponents)
-        return eqx.tree_at(lambda n: n.nodes, self, nodes_dict)
+        return update(self, "nodes", nodes_dict)
 
     def update_node_topology(self) -> "GraphNetwork":
         """The single entry point to finalize the network for execution.
@@ -222,7 +218,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
             if hasattr(component, "subcomponents") and component.subcomponents:
                 synced_children = tuple(_walk_and_sync(child) for child in component.subcomponents)
                 # Functionally update the component's subcomponents
-                component = eqx.tree_at(lambda c: c.subcomponents, component, synced_children)
+                component = update(component, "subcomponents", synced_children)
 
             return component
 
@@ -274,20 +270,19 @@ class _JetNetwork[DesignType: JetNetDesign](GraphNetwork[DesignType]):
         total_thrust = jnp.atleast_2d(self.apply_domain_op(jnp.sum, state, "force", "thrust"))
         total_force_vector = jnp.hstack((total_thrust, jnp.zeros((total_thrust.shape[0], 2))))
 
-        updated_state = eqx.tree_at(
-            lambda s: (
-                s.energy.total_force_vector,
-                s.energy.residual.thrust,
-            ),
+        updated_state = update(
             updated_state,
-            (total_force_vector, (total_thrust - state.energy.target_thrust) / state.energy.target_thrust),
+            (
+                ("energy.total_force_vector", total_force_vector),
+                ("energy.residual.thrust", (total_thrust - state.energy.target_thrust) / state.energy.target_thrust),
+            ),
         )
 
         # Power Imbalance (Single Spool Only) ----------------------------------
 
         total_d_power = self.apply_domain_op(jnp.sum, updated_state, "residual", "power")
 
-        updated_state = eqx.tree_at(lambda s: s.energy.residual.power, updated_state, total_d_power)
+        updated_state = update(updated_state, "energy.residual.power", total_d_power)
 
         return updated_state, system, settings
 

@@ -10,9 +10,8 @@
 # Flowtangent Imports
 from __future__ import annotations
 
-import equinox as eqx
-
 from ... import Settings, State, System
+from ...utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Initialize Planetary Position
@@ -25,9 +24,9 @@ def initialize_planetary_position(
     settings: Settings,
 ):
 
-    state = eqx.tree_at(
-        lambda s: (s.frames.planet.longitude, s.frames.planet.latitude),
+    state = update(
         state,
+        lambda s: (s.frames.planet.longitude, s.frames.planet.latitude),
         (
             state.frames.planet.longitude.at[:, 0].set(state.initials.frames.planet.longitude[-1, 0]),
             state.frames.planet.latitude.at[:, 0].set(state.initials.frames.planet.latitude[-1, 0]),

@@ -24,7 +24,7 @@ from flowtangent.core._state_data import (
     StateData,
     Time,
 )
-from flowtangent.utils import empty_array, field, register
+from flowtangent.utils import empty_array, field, register, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  State
@@ -49,5 +49,5 @@ class State[EnergyType: NetworkState](StateData):
     process_jacobian: jnp.ndarray = empty_array()
 
     def freeze_initials(self):
-        frozen_initials = eqx.tree_at(lambda s: s.initials, self, None, is_leaf=lambda x: x is None)
+        frozen_initials = update(self, "initials", None, is_leaf=lambda x: x is None)
         return replace(self, initials=frozen_initials)

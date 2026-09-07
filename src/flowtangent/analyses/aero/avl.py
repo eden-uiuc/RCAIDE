@@ -10,14 +10,15 @@
 
 from pathlib import Path
 
-import equinox as eqx
 import jax.numpy as jnp
-from flowtangent.library.components import Areas
-from flowtangent.library.components.airfoils import Airfoil
-from flowtangent.library.components.wings import Chords, Sweeps, Wing, WingDimensions, WingSegment
 
+from flowtangent.components import Airfoil
+from flowtangent.components._wings import Chords, Sweeps, Wing, WingDimensions, WingSegment
+from flowtangent.core._component import Areas
 from flowtangent.core._systems import Aircraft
-from flowtangent.data import units
+
+from ...data import units
+from ...utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
 # AVL Interface Functions
@@ -134,7 +135,7 @@ def convert_to_Flowtangent(avl_data: dict) -> Aircraft:
 
     global_areas = Areas(reference=sref)
     vehicle = Aircraft(name=avl_data["name"], areas=global_areas)
-    vehicle = eqx.tree_at(lambda v: v.mass_properties.center_of_gravity, vehicle, jnp.array([[xref, yref, zref]]))
+    vehicle = update(vehicle, "mass_properties.center_of_gravity", jnp.array([[xref, yref, zref]]))
 
     for surf_data in avl_data["surfaces"]:
         sections = surf_data["sections"]

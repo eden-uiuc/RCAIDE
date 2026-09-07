@@ -9,8 +9,6 @@
 from __future__ import annotations
 
 # package imports
-import equinox as eqx
-
 # ----------------------------------------------------------------------------------------------------------------------
 #  Update Orientations
 # ----------------------------------------------------------------------------------------------------------------------
@@ -18,6 +16,7 @@ import jax.numpy as jnp
 from jax import vmap
 
 from ... import Settings, State, System
+from ...utils import update
 
 
 def euler_zyx_to_dcm(angles):
@@ -83,23 +82,15 @@ def update_orientations(
     TW2I = jnp.matmul(TW2B, TB2I)
 
     # ---Pack Results---
-    state = eqx.tree_at(
-        lambda s: (
-            s.aerodynamics.angles.alpha,
-            s.aerodynamics.angles.beta,
-            s.aerodynamics.angles.phi,
-            s.frames.body.transform_to_inertial,
-            s.frames.wind.transform_to_inertial,
-            s.frames.wind.body_rotations,
-        ),
+    state = update(
         state,
         (
-            state.aerodynamics.angles.alpha.at[:, 0].set(alpha),
-            state.aerodynamics.angles.beta.at[:, 0].set(beta),
-            phi,
-            TB2I,
-            TW2I,
-            wind_body_rotations,
+            ("aerodynamics.angles.alpha", state.aerodynamics.angles.alpha.at[:, 0].set(alpha)),
+            ("aerodynamics.angles.beta", state.aerodynamics.angles.beta.at[:, 0].set(beta)),
+            ("aerodynamics.angles.phi", phi),
+            ("frames.body.transform_to_inertial", TB2I),
+            ("frames.wind.transform_to_inertial", TW2I),
+            ("frames.wind.body_rotations", wind_body_rotations),
         ),
     )
 

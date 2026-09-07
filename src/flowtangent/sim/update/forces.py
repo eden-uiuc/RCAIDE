@@ -11,10 +11,10 @@
 # Flowtangent imports
 from __future__ import annotations
 
-import equinox as eqx
 import jax.numpy as jnp
 
 from ... import Settings, State, System
+from ...utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Update Forces
@@ -39,6 +39,6 @@ def update_forces(
 
     total_force = weight + wind_force + thrust_force
 
-    state = eqx.tree_at(lambda s: s.frames.inertial.total_force_vector, state, total_force)
+    state = update(state, "frames.inertial.total_force_vector", total_force)
 
     return state, system, settings

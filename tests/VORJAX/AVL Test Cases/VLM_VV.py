@@ -197,7 +197,7 @@ def VORJAX_straight_wing(span=10.0, chord=1.0):
     )
 
     system = Aircraft(name='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
-    system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
+    system = update(system, "mass_properties.center_of_gravity", jnp.array([[0.0, 0.0, 0.0]]))
 
     return system
 
@@ -258,7 +258,7 @@ def VORJAX_elliptical_wing(AR=10., n_segments=1):
                 aerodynamic_center=jnp.array([0.0, 0.0, 0.0])).update_geometry()
     
     system = Aircraft(name='Test Aircraft', areas=wing_areas).add_subcomponent(wing)
-    system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
+    system = update(system, "mass_properties.center_of_gravity", jnp.array([[0.0, 0.0, 0.0]]))
 
     return system  
 
@@ -303,7 +303,7 @@ def VORJAX_delta_wing(AR=2.0):
                 aerodynamic_center=jnp.array([0.0, 0.0, 0.0])).update_geometry()
     
     system = Aircraft(name='Delta Aircraft', areas=wing_areas).add_subcomponent(wing)
-    system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
+    system = update(system, "mass_properties.center_of_gravity", jnp.array([[0.0, 0.0, 0.0]]))
 
     return system
 
@@ -353,15 +353,15 @@ def VORJAX_ONERA_M6():
     ).update_geometry(calculate_reference_area=True, calculate_wetted_area=True)
 
     system = Aircraft(name='ONERA M6 Container', areas=onera_wing.areas).add_subcomponent(onera_wing)
-    system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
+    system = update(system, "mass_properties.center_of_gravity", jnp.array([[0.0, 0.0, 0.0]]))
 
     return system
 
 def VORJAX_test_run(vehicle, alpha, Mach, n_sw=20, n_cw=6, grad_map=None, debug_mode=False):
 
     state = State(time=Time(number_of_control_points=1, calculate_integration=False))
-    frozen_initials = eqx.tree_at(lambda s: s.initials, state, None, is_leaf=lambda x: x is None)
-    state = eqx.tree_at(lambda s: s.initials, state, frozen_initials, is_leaf=lambda x: x is None)
+    frozen_initials = update(state, "initials", None, is_leaf=lambda x: x is None)
+    state = update(state, "initials", frozen_initials, is_leaf=lambda x: x is None)
 
     # Set State Values
     initial_state = eqx.tree_at(
@@ -378,13 +378,13 @@ def VORJAX_test_run(vehicle, alpha, Mach, n_sw=20, n_cw=6, grad_map=None, debug_
         alpha = jnp.array([alpha])
         Mach = jnp.array([Mach])
     
-    initial_state = eqx.tree_at(lambda s: s.aerodynamics.angles.alpha, initial_state, alpha)
-    initial_state = eqx.tree_at(lambda s: s.freestream.mach_number, initial_state, Mach)
+    initial_state = update(initial_state, "aerodynamics.angles.alpha", alpha)
+    initial_state = update(initial_state, "freestream.mach_number", Mach)
 
-    initial_state = eqx.tree_at(lambda s: s.freestream.speed, initial_state, jnp.array([100.0]))
-    initial_state = eqx.tree_at(lambda s: s.freestream.density, initial_state, jnp.array([1.0]))
-    initial_state = eqx.tree_at(lambda s: s.freestream.temperature, initial_state, jnp.array([273.15]))
-    initial_state = eqx.tree_at(lambda s: s.frames.inertial.velocity_vector, initial_state, jnp.array([100.0, 0., 0.]))
+    initial_state = update(initial_state, "freestream.speed", jnp.array([100.0]))
+    initial_state = update(initial_state, "freestream.density", jnp.array([1.0]))
+    initial_state = update(initial_state, "freestream.temperature", jnp.array([273.15]))
+    initial_state = update(initial_state, "frames.inertial.velocity_vector", jnp.array([100.0, 0., 0.]))
 
     initial_state = initial_state.expand_rows(len(alpha))
 

@@ -16,10 +16,12 @@ import jax.numpy as jnp
 if TYPE_CHECKING:
     from flowtangent.framework import Settings, State, System
 
-from flowtangent.core._state_data._controls import Control, NamedResidual
+from flowtangent.core._state_data._controls import NamedResidual
 from flowtangent.framework import ProcessStep
 from flowtangent.framework.simulation.segments import Segment
 from flowtangent.utils import field
+
+from ...analyses.implicit import Variable
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Cruise
@@ -39,13 +41,13 @@ class Cruise(Segment):
 
 def _test_cruise_controls():
     return (
-        Control(
+        Variable(
             name="Lift Coefficient",
             state_path=("aerodynamics", "coefficients", "lift", "total"),
             path_slice=(slice(None), 0),
             _active=True,
         ),
-        Control(
+        Variable(
             name="Drag Coefficient",
             state_path=("aerodynamics", "coefficients", "drag", "total"),
             path_indices=(slice(None), 0),
@@ -107,7 +109,7 @@ class TestCSACruise(Cruise):
     altitude: float = 1.0
     air_speed: float = 1.0
 
-    active_controls: tuple[str | Control, ...] = field(_test_cruise_controls)
+    active_controls: tuple[str | Variable, ...] = field(_test_cruise_controls)
     active_residuals: tuple[NamedResidual, ...] = field(("force_x", "force_z"), static=True)
     controls_initial_guess: tuple[jnp.ndarray | float, ...] = (1.0, 0.05)
 

@@ -32,7 +32,7 @@ from .. import Settings, State, System
 from .. import utils as ftu
 from ..core._processes import Process, array_barrier
 from ..core._state_data import Control, Residual
-from ..utils import Module
+from ..utils import Module, update
 
 jax.config.update("jax_enable_x64", True)
 
@@ -449,9 +449,9 @@ class ImplicitAnalysis(Process):
         for ctrl in self.controls:
             solver_logit = control_values[ctrl_idx : ctrl_idx + N]
             new_val = ctrl.scale(solver_logit[:N])
-            control_state = eqx.tree_at(
-                lambda s: ftu.get_target(s, ctrl.state_path),
+            control_state = update(
                 control_state,
+                lambda s: ftu.get_target(s, ctrl.state_path),
                 jnp.atleast_2d(new_val).reshape((-1, 1)),
             )
             ctrl_idx += N

@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 # package imports
 import equinox as eqx
 
+from ...utils import update
+
 # Flowtangent Imports
 
 # -------------------------------------------------------------------------------
@@ -44,8 +46,8 @@ def flight_dynamics_residuals(
     I = state.mass.moments_of_inertia
 
     for force_res in force_residuals:
-        force_res = eqx.tree_at(lambda f: f.value, force_res, FT[:, force_res.index] / m[:, 0] - a[:, force_res.index])
-        state = eqx.tree_at(lambda s: getattr(s.dynamics, force_res.name), state, force_res)
+        force_res = update(force_res, "value", FT[:, force_res.index] / m[:, 0] - a[:, force_res.index])
+        state = update(state, lambda s: getattr(s.dynamics, force_res.name), force_res)
     for moment_res in moment_residuals:
         if I[moment_res.index, moment_res.index] == 0:
             raise ValueError(
@@ -57,6 +59,6 @@ def flight_dynamics_residuals(
             moment_res,
             MT[:, moment_res.index] / I[moment_res.index, moment_res.index] - wdot[:, moment_res.index],
         )
-        state = eqx.tree_at(lambda s: getattr(s.dynamics, moment_res.name), state, moment_res)
+        state = update(state, lambda s: getattr(s.dynamics, moment_res.name), moment_res)
 
     return state, system, settings

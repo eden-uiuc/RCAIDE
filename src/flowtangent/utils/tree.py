@@ -34,24 +34,29 @@ from jax.tree_util import (
 
 
 @overload
-def update(obj: Any, where_or_updates: Callable, val: Any) -> Any: ...
-
+def update(obj: Any, where_or_updates: Callable, val: Any, **kwargs) -> Any: ...
 
 @overload
-def update(obj: Any, where_or_updates: TreePath | tuple | Sequence[TreePath | tuple]) -> Any: ...
+def update(obj: Any, where_or_updates: TreePath | tuple | Sequence[TreePath | tuple], **kwargs) -> Any: ...
 
+@overload
+def update(obj: Any, where_or_updates: str, val: Any, **kwargs) -> Any: ...
 
-def update(obj, where_or_updates, val=None):
+def update(obj, where_or_updates, val=None, **kwargs):
     """
     FlowTangent wrapper for eqx.tree_at.
     """
     # Route 1: The Canonical Equinox Lambda
     if callable(where_or_updates):
-        return eqx.tree_at(where_or_updates, obj, val)
+        return eqx.tree_at(where_or_updates, obj, val, **kwargs)
 
-    # Route 2: Single Tuple or TreePath (e.g., ('aero.alpha', 3.0))
-    # We check if it's a tuple where the first element is a string/tuple path
-    if isinstance(where_or_updates, TreePath) or (
+    # Route 1.5: String path and value (Ergonomic API)
+    if isinstance(where_or_updates, str):
+        # We package it into a tuple so your existing cast logic handles it
+        paths = [TreePath.cast((where_or_updates, val))]
+
+    # Route 2: Single Tuple or TreePath
+    elif isinstance(where_or_updates, TreePath) or (
         isinstance(where_or_updates, tuple)
         and len(where_or_updates) in (2, 3)
         and isinstance(where_or_updates[0], (str, tuple))
@@ -63,11 +68,11 @@ def update(obj, where_or_updates, val=None):
         paths = [TreePath.cast(u) for u in where_or_updates]
 
     else:
-        raise TypeError("update() requires a lambda function, a TreePath, a path tuple, or a sequence of updates.")
+        raise TypeError("update() requires a lambda, a string path, a TreePath, a tuple, or a sequence.")
 
     where_fn = partial(get_all_targets, input_map=paths)
     vals = tuple(p.value for p in paths)
-    return eqx.tree_at(where_fn, obj, vals)
+    return eqx.tree_at(where_fn, obj, vals, **kwargs)
 
 
 # -----------------------------------------------------------------------------

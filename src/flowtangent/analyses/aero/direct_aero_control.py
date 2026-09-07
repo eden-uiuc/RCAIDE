@@ -5,12 +5,9 @@
 # -------------------------------------------------------------------------------
 #  Imports
 # -------------------------------------------------------------------------------
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
-
-# package imports
-import equinox as eqx
-
-# Flowtangent Imports
 
 if TYPE_CHECKING:
     from flowtangent.core._settings import Settings
@@ -18,15 +15,21 @@ if TYPE_CHECKING:
     from flowtangent.core._systems import System
 
 
+# package imports
+
+# Flowtangent Imports
+
+from ...utils import update
+
 # -------------------------------------------------------------------------------
 #  Direct CL/CD Control Analysis
 # -------------------------------------------------------------------------------
 
 
 def direct_aero(
-    state: "State",
-    system: "System",
-    settings: "Settings",
+    state: State,
+    system: System,
+    settings: Settings,
 ):
 
     C_L = state.aerodynamics.coefficients.lift.total
@@ -40,15 +43,13 @@ def direct_aero(
     F_Z = qS * C_L
     F_X = qS * (C_D - 0.06)
 
-    state = eqx.tree_at(
-        lambda s: s.frames.wind.total_force_vector,
+    state = update(
         state,
-        state.frames.wind.total_force_vector.at[:, 2].set(F_Z.flatten()),
+        ("frames.wind.total_force_vector", state.frames.wind.total_force_vector.at[:, 2].set(F_Z.flatten())),
     )
-    state = eqx.tree_at(
-        lambda s: s.frames.wind.total_force_vector,
+    state = update(
         state,
-        state.frames.wind.total_force_vector.at[:, 0].set(F_X.flatten()),
+        ("frames.wind.total_force_vector", state.frames.wind.total_force_vector.at[:, 0].set(F_X.flatten())),
     )
 
     return state, system, settings

@@ -82,21 +82,21 @@ def _activate_control(control: str | Control, state):
 
         if control_name not in state.controls.__dataclass_fields__:
             # It's a custom control:
-            new_ctrl = Control(name=control, _active=True)
+            new_ctrl = Variable(name=control, _active=True)
             new_controls = state.controls.add_control_variable(new_ctrl)
         else:
             # It's a pre-existing control: grab the existing one, activate it, and replace it
             existing_ctrl = getattr(state.controls, control_name)
-            active_ctrl = eqx.tree_at(lambda c: c.active, existing_ctrl, True)
+            active_ctrl = update(existing_ctrl, "active", True)
 
             # Use getattr to map the path
-            new_controls = eqx.tree_at(lambda p: getattr(p, control_name), state.controls, active_ctrl)
+            new_controls = update(state.controls, lambda p: getattr(p, control_name), active_ctrl)
 
     elif isinstance(control, Control):
-        active_ctrl = eqx.tree_at(lambda c: c.active, control, True)
+        active_ctrl = update(control, "active", True)
         new_controls = state.controls.add_control_variable(active_ctrl)
 
-    return eqx.tree_at(lambda s: s.controls, state, new_controls)
+    return update(state, "controls", new_controls)
 
 
 def _activate_residual(res: str | Residual, state):
@@ -106,12 +106,12 @@ def _activate_residual(res: str | Residual, state):
         active_residual = replace(current_residual, active=True)
 
         # Safely inject it using getattr path tracing
-        new_dynamics = eqx.tree_at(lambda d: getattr(d, res), state.dynamics, active_residual)
+        new_dynamics = update(state.dynamics, lambda d: getattr(d, res), active_residual)
     elif isinstance(res, Residual):
         active_res = replace(res, active=True)
         new_dynamics = state.dynamics.add_subcondition(active_res)
 
-    return eqx.tree_at(lambda s: s.dynamics, state, new_dynamics).expand_rows(state.numerics.number_of_control_points)
+    return update(state, "dynamics", new_dynamics).expand_rows(state.numerics.number_of_control_points)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -159,7 +159,7 @@ class InitializeSegment(Process):
                 active_controls += network.controls  # type: ignore
         routing_table = tuple((ctrl.path, ctrl.path_indices) for ctrl in active_controls)
         new_controls = replace(current_state.controls, active_routing_table=routing_table)
-        current_state = eqx.tree_at(lambda s: s.controls, current_state, new_controls)
+        current_state = update(current_state, "controls", new_controls)
 
         active_residuals = self.active_residuals
         if settings.analysis.energy.use_network_controls:
@@ -330,7 +330,7 @@ class IterateSegment(Process):
                             print(f"Objective Value: {opt_state.value: .3e}")
                         print("=" * 30 + "\n")
 
-                    current_state = eqx.tree_at(lambda s: s.solver.unknowns, state, unknowns)
+                    current_state = update(state, "solver.unknowns", unknowns)
                     current_state = current_state.unpack_unknowns()
 
                     return self.analyze(current_state, system, settings)
@@ -364,7 +364,7 @@ class IterateSegment(Process):
 
                     print(f"--- Hybrid JAX/SciPy Solver: {t1 - t0:.6f} seconds ---")
 
-                    current_state = eqx.tree_at(lambda s: s.solver.unknowns, state, unknowns)
+                    current_state = update(state, "solver.unknowns", unknowns)
                     current_state = current_state.unpack_unknowns(unknowns)
 
                     return self.analyze(current_state, system, settings)
@@ -387,7 +387,7 @@ class IterateSegment(Process):
                     print(f"--- Pure GPU Broyden Solver: {t1 - t0:.6f} seconds ---")
 
                     # 6. Unpack and continue
-                    current_state = eqx.tree_at(lambda s: s.solver.unknowns, state, unknowns)
+                    current_state = update(state, "solver.unknowns", unknowns)
                     current_state = current_state.unpack_unknowns(unknowns)
 
                     return self.analyze(current_state, system, settings)
@@ -412,9 +412,9 @@ def _reset_controls_and_residuals(
 ):
     current_state = state
 
-    def _turn_off_control(node):
+    def _turn_off_Variable(node):
         if isinstance(node, Control):
-            return eqx.tree_at(lambda c: c.active, node, False)
+            return update(node, "active", False)
         return node
 
     def _turn_off_residual(node):
@@ -430,7 +430,7 @@ def _reset_controls_and_residuals(
         _turn_off_residual, current_state.dynamics, is_leaf=lambda x: isinstance(x, Residual)
     )
 
-    current_state = eqx.tree_at(lambda s: (s.controls, s.dynamics), current_state, (new_controls, new_dynamics))
+    current_state = update(current_state, lambda s: (s.controls, s.dynamics), (new_controls, new_dynamics))
 
     return current_state, system, settings
 
@@ -526,7 +526,7 @@ class Segment(Process):
     # ----------------------------------------------------------------------------------
     def __call__(self, state, system, settings) -> tuple["State", "System", "Settings"]:
 
-        state = eqx.tree_at(lambda s: s.frames.planet.true_course, state, jnp.array([self.true_course]))
+        state = update(state, "frames.planet.true_course", jnp.array([self.true_course]))
 
         if settings.DEBUG_MODE:
             for step in self.analyze.steps:
