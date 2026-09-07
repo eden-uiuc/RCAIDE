@@ -56,7 +56,7 @@ def initialize_aerodynamics(state: "State", system: "Aircraft", settings: "Setti
                 (
                     ("wings", new_wings),
                     ("fuselages", new_fuselages),
-                    ("nacelles", new_nacelles)
+                    ("nacelles", new_nacelles),
                 ),
             )
         else:

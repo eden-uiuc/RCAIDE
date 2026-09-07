@@ -29,4 +29,3 @@ def func_tf_mass_from_SLS(sls_thrust: float):
     mass = (0.4054 * t_lbf**0.9255) * 0.453592
 
     return mass
-

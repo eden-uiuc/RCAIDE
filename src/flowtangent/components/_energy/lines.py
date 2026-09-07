@@ -115,7 +115,7 @@ class TurbojetLine(EnergyLine):
 
         updated_state = update(
             updated_state,
-            ("mass.rate_of_change", updated_state.mass.rate_of_change - total_fuel_burn)
+            ("mass.rate_of_change", updated_state.mass.rate_of_change - total_fuel_burn),
         )
 
         # Total Thrust ---------------------------------------------------------
@@ -125,11 +125,11 @@ class TurbojetLine(EnergyLine):
             (
                 (
                     "energy.nodes[self.network_id].force.thrust",
-                    self.apply_domain_op(jnp.sum, updated_state, "force", "thrust")
+                    self.apply_domain_op(jnp.sum, updated_state, "force", "thrust"),
                 ),
                 (
                     "energy.nodes[self.network_id].residual.thrust",
-                    self.apply_domain_op(jnp.sum, updated_state, "residual", "thrust")
+                    self.apply_domain_op(jnp.sum, updated_state, "residual", "thrust"),
                 ),
             ),
         )

@@ -271,7 +271,7 @@ def compute_parasite_drag(state: "State", system: "Aircraft", settings: "Setting
 
         updated_state = update(
             updated_state,
-            ("aerodynamics.coefficients.drag.parasite.fuselages", packed_fuselages)
+            ("aerodynamics.coefficients.drag.parasite.fuselages", packed_fuselages),
         )
 
         # Nacelle Parasite Drag --------------------------------
@@ -297,7 +297,7 @@ def compute_parasite_drag(state: "State", system: "Aircraft", settings: "Setting
 
         updated_state = update(
             updated_state,
-            ("aerodynamics.coefficients.drag.parasite.nacelles", packed_nacelles)
+            ("aerodynamics.coefficients.drag.parasite.nacelles", packed_nacelles),
         )
     else:
         total_fuselage_parasite_drag = jnp.zeros_like(M)

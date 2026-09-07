@@ -58,7 +58,7 @@ def update_planetary_position(state: "State", system: "System", settings: "Setti
         (
             ("frames.planet.latitude", lat_0 + lamda),
             ("frames.planet.longitude", lon_0 + mu),
-        )
+        ),
     )
 
     return updated_state, system, settings

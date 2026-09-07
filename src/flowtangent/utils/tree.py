@@ -36,11 +36,14 @@ from jax.tree_util import (
 @overload
 def update(obj: Any, where_or_updates: Callable, val: Any, **kwargs) -> Any: ...
 
+
 @overload
 def update(obj: Any, where_or_updates: TreePath | tuple | Sequence[TreePath | tuple], **kwargs) -> Any: ...
 
+
 @overload
 def update(obj: Any, where_or_updates: str, val: Any, **kwargs) -> Any: ...
+
 
 def update(obj, where_or_updates, val=None, **kwargs):
     """

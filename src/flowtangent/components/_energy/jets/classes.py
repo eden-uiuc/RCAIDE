@@ -231,9 +231,7 @@ class Compressor(FlowNode):
                     mdot=W_in,
                 )
 
-                updated_design_paramters = update(
-                    system_node.design_parameters, "A_exit", A_out.squeeze()
-                )
+                updated_design_paramters = update(system_node.design_parameters, "A_exit", A_out.squeeze())
             else:
                 h_t_out = gas.compute_enthalpy(T_t_out)
                 updated_design_paramters = system_node.design_parameters
@@ -982,14 +980,15 @@ class Nozzle(FlowNode):
             updated_design_parameters = update(
                 des_params,
                 (
-                    ("A_throat",                      A_t.squeeze()),
-                    ("A_exit",                      A_x.squeeze()),
+                    ("A_throat", A_t.squeeze()),
+                    ("A_exit", A_x.squeeze()),
                 ),
             )
 
             updated_system = update(
                 updated_system,
-                lambda s: s.energy.nodes[self.network_id].design_parameters, updated_design_parameters
+                lambda s: s.energy.nodes[self.network_id].design_parameters,
+                updated_design_parameters,
             )
 
         else:
@@ -1256,7 +1255,7 @@ class TurbojetOpPoint[KinType: JetKinematics | FanKinematics](FlowOpPoint):
                 ("frames.inertial.position_vector", jnp.array([[0.0, 0.0, -self.altitude]])),
                 ("freestream.mach_number", jnp.atleast_2d(self.mach_number)),
                 ("frames.inertial.velocity_vector", jnp.atleast_2d(jnp.array([[(a0 * M0).item(), 0.0, 0.0]]))),
-                ("energy.target_thrust",  jnp.atleast_2d(self.thrust)),
+                ("energy.target_thrust", jnp.atleast_2d(self.thrust)),
                 ("energy.target_temperature", jnp.atleast_2d(self.turbine_intake_temperature)),
             ),
         )
@@ -1461,29 +1460,29 @@ class TurbojetEngine(FlowNode[TurbojetOpPoint]):
             des_engine = update(
                 self,
                 (
-                    ("inlet.design_parameters.pressure_recovery",                     des.inlet_pressure_recovery),
-                    ("fan.design_parameters.rotation_speed",                     des.lp_rotation_speed),
-                    ("fan.design_parameters.pressure_ratio",                     fan_PR),
-                    ("lpc.design_parameters.rotation_speed",                     des.lp_rotation_speed),
-                    ("lpc.design_parameters.pressure_ratio",                     LPC_PR),
-                    ("hpc.design_parameters.rotation_speed",                     des.hp_rotation_speed),
-                    ("hpc.design_parameters.pressure_ratio",                     HPC_PR),
-                    ("burner.design_parameters.pressure_ratio",                     des.burner_pressure_ratio),
-                    ("burner.design_parameters.output_temperature",                     des.turbine_intake_temperature),
-                    ("hpt.design_parameters.rotation_speed",                     des.hp_rotation_speed),
-                    ("lpt.design_parameters.rotation_speed",                     des.lp_rotation_speed),
+                    ("inlet.design_parameters.pressure_recovery", des.inlet_pressure_recovery),
+                    ("fan.design_parameters.rotation_speed", des.lp_rotation_speed),
+                    ("fan.design_parameters.pressure_ratio", fan_PR),
+                    ("lpc.design_parameters.rotation_speed", des.lp_rotation_speed),
+                    ("lpc.design_parameters.pressure_ratio", LPC_PR),
+                    ("hpc.design_parameters.rotation_speed", des.hp_rotation_speed),
+                    ("hpc.design_parameters.pressure_ratio", HPC_PR),
+                    ("burner.design_parameters.pressure_ratio", des.burner_pressure_ratio),
+                    ("burner.design_parameters.output_temperature", des.turbine_intake_temperature),
+                    ("hpt.design_parameters.rotation_speed", des.hp_rotation_speed),
+                    ("lpt.design_parameters.rotation_speed", des.lp_rotation_speed),
                 ),
             )
         else:
             des_engine = update(
                 self,
                 (
-                    ("compressor.design_parameters.rotation_speed",                     des.rotation_speed),
-                    ("compressor.design_parameters.pressure_ratio",                     OPR),
-                    ("burner.design_parameters.pressure_ratio",                     des.burner_pressure_ratio),
-                    ("burner.design_parameters.output_temperature",                     des.turbine_intake_temperature),
-                    ("turbine.design_parameters.rotation_speed",                     des.rotation_speed),
-                    ("turbine.design_parameters.pressure_ratio",                     des.turbine_PR),
+                    ("compressor.design_parameters.rotation_speed", des.rotation_speed),
+                    ("compressor.design_parameters.pressure_ratio", OPR),
+                    ("burner.design_parameters.pressure_ratio", des.burner_pressure_ratio),
+                    ("burner.design_parameters.output_temperature", des.turbine_intake_temperature),
+                    ("turbine.design_parameters.rotation_speed", des.rotation_speed),
+                    ("turbine.design_parameters.pressure_ratio", des.turbine_PR),
                 ),
             )
 

@@ -122,10 +122,11 @@ def initialize_VORJAX_data(state: State, system: Aircraft, settings: Settings):
     }
 
     updated_system = update(
-        system, (
+        system,
+        (
             ("reference_geometry", new_ref_geom),
             ("analysis_data", initial_analysis_data),
-        )
+        ),
     )
 
     return state, updated_system, settings
@@ -902,10 +903,11 @@ def check_freestream(state: State, system: Aircraft, settings: Settings):
     safe_speed = jnp.linalg.norm(safe_velocity, axis=-1, keepdims=True)
 
     current_state = update(
-        state, (
+        state,
+        (
             ("frames.inertial.velocity_vector", safe_velocity),
             ("freestream.speed", safe_speed),
-        )
+        ),
     )
 
     return current_state, system, settings

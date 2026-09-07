@@ -525,7 +525,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
                     mdot=W_out,
                 )
 
-                updated_design_parameters = update(self.design_parameters,("A_exit", A_out.squeeze()))
+                updated_design_parameters = update(self.design_parameters, ("A_exit", A_out.squeeze()))
 
                 updated_system = update(
                     updated_system,

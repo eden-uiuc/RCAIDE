@@ -486,9 +486,9 @@ class Process(ProcessStep):
             logged_step = update(
                 step,
                 (
-                    ("state_delta" ,                     compute_tree_delta(raw_hist[i + 1][0], raw_hist[i][0])),
-                    ("system_delta" ,                     compute_tree_delta(raw_hist[i + 1][1], raw_hist[i][1])),
-                    ("settings_delta" ,                     compute_tree_delta(raw_hist[i + 1][2], raw_hist[i][2])),
+                    ("state_delta", compute_tree_delta(raw_hist[i + 1][0], raw_hist[i][0])),
+                    ("system_delta", compute_tree_delta(raw_hist[i + 1][1], raw_hist[i][1])),
+                    ("settings_delta", compute_tree_delta(raw_hist[i + 1][2], raw_hist[i][2])),
                 ),
             )
             logged_steps.append(logged_step)

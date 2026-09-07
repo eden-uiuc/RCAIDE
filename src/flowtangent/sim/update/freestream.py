@@ -82,12 +82,12 @@ def update_freestream(
     state = update(
         state,
         (
-            ("freestream.speed",             v_mag),
-            ("freestream.mach_number",             M),
-            ("freestream.reynolds_number",             Re),
-            ("freestream.dynamic_pressure",             q),
-            ("freestream.stagnation_pressure",             P_t),
-            ("freestream.stagnation_temperature",             T_t),
+            ("freestream.speed", v_mag),
+            ("freestream.mach_number", M),
+            ("freestream.reynolds_number", Re),
+            ("freestream.dynamic_pressure", q),
+            ("freestream.stagnation_pressure", P_t),
+            ("freestream.stagnation_temperature", T_t),
         ),
     )
 
