@@ -575,9 +575,7 @@ def generate_spanwise_coordinates(intervals_data: jax.Array, n_sw: int, cosine_s
     return eta_vertices, interval_mapping
 
 
-def generate_chordwise_coordinates(
-    le_cut: float, te_cut: float, n_cw: int, cosine_spacing: bool = False
-) -> jax.Array:
+def generate_chordwise_coordinates(le_cut: float, te_cut: float, n_cw: int, cosine_spacing: bool = False) -> jax.Array:
     """
     Generates piecewise chordwise coordinates (0.0 to 1.0) for a single strip.
     """
