@@ -9,7 +9,8 @@
 
 
 # package imports
-import jax.numpy as jnp
+
+import jax
 
 from flowtangent.core._state_data import StateData
 
@@ -54,11 +55,11 @@ class Mass(StateData):
     # Attribute             Type        Default Value
     name: str = field("Mass Conditions", static=True)
 
-    total: jnp.ndarray = empty_array(())
-    rate_of_change: jnp.ndarray = empty_array(())
-    volume: jnp.ndarray = empty_array(())
-    density: jnp.ndarray = empty_array(())
-    center_of_gravity: jnp.ndarray = empty_array((0, 3))
-    moments_of_inertia: jnp.ndarray = empty_array((0, 3, 3))
+    total: jax.Array = empty_array(())
+    rate_of_change: jax.Array = empty_array(())
+    volume: jax.Array = empty_array(())
+    density: jax.Array = empty_array(())
+    center_of_gravity: jax.Array = empty_array((0, 3))
+    moments_of_inertia: jax.Array = empty_array((0, 3, 3))
 
     breakdown: StateData = field(lambda: StateData(name="Mass Breakdown"))

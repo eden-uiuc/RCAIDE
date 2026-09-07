@@ -185,8 +185,8 @@ def is_equivalent(a, b):
         return False
 
     for la, lb in zip(a_leaves, b_leaves):
-        is_num_a = isinstance(la, (jnp.ndarray, np.ndarray, float, int, bool))
-        is_num_b = isinstance(lb, (jnp.ndarray, np.ndarray, float, int, bool))
+        is_num_a = isinstance(la, (jax.Array, np.ndarray, float, int, bool))
+        is_num_b = isinstance(lb, (jax.Array, np.ndarray, float, int, bool))
 
         if is_num_a and is_num_b:
             arr_a = jnp.squeeze(jnp.asarray(la))
@@ -215,7 +215,7 @@ def compute_tree_delta(old_tree, new_tree):
     for i, (old, new) in enumerate(zip(old_leaves, new_leaves)):
         if old is new:
             continue
-        if isinstance(old, jnp.ndarray) and isinstance(new, jnp.ndarray):
+        if isinstance(old, jax.Array) and isinstance(new, jax.Array):
             if old.shape == new.shape and jnp.all(old == new):
                 continue
 

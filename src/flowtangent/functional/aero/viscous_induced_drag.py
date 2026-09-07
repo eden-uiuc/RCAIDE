@@ -10,7 +10,6 @@
 from typing import TYPE_CHECKING
 
 import jax
-import jax.numpy as jnp
 
 # --- Framework Imports (Strictly for Type Hinting to avoid Circular Imports) ---
 if TYPE_CHECKING:
@@ -30,9 +29,9 @@ from flowtangent.utils import inputs, outputs, update
 # ---------------------------------------------------------
 @jax.jit
 def func_viscous_induced_drag(
-    CL: float | jnp.ndarray,
-    parasite_drag: float | jnp.ndarray,
-    viscous_lift_factor: float | jnp.ndarray = 0.38,
+    CL: float | jax.Array,
+    parasite_drag: float | jax.Array,
+    viscous_lift_factor: float | jax.Array = 0.38,
 ):
     """Evaluates viscous induced drag based on parasite drag and drag factor"""
 

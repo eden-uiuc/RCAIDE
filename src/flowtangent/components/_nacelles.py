@@ -8,9 +8,9 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
-import jax.numpy as jnp
+import jax
 
-from flowtangent.library import Component, Dimensions
+from flowtangent.core._component import Component, Dimensions
 
 # Flowtangent imports
 from flowtangent.utils import empty_array, field
@@ -30,8 +30,8 @@ class Nacelle(Component):
     fuselage_integrated: bool = field(False, static=True)
     has_pylon: bool = field(True)
 
-    aerodynamic_center: jnp.ndarray = empty_array((0, 3))
-    orientation_euler_angles: jnp.ndarray = empty_array((0, 3))
+    aerodynamic_center: jax.Array = empty_array((0, 3))
+    orientation_euler_angles: jax.Array = empty_array((0, 3))
 
     airfoil: Component | None = None
     cowling_airfoil_angle: float = 0.0

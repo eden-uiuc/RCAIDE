@@ -9,8 +9,10 @@
 
 from typing import TYPE_CHECKING
 
-# package import
 import equinox as eqx
+
+# package import
+import jax
 import jax.numpy as jnp
 
 if TYPE_CHECKING:
@@ -111,7 +113,7 @@ class TestCSACruise(Cruise):
 
     active_controls: tuple[str | Variable, ...] = field(_test_cruise_controls)
     active_residuals: tuple[NamedResidual, ...] = field(("force_x", "force_z"), static=True)
-    controls_initial_guess: tuple[jnp.ndarray | float, ...] = (1.0, 0.05)
+    controls_initial_guess: tuple[jax.Array | float, ...] = (1.0, 0.05)
 
     def __post_init__(self):
 

@@ -9,7 +9,7 @@
 
 
 # package imports
-import jax.numpy as jnp
+import jax
 
 from flowtangent.core._state_data import StateData
 
@@ -33,23 +33,23 @@ class StaticCoeffs(StateData):
     ----------
     name : str
         The name of the coefficient set.
-    lift : jnp.ndarray
+    lift : jax.Array
         The lift coefficient. Shape: (1, 1)
-    drag : jnp.ndarray
+    drag : jax.Array
         The drag coefficient. Shape: (1, 1)
-    X : jnp.ndarray
+    X : jax.Array
         The X-axis force coefficient. Shape: (1, 1)
-    Y : jnp.ndarray
+    Y : jax.Array
         The Y-axis force coefficient. Shape: (1, 1)
-    Z : jnp.ndarray
+    Z : jax.Array
         The Z-axis force coefficient. Shape: (1, 1)
-    L : jnp.ndarray
+    L : jax.Array
         The rolling moment coefficient. Shape: (1, 1)
-    M : jnp.ndarray
+    M : jax.Array
         The pitching moment coefficient. Shape: (1, 1)
-    N : jnp.ndarray
+    N : jax.Array
         The yawing moment coefficient. Shape: (1, 1)
-    e : jnp.ndarray
+    e : jax.Array
         The Oswald efficiency factor. Shape: (1, 1)
 
     Notes
@@ -61,18 +61,18 @@ class StaticCoeffs(StateData):
     # Attribute     Type        Default Value
     name: str = field("Static Stability Coefficients", static=True)
 
-    lift: jnp.ndarray = empty_array()
-    drag: jnp.ndarray = empty_array()
+    lift: jax.Array = empty_array()
+    drag: jax.Array = empty_array()
 
-    X: jnp.ndarray = empty_array()
-    Y: jnp.ndarray = empty_array()
-    Z: jnp.ndarray = empty_array()
+    X: jax.Array = empty_array()
+    Y: jax.Array = empty_array()
+    Z: jax.Array = empty_array()
 
-    L: jnp.ndarray = empty_array()
-    M: jnp.ndarray = empty_array()
-    N: jnp.ndarray = empty_array()
+    L: jax.Array = empty_array()
+    M: jax.Array = empty_array()
+    N: jax.Array = empty_array()
 
-    e: jnp.ndarray = empty_array()
+    e: jax.Array = empty_array()
 
 
 @register
@@ -87,15 +87,15 @@ class StaticForces(StateData):
     ----------
     name : str
         The name of the static forces set. Default is 'Static Stability Forces'.
-    lift : jnp.ndarray
+    lift : jax.Array
         The lift force. Shape: (1, 1)
-    drag : jnp.ndarray
+    drag : jax.Array
         The drag force. Shape: (1, 1)
-    X : jnp.ndarray
+    X : jax.Array
         The force in the X-direction. Shape: (1, 1)
-    Y : jnp.ndarray
+    Y : jax.Array
         The force in the Y-direction. Shape: (1, 1)
-    Z : jnp.ndarray
+    Z : jax.Array
         The force in the Z-direction. Shape: (1, 1)
 
     Notes
@@ -107,12 +107,12 @@ class StaticForces(StateData):
     # Attribute     Type        Default Value
     name: str = field("Static Stability Forces", static=True)
 
-    lift: jnp.ndarray = empty_array()
-    drag: jnp.ndarray = empty_array()
+    lift: jax.Array = empty_array()
+    drag: jax.Array = empty_array()
 
-    X: jnp.ndarray = empty_array()
-    Y: jnp.ndarray = empty_array()
-    Z: jnp.ndarray = empty_array()
+    X: jax.Array = empty_array()
+    Y: jax.Array = empty_array()
+    Z: jax.Array = empty_array()
 
 
 @register
@@ -127,11 +127,11 @@ class StaticMoments(StateData):
     ----------
     name : str
         The name of the static moments set. Default is 'Static Stability Moments'.
-    L : jnp.ndarray
+    L : jax.Array
         The rolling moment. Shape: (1, 1)
-    M : jnp.ndarray
+    M : jax.Array
         The pitching moment. Shape: (1, 1)
-    N : jnp.ndarray
+    N : jax.Array
         The yawing moment. Shape: (1, 1)
 
     Notes
@@ -143,9 +143,9 @@ class StaticMoments(StateData):
     # Attribute     Type        Default Value
     name: str = field("Static Stability Moments", static=True)
 
-    L: jnp.ndarray = empty_array()
-    M: jnp.ndarray = empty_array()
-    N: jnp.ndarray = empty_array()
+    L: jax.Array = empty_array()
+    M: jax.Array = empty_array()
+    N: jax.Array = empty_array()
 
 
 @register
@@ -162,34 +162,34 @@ class Sensitivities(StateData):
     name : str
         The name of the coefficient derivatives set. Default is 'Coefficient Static Stability Derivatives'.
 
-    alpha : jnp.ndarray
+    alpha : jax.Array
         Derivative with respect to angle of attack. Shape: (1, 1)
-    beta : jnp.ndarray
+    beta : jax.Array
         Derivative with respect to sideslip angle. Shape: (1, 1)
 
-    delta_a : jnp.ndarray
+    delta_a : jax.Array
         Derivative with respect to aileron deflection. Shape: (1, 1)
-    delta_e : jnp.ndarray
+    delta_e : jax.Array
         Derivative with respect to elevator deflection. Shape: (1, 1)
-    delta_r : jnp.ndarray
+    delta_r : jax.Array
         Derivative with respect to rudder deflection. Shape: (1, 1)
-    delta_f : jnp.ndarray
+    delta_f : jax.Array
         Derivative with respect to flap deflection. Shape: (1, 1)
-    delta_s : jnp.ndarray
+    delta_s : jax.Array
         Derivative with respect to spoiler deflection. Shape: (1, 1)
 
-    u : jnp.ndarray
+    u : jax.Array
         Derivative with respect to forward velocity. Shape: (1, 1)
-    v : jnp.ndarray
+    v : jax.Array
         Derivative with respect to lateral velocity. Shape: (1, 1)
-    w : jnp.ndarray
+    w : jax.Array
         Derivative with respect to vertical velocity. Shape: (1, 1)
 
-    p : jnp.ndarray
+    p : jax.Array
         Derivative with respect to roll rate. Shape: (1, 1)
-    q : jnp.ndarray
+    q : jax.Array
         Derivative with respect to pitch rate. Shape: (1, 1)
-    r : jnp.ndarray
+    r : jax.Array
         Derivative with respect to yaw rate. Shape: (1, 1)
 
     Notes:
@@ -202,27 +202,27 @@ class Sensitivities(StateData):
     name: str = field("Coefficient Static Stability Derivatives", static=True)
 
     # Throttle Derivative
-    throttle: jnp.ndarray = empty_array()
+    throttle: jax.Array = empty_array()
 
     # Stability Axis Derivatives
-    beta: jnp.ndarray = empty_array()
-    alpha: jnp.ndarray = empty_array()
+    beta: jax.Array = empty_array()
+    alpha: jax.Array = empty_array()
 
-    delta_a: jnp.ndarray = empty_array()
-    delta_e: jnp.ndarray = empty_array()
-    delta_r: jnp.ndarray = empty_array()
-    delta_f: jnp.ndarray = empty_array()
-    delta_s: jnp.ndarray = empty_array()
+    delta_a: jax.Array = empty_array()
+    delta_e: jax.Array = empty_array()
+    delta_r: jax.Array = empty_array()
+    delta_f: jax.Array = empty_array()
+    delta_s: jax.Array = empty_array()
 
     # Body Axis Derivatives
 
-    u: jnp.ndarray = empty_array()
-    v: jnp.ndarray = empty_array()
-    w: jnp.ndarray = empty_array()
+    u: jax.Array = empty_array()
+    v: jax.Array = empty_array()
+    w: jax.Array = empty_array()
 
-    p: jnp.ndarray = empty_array()
-    q: jnp.ndarray = empty_array()
-    r: jnp.ndarray = empty_array()
+    p: jax.Array = empty_array()
+    q: jax.Array = empty_array()
+    r: jax.Array = empty_array()
 
 
 @register
@@ -285,13 +285,13 @@ class Static(StateData):
     coefficients: StaticCoeffs = field(StaticCoeffs)
     derivatives: StaticDerivatives = field(StaticDerivatives)
 
-    static_margin: jnp.ndarray = empty_array()
-    neutral_point: jnp.ndarray = empty_array()
-    spiral_criteria: jnp.ndarray = empty_array()
+    static_margin: jax.Array = empty_array()
+    neutral_point: jax.Array = empty_array()
+    spiral_criteria: jax.Array = empty_array()
 
-    pitch_rate: jnp.ndarray = empty_array()
-    roll_rate: jnp.ndarray = empty_array()
-    yaw_rate: jnp.ndarray = empty_array()
+    pitch_rate: jax.Array = empty_array()
+    roll_rate: jax.Array = empty_array()
+    yaw_rate: jax.Array = empty_array()
 
 
 @register

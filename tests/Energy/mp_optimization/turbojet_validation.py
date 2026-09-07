@@ -32,6 +32,7 @@ numerical_environment()
 
 import json
 
+import jax
 import jax.numpy as jnp
 import equinox as eqx
 import numpy as np
@@ -154,11 +155,11 @@ def off_design_point(
     thrust: float,
     system: Aircraft,
     settings: Settings,
-    initial_Rline: float | jnp.ndarray = 2.0,
-    initial_turb_PR: float | jnp.ndarray = 5.0,
-    initial_RPM: float | jnp.ndarray = 1000 * units.rpm,
-    initial_MFR: float | jnp.ndarray = 100 * units.kg / units.s,
-    initial_FAR: float | jnp.ndarray = 1e-4,
+    initial_Rline: float | jax.Array = 2.0,
+    initial_turb_PR: float | jax.Array = 5.0,
+    initial_RPM: float | jax.Array = 1000 * units.rpm,
+    initial_MFR: float | jax.Array = 100 * units.kg / units.s,
+    initial_FAR: float | jax.Array = 1e-4,
 ):
 
     network: TurbojetNetwork = system.energy

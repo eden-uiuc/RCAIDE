@@ -14,6 +14,7 @@ from typing import Any, Optional
 
 # package imports
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 
 from flowtangent.data.solids import Aluminum, Solid
@@ -103,9 +104,9 @@ class MassProperties(eqx.Module):
     volume: float = 1.0
     density: float = 0.0
 
-    center_of_gravity: jnp.ndarray = field(lambda: jnp.zeros((1, 3)))
-    moments_of_inertia: jnp.ndarray = field(lambda: jnp.zeros((3, 3)))
-    subcomponent_moments_of_inertia: jnp.ndarray = field(lambda: jnp.zeros((3, 3)))
+    center_of_gravity: jax.Array = field(lambda: jnp.zeros((1, 3)))
+    moments_of_inertia: jax.Array = field(lambda: jnp.zeros((3, 3)))
+    subcomponent_moments_of_inertia: jax.Array = field(lambda: jnp.zeros((3, 3)))
 
     def __repr__(self):
         return ""
@@ -118,7 +119,7 @@ class Component(eqx.Module):
 
     segments: tuple[Component, ...] = field(tuple)
     subcomponents: tuple[Component, ...] = field(tuple)
-    origin: jnp.ndarray = field(lambda: jnp.zeros((1, 3)))
+    origin: jax.Array = field(lambda: jnp.zeros((1, 3)))
 
     # ---------------------------------------------------AREAS----------------------------------------------------------
     areas: Areas = field(Areas)

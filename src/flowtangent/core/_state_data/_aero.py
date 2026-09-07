@@ -8,7 +8,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
-import jax.numpy as jnp
+import jax
 
 from flowtangent.core._state_data import StateData
 
@@ -30,12 +30,12 @@ from flowtangent.utils import empty_array, field, register
 class ComponentCoeffs(StateData):
     name: str = field("Component Coefficients", static=True)
 
-    total: jnp.ndarray = empty_array()
+    total: jax.Array = empty_array()
 
     # Component Arrays: (n_time, n_components)
-    wings: jnp.ndarray = empty_array((0, 0))
-    fuselages: jnp.ndarray = empty_array((0, 0))
-    nacelles: jnp.ndarray = empty_array((0, 0))
+    wings: jax.Array = empty_array((0, 0))
+    fuselages: jax.Array = empty_array((0, 0))
+    nacelles: jax.Array = empty_array((0, 0))
 
 
 # Lift Coefficients ----------------------------------------
@@ -46,7 +46,7 @@ class LiftCoeffs(StateData):
     # Attribute     Type            Default Value
     name: str = field("Lift Coefficients", static=True)
 
-    total: jnp.ndarray = empty_array((0,))
+    total: jax.Array = empty_array((0,))
 
     inviscid: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Inviscid Lift"))
     compressible: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Compressible Lift"))
@@ -60,7 +60,7 @@ class InducedDrag(StateData):
     # Attribute   Type            Default Value
     name: str = field("Induced Drag", static=True)
 
-    total: jnp.ndarray = empty_array()
+    total: jax.Array = empty_array()
 
     inviscid: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Inviscid Induced Drag"))
     viscous: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Viscous Induced Drag"))
@@ -73,7 +73,7 @@ class DragCoeffs(StateData):
     # Attribute     Type            Default Value
     name: str = field("Drag Coefficients", static=True)
 
-    total: jnp.ndarray = empty_array()
+    total: jax.Array = empty_array()
 
     parasite: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Parasite Drag"))
     compressible: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Compressible Drag"))
@@ -91,9 +91,9 @@ class MomentCoeffs(StateData):
     # Attribute         Type            Default Value
     name: str = field("Moment Coefficients", static=True)
 
-    pitch: jnp.ndarray = empty_array()
-    roll: jnp.ndarray = empty_array()
-    yaw: jnp.ndarray = empty_array()
+    pitch: jax.Array = empty_array()
+    roll: jax.Array = empty_array()
+    yaw: jax.Array = empty_array()
 
 
 # All Coefficients -----------------------------------------
@@ -109,9 +109,9 @@ class Coefficients(StateData):
 
     moments: MomentCoeffs = field(MomentCoeffs)
 
-    X: jnp.ndarray = empty_array()
-    Y: jnp.ndarray = empty_array()
-    Z: jnp.ndarray = empty_array()
+    X: jax.Array = empty_array()
+    Y: jax.Array = empty_array()
+    Z: jax.Array = empty_array()
 
 
 # ----------------------------------------------------------
@@ -124,9 +124,9 @@ class Angles(StateData):
     # Attribute         Type        Default Value
     name: str = field("Aerodynamic Angles", static=True)
 
-    alpha: jnp.ndarray = empty_array()  # Y-axis / angle of attack
-    beta: jnp.ndarray = empty_array()  # Z-axis / sideslip angle
-    phi: jnp.ndarray = empty_array()  # X-axis / roll angle
+    alpha: jax.Array = empty_array()  # Y-axis / angle of attack
+    beta: jax.Array = empty_array()  # Z-axis / sideslip angle
+    phi: jax.Array = empty_array()  # X-axis / roll angle
 
 
 # ----------------------------------------------------------

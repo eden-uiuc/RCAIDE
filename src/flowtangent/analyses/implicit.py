@@ -437,7 +437,7 @@ class ImplicitAnalysis(Process):
 
         return valid_controls
 
-    def _update_controls(self, state: State, control_values: jnp.ndarray, settings: Settings) -> State:
+    def _update_controls(self, state: State, control_values: jax.Array, settings: Settings) -> State:
 
         control_state = state
         if settings.numerical.sum_residuals:
@@ -483,7 +483,7 @@ class ImplicitAnalysis(Process):
 
         return ctrl_state, system, settings
 
-    def _get_control_array(self, state: State, settings: Settings) -> jnp.ndarray:
+    def _get_control_array(self, state: State, settings: Settings) -> jax.Array:
         ctrl_vals = []
         for ctrl in self.controls:
             current_val = ftu.get_target(state, ctrl.state_path)
@@ -494,7 +494,7 @@ class ImplicitAnalysis(Process):
 
         return jnp.concatenate(ctrl_vals, axis=0).flatten()
 
-    def _get_residual_array(self, state: State, settings: Settings) -> jnp.ndarray:
+    def _get_residual_array(self, state: State, settings: Settings) -> jax.Array:
 
         residual_values = [r.get_value(state) for r in self.residuals]
         if settings.numerical.sum_residuals:
@@ -504,7 +504,7 @@ class ImplicitAnalysis(Process):
     def _run_scipy_solver(
         self,
         get_residuals: Callable,
-        control_values: jnp.ndarray,
+        control_values: jax.Array,
         state: State,
         system: System,
         settings: Settings,
@@ -542,7 +542,7 @@ class ImplicitAnalysis(Process):
     def _run_optx_solver(
         self,
         get_residuals: Callable,
-        control_values: jnp.ndarray,
+        control_values: jax.Array,
         state: State,
         system: System,
         settings: Settings,

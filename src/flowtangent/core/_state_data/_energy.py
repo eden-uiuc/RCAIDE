@@ -9,7 +9,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
-import jax.numpy as jnp
+import jax
 
 from flowtangent.core._state_data import StateData
 from flowtangent.data.gases import Air, Gas
@@ -26,25 +26,25 @@ from flowtangent.utils import empty_array, field, register
 class MechanicalOutputs(StateData):
     name: str = field("Mechanical Outputs", static=True)
 
-    work: jnp.ndarray = empty_array()
-    power: jnp.ndarray = empty_array()
+    work: jax.Array = empty_array()
+    power: jax.Array = empty_array()
 
 
 @register
 class ElectricalOutputs(StateData):
     name: str = field("Electrical Outputs", static=True)
 
-    power: jnp.ndarray = empty_array()
-    voltage: jnp.ndarray = empty_array()
-    current: jnp.ndarray = empty_array()
+    power: jax.Array = empty_array()
+    voltage: jax.Array = empty_array()
+    current: jax.Array = empty_array()
 
 
 @register
 class FuelOutputs(StateData):
     name: str = field("Fuel Outputs", static=True)
 
-    TSFC: jnp.ndarray = empty_array()
-    flow_rate: jnp.ndarray = empty_array()
+    TSFC: jax.Array = empty_array()
+    flow_rate: jax.Array = empty_array()
 
 
 @register
@@ -52,65 +52,65 @@ class FlowOutputs(StateData):
     name: str = field("Flow Outputs", static=True)
     fluid: Gas = field(Air)
 
-    speed: jnp.ndarray = empty_array()
-    speed_of_sound: jnp.ndarray = empty_array()
-    mach_number: jnp.ndarray = empty_array()
-    reynolds_number: jnp.ndarray = empty_array()
+    speed: jax.Array = empty_array()
+    speed_of_sound: jax.Array = empty_array()
+    mach_number: jax.Array = empty_array()
+    reynolds_number: jax.Array = empty_array()
 
-    pressure: jnp.ndarray = empty_array()
-    temperature: jnp.ndarray = empty_array()
-    enthalpy: jnp.ndarray = empty_array()
+    pressure: jax.Array = empty_array()
+    temperature: jax.Array = empty_array()
+    enthalpy: jax.Array = empty_array()
 
-    stagnation_pressure: jnp.ndarray = empty_array()
-    stagnation_temperature: jnp.ndarray = empty_array()
-    stagnation_enthalpy: jnp.ndarray = empty_array()
+    stagnation_pressure: jax.Array = empty_array()
+    stagnation_temperature: jax.Array = empty_array()
+    stagnation_enthalpy: jax.Array = empty_array()
 
-    area: jnp.ndarray = empty_array()
-    density: jnp.ndarray = empty_array()
-    mass_flow_rate: jnp.ndarray = empty_array()
-    fuel_air_ratio: jnp.ndarray = empty_array()
+    area: jax.Array = empty_array()
+    density: jax.Array = empty_array()
+    mass_flow_rate: jax.Array = empty_array()
+    fuel_air_ratio: jax.Array = empty_array()
 
-    dynamic_viscosity: jnp.ndarray = empty_array()
-    dynamic_pressure: jnp.ndarray = empty_array()
+    dynamic_viscosity: jax.Array = empty_array()
+    dynamic_pressure: jax.Array = empty_array()
 
-    gamma: jnp.ndarray = empty_array()
-    Cp: jnp.ndarray = empty_array()
-    R: jnp.ndarray = empty_array()
+    gamma: jax.Array = empty_array()
+    Cp: jax.Array = empty_array()
+    R: jax.Array = empty_array()
 
 
 @register
 class ResidualOutputs(StateData):
     name: str = field("Residual Outputs", static=True)
 
-    mass: jnp.ndarray = empty_array()
-    mass_flow_rate: jnp.ndarray = empty_array()
+    mass: jax.Array = empty_array()
+    mass_flow_rate: jax.Array = empty_array()
 
-    work: jnp.ndarray = empty_array()
-    power: jnp.ndarray = empty_array()
+    work: jax.Array = empty_array()
+    power: jax.Array = empty_array()
 
-    thrust: jnp.ndarray = empty_array()
-    area: jnp.ndarray = empty_array()
+    thrust: jax.Array = empty_array()
+    area: jax.Array = empty_array()
 
     # Single Spool Turbojet Residuals
-    compressor_Wc: jnp.ndarray = empty_array()
-    turbine_Wp: jnp.ndarray = empty_array()
+    compressor_Wc: jax.Array = empty_array()
+    turbine_Wp: jax.Array = empty_array()
 
     # Dual Spool Turbofan Residuals
-    fan_Wc: jnp.ndarray = empty_array()
-    lpc_Wc: jnp.ndarray = empty_array()
-    hpc_Wc: jnp.ndarray = empty_array()
+    fan_Wc: jax.Array = empty_array()
+    lpc_Wc: jax.Array = empty_array()
+    hpc_Wc: jax.Array = empty_array()
 
-    lpt_Wp: jnp.ndarray = empty_array()
-    hpt_Wp: jnp.ndarray = empty_array()
+    lpt_Wp: jax.Array = empty_array()
+    hpt_Wp: jax.Array = empty_array()
 
 
 @register
 class ForceOutputs(StateData):
     name: str = field("Force Outputs", static=True)
 
-    thrust: jnp.ndarray = empty_array()
-    nondimensional_thrust: jnp.ndarray = empty_array()
-    specific_impulse: jnp.ndarray = empty_array()
+    thrust: jax.Array = empty_array()
+    nondimensional_thrust: jax.Array = empty_array()
+    specific_impulse: jax.Array = empty_array()
 
 
 @register
@@ -124,7 +124,7 @@ class NodeState(StateData):
     force: ForceOutputs = field(ForceOutputs)
     residual: ResidualOutputs = field(ResidualOutputs)
 
-    mass: jnp.ndarray = empty_array()
+    mass: jax.Array = empty_array()
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -141,9 +141,9 @@ class BatteryCellConditions(NodeState):
     resistance_growth_factor: float = field(0.0, static=True)
     capacity_fade_factor: float = field(0.0, static=True)
 
-    temperature: jnp.ndarray = empty_array()
-    charge_throughput: jnp.ndarray = empty_array()
-    state_of_charge: jnp.ndarray = empty_array()
+    temperature: jax.Array = empty_array()
+    charge_throughput: jax.Array = empty_array()
+    state_of_charge: jax.Array = empty_array()
 
 
 @register
@@ -155,7 +155,7 @@ class BatteryPackConditions(NodeState):
 
     cell: BatteryCellConditions = field(BatteryCellConditions)
 
-    temperature: jnp.ndarray = empty_array()
+    temperature: jax.Array = empty_array()
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -169,14 +169,14 @@ class NetworkState(NodeState):
 
     nodes: dict = field(dict)
 
-    total_energy: jnp.ndarray = empty_array()
-    total_efficiency: jnp.ndarray = empty_array()
+    total_energy: jax.Array = empty_array()
+    total_efficiency: jax.Array = empty_array()
 
-    throttle: jnp.ndarray = empty_array()
-    total_power: jnp.ndarray = empty_array()
+    throttle: jax.Array = empty_array()
+    total_power: jax.Array = empty_array()
 
-    total_force_vector: jnp.ndarray = empty_array((0, 3))
-    total_moment_vector: jnp.ndarray = empty_array((0, 3))
+    total_force_vector: jax.Array = empty_array((0, 3))
+    total_moment_vector: jax.Array = empty_array((0, 3))
 
 
 @register
@@ -184,14 +184,14 @@ class TurbojetState(NetworkState):
     name: str = field("Turbojet Network", static=True)
 
     # Control hooks
-    fuel_air_ratio: jnp.ndarray = empty_array()
-    mass_flow_rate: jnp.ndarray = empty_array()
-    rotation_speed: jnp.ndarray = empty_array()
-    compressor_Rline: jnp.ndarray = empty_array()
-    turbine_PR: jnp.ndarray = empty_array()
+    fuel_air_ratio: jax.Array = empty_array()
+    mass_flow_rate: jax.Array = empty_array()
+    rotation_speed: jax.Array = empty_array()
+    compressor_Rline: jax.Array = empty_array()
+    turbine_PR: jax.Array = empty_array()
 
-    target_thrust: jnp.ndarray = empty_array()
-    target_temperature: jnp.ndarray = empty_array()
+    target_thrust: jax.Array = empty_array()
+    target_temperature: jax.Array = empty_array()
 
 
 @register
@@ -199,19 +199,19 @@ class TurbofanState(NetworkState):
     name: str = field("Turbofan Network", static=True)
 
     # Control hooks
-    fuel_air_ratio: jnp.ndarray = empty_array()
-    mass_flow_rate: jnp.ndarray = empty_array()
+    fuel_air_ratio: jax.Array = empty_array()
+    mass_flow_rate: jax.Array = empty_array()
 
-    LP_speed: jnp.ndarray = empty_array()
-    HP_speed: jnp.ndarray = empty_array()
+    LP_speed: jax.Array = empty_array()
+    HP_speed: jax.Array = empty_array()
 
-    fan_Rline: jnp.ndarray = empty_array()
-    lpc_Rline: jnp.ndarray = empty_array()
-    hpc_Rline: jnp.ndarray = empty_array()
+    fan_Rline: jax.Array = empty_array()
+    lpc_Rline: jax.Array = empty_array()
+    hpc_Rline: jax.Array = empty_array()
 
-    lpt_PR: jnp.ndarray = empty_array()
-    hpt_PR: jnp.ndarray = empty_array()
+    lpt_PR: jax.Array = empty_array()
+    hpt_PR: jax.Array = empty_array()
 
-    bypass_ratio: jnp.ndarray = empty_array()
-    target_thrust: jnp.ndarray = empty_array()
-    target_temperature: jnp.ndarray = empty_array()
+    bypass_ratio: jax.Array = empty_array()
+    target_thrust: jax.Array = empty_array()
+    target_temperature: jax.Array = empty_array()

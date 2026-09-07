@@ -10,16 +10,16 @@
 from __future__ import annotations
 
 import equinox as eqx
+import jax
+from flowtangent.attributes import AircraftClass, MediumRange
+from flowtangent.components.energy.networks import GraphNetwork
+from flowtangent.components.fuselages import Fuselage
+from flowtangent.components.landing_gear import LandingGear
+from flowtangent.components.nacelles import Nacelle
+from flowtangent.components.wings import Wing
 
 # package imports
-import jax.numpy as jnp
-from flowtangent.library import Component, MassProperties
-from flowtangent.library.attributes import AircraftClass, MediumRange
-from flowtangent.library.components.energy.networks import GraphNetwork
-from flowtangent.library.components.fuselages import Fuselage
-from flowtangent.library.components.landing_gear import LandingGear
-from flowtangent.library.components.nacelles import Nacelle
-from flowtangent.library.components.wings import Wing
+from flowtangent import Component, MassProperties
 
 # Flowtangent imports
 from flowtangent.utils import empty_array, field, register
@@ -54,10 +54,10 @@ class System(Component):
 
 @register
 class AircraftReferenceGeometry(eqx.Module):
-    mean_aerodynamic_chord: jnp.ndarray = empty_array()
-    projected_span: jnp.ndarray = empty_array()
-    aerodynamic_center: jnp.ndarray = empty_array((0, 3))
-    center_of_gravity: jnp.ndarray = empty_array((0, 3))
+    mean_aerodynamic_chord: jax.Array = empty_array()
+    projected_span: jax.Array = empty_array()
+    aerodynamic_center: jax.Array = empty_array((0, 3))
+    center_of_gravity: jax.Array = empty_array((0, 3))
 
 
 @register

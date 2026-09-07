@@ -9,6 +9,7 @@
 
 
 # package imports
+import jax
 import jax.numpy as jnp
 
 from flowtangent.core._state_data import StateData
@@ -23,9 +24,9 @@ from flowtangent.utils import empty_array, field, register, update
 
 @register
 class NumericalTime(StateData):
-    control_points: jnp.ndarray = empty_array()
-    differentiate: jnp.ndarray = empty_array()
-    integrate: jnp.ndarray | None = None
+    control_points: jax.Array = empty_array()
+    differentiate: jax.Array = empty_array()
+    integrate: jax.Array | None = None
 
     def __repr__(self):
         return ""

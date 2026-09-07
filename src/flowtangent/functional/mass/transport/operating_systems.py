@@ -23,8 +23,8 @@ from .... import Aircraft, Component, Settings, State
 
 
 def func_operating_systems(
-    fixed_masses: jnp.ndarray,
-    per_seat_masses: jnp.ndarray,
+    fixed_masses: jax.Array,
+    per_seat_masses: jax.Array,
     number_of_seats: int,
     reference_area: float,
     tail_area: float,

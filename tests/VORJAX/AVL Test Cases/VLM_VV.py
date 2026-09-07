@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 
 import jax
+import jax
 import jax.numpy as jnp
 import equinox as eqx
 import plotly.graph_objects as go
@@ -370,7 +371,7 @@ def VORJAX_test_run(vehicle, alpha, Mach, n_sw=20, n_cw=6, grad_map=None, debug_
         (jnp.zeros((1, 1)), jnp.zeros((1, 1)), jnp.zeros((1, 1)))
     )
 
-    if isinstance(alpha, list | jnp.ndarray) and isinstance(Mach, list | jnp.ndarray):
+    if isinstance(alpha, list | jax.Array) and isinstance(Mach, list | jax.Array):
         assert len(alpha) == len(Mach)
         alpha = jnp.array(alpha).reshape(-1, 1)
         Mach = jnp.array(Mach).reshape(-1, 1)

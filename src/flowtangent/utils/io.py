@@ -7,6 +7,7 @@ import warnings
 from pathlib import Path
 from typing import Any, Callable
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -117,7 +118,7 @@ def register(cls):
 
 
 def serialize_node(obj):
-    if isinstance(obj, (jnp.ndarray, np.ndarray)):
+    if isinstance(obj, (jax.Array, np.ndarray)):
         if obj.size == 1:
             return obj.item()
         return {"__type__": "ndarray", "data": obj.tolist()}

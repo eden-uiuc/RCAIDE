@@ -87,7 +87,7 @@ class Control(StateData):
     state_path: TreePath = field(TreePath, static=True)
 
     # Inital values aren't actually optional, but an unset one will be flagged in initialize_controls
-    initial_value: Optional[float | jnp.ndarray] = None
+    initial_value: Optional[float | jax.Array] = None
     bounds: tuple[float, ...] = field(tuple((-1e6, 1e6)), static=True)
     scaling: Literal["linear", "logistic"] = field("logistic", static=True)
 

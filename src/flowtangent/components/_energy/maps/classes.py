@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 
 from flowtangent.utils import empty_array, field, register
@@ -72,14 +73,14 @@ class CompressorMap(eqx.Module):
     name: str = field("Compressor Map", static=True)
 
     # 1D Grid Axes
-    alpha_grid: jnp.ndarray = empty_array()  # FADEC Inlet Guide Vane Angle
-    Nc_grid: jnp.ndarray = empty_array()  # Corrected Speed
-    Rline_grid: jnp.ndarray = empty_array()  # Orthogonal Coordinate
+    alpha_grid: jax.Array = empty_array()  # FADEC Inlet Guide Vane Angle
+    Nc_grid: jax.Array = empty_array()  # Corrected Speed
+    Rline_grid: jax.Array = empty_array()  # Orthogonal Coordinate
 
     # 3D Data Tables (Shape: [len(alpha_grid), len(Nc_grid), len(PR_grid)])
-    Wc_table: jnp.ndarray = empty_array()  # Mass flow rate
-    PR_table: jnp.ndarray = empty_array()  # Pressure Ratio
-    eff_table: jnp.ndarray = empty_array()  # Isentropic Efficiency
+    Wc_table: jax.Array = empty_array()  # Mass flow rate
+    PR_table: jax.Array = empty_array()  # Pressure Ratio
+    eff_table: jax.Array = empty_array()  # Isentropic Efficiency
 
     # Map scaling values
     Rline_stall: float = 1.0
@@ -175,13 +176,13 @@ class TurbineMap(eqx.Module):
     name: str = field("Turbine Map", static=True)
 
     # 1D Grid Axes
-    alpha_grid: jnp.ndarray = empty_array()  # Turbine Nozzle Ratio
-    Np_grid: jnp.ndarray = empty_array()
-    PR_grid: jnp.ndarray = empty_array()
+    alpha_grid: jax.Array = empty_array()  # Turbine Nozzle Ratio
+    Np_grid: jax.Array = empty_array()
+    PR_grid: jax.Array = empty_array()
 
     # 2D Data Tables (Shape: [len(Nc_grid), len(PR_grid)])
-    Wp_table: jnp.ndarray = empty_array()
-    eff_table: jnp.ndarray = empty_array()
+    Wp_table: jax.Array = empty_array()
+    eff_table: jax.Array = empty_array()
 
     # Map scaling Values
     s_Wp: float = 1.0

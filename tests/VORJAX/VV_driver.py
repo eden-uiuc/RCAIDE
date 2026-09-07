@@ -15,6 +15,7 @@ import zarr
 from pathlib import Path
 
 import jax
+import jax
 import jax.numpy as jnp
 import equinox as eqx
 import plotly.graph_objects as go
@@ -97,7 +98,7 @@ def run_AVL_alpha_sweep(avl_file, alpha, run_name, oper_mode="st"):
     """Executes AVL silently using subprocess and a keystroke macro."""
 
     # Ensure alphas is an iterable list
-    if isinstance(alpha, jnp.ndarray):
+    if isinstance(alpha, jax.Array):
         alphas = alpha.tolist()
     elif not isinstance(alpha, list):
         alphas = [alpha]
@@ -446,7 +447,7 @@ def VORJAX_test_run(
         (jnp.zeros((1, 1)), jnp.zeros((1, 1)), jnp.zeros((1, 1)))
     )
 
-    if isinstance(alpha, list | jnp.ndarray) and isinstance(Mach, list | jnp.ndarray):
+    if isinstance(alpha, list | jax.Array) and isinstance(Mach, list | jax.Array):
         assert len(alpha) == len(Mach)
         alpha = jnp.array(alpha).reshape(-1, 1)
         Mach = jnp.array(Mach).reshape(-1, 1)
@@ -512,7 +513,7 @@ def VORJAX_test_run(
 class NumpyEncoder(json.JSONEncoder):
     """Custom encoder to seamlessly convert NumPy arrays to JSON lists."""
     def default(self, obj):
-        if isinstance(obj, np.ndarray) or isinstance(obj, jnp.ndarray):
+        if isinstance(obj, np.ndarray) or isinstance(obj, jax.Array):
             return obj.tolist()
         if isinstance(obj, np.integer):
             return int(obj)

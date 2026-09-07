@@ -144,15 +144,15 @@ class VortexDistribution(eqx.Module):
     """
 
     # --- Base Geometric State ---
-    panel_vertices: jnp.ndarray  # (N, 4, 3), CCW from Front-Left
-    camber_slopes: jnp.ndarray  # (N,) Camber slope at each panel
-    wedge_angles: jnp.ndarray  # (N_s,) Leading edge wedge angle for supersonic correction
+    panel_vertices: jax.Array  # (N, 4, 3), CCW from Front-Left
+    camber_slopes: jax.Array  # (N,) Camber slope at each panel
+    wedge_angles: jax.Array  # (N_s,) Leading edge wedge angle for supersonic correction
 
     # --- Identity & Topology (Calculated before flattening!) ---
-    surface_id: jnp.ndarray  # (N,) ID of the originating wing/fuselage
-    control_surface_id: jnp.ndarray  # (N,) ID of the control surface (-1 for solid wing)
-    is_leading_edge: jnp.ndarray  # (N,) Boolean mask
-    is_trailing_edge: jnp.ndarray  # (N,) Boolean mask
+    surface_id: jax.Array  # (N,) ID of the originating wing/fuselage
+    control_surface_id: jax.Array  # (N,) ID of the control surface (-1 for solid wing)
+    is_leading_edge: jax.Array  # (N,) Boolean mask
+    is_trailing_edge: jax.Array  # (N,) Boolean mask
 
     # --- Static Structural Integers (NOT traced by JAX) ---
     total_panels: int = eqx.field(static=True)
@@ -363,7 +363,7 @@ def merge_vortex_distributions(vd_list: list[VortexDistribution]) -> VortexDistr
             # Explicitly sum the structural integers across all meshes
             merged_kwargs[key] = sum(getattr(vd, key) for vd in vd_list)
 
-        elif isinstance(first_val, jnp.ndarray):
+        elif isinstance(first_val, jax.Array):
             # One-shot concatenation for all geometry, flags, and surface IDs
             arrays_to_concat = [getattr(vd, key) for vd in vd_list]
             merged_kwargs[key] = jnp.concatenate(arrays_to_concat, axis=0)
@@ -448,7 +448,7 @@ def validate_airfoil_resolutions(wing):
         return 2  # Number of airfoil coordinates, 2 if no airfoil for flat line
 
 
-def find_intervals(wing: Wing) -> tuple[jnp.ndarray, jnp.ndarray]:
+def find_intervals(wing: Wing) -> tuple[jax.Array, jax.Array]:
     """
     Finds every unique spanwise slicing plane (from segments and control surfaces)
     and builds non-overlapping spanwise intervals.
@@ -510,17 +510,17 @@ def find_intervals(wing: Wing) -> tuple[jnp.ndarray, jnp.ndarray]:
     return jnp.stack([eta_starts, eta_ends, le_cuts, te_cuts, le_id, te_id], axis=1), strip_segment_idx
 
 
-def generate_spanwise_coordinates(intervals_data: jnp.ndarray, n_sw: int, cosine_spacing: bool = False) -> jnp.ndarray:
+def generate_spanwise_coordinates(intervals_data: jax.Array, n_sw: int, cosine_spacing: bool = False) -> jax.Array:
     """
     Generates piecewise spanwise coordinates (eta) guaranteeing breaks at the interval boundaries.
 
     Args:
-        intervals_data: jnp.ndarray of shape (N_intervals, 4) -> [eta_start, eta_end, le_cut, te_cut]
+        intervals_data: jax.Array of shape (N_intervals, 4) -> [eta_start, eta_end, le_cut, te_cut]
         n_sw: int, total number of spanwise panels requested.
         cosine_spacing: bool, whether to cluster panels at interval boundaries.
 
     Returns:
-        eta_vertices: jnp.ndarray of shape (n_sw + 1,)
+        eta_vertices: jax.Array of shape (n_sw + 1,)
     """
     n_intervals = intervals_data.shape[0]
 
@@ -577,7 +577,7 @@ def generate_spanwise_coordinates(intervals_data: jnp.ndarray, n_sw: int, cosine
 
 def generate_chordwise_coordinates(
     le_cut: float, te_cut: float, n_cw: int, cosine_spacing: bool = False
-) -> jnp.ndarray:
+) -> jax.Array:
     """
     Generates piecewise chordwise coordinates (0.0 to 1.0) for a single strip.
     """
@@ -620,7 +620,7 @@ def generate_chordwise_coordinates(
     return x_c_vertices
 
 
-def calculate_macro_properties(wing, eta_vertices: jnp.ndarray, semispan: float) -> tuple:
+def calculate_macro_properties(wing, eta_vertices: jax.Array, semispan: float) -> tuple:
     """
     Vectorized lofting of the structural wing, directly evaluated at the computational grid.
     """
@@ -1419,7 +1419,7 @@ def compute_induced_velocity(state: State, system: Aircraft, settings: Settings)
 def compute_vortex_strength(state: State, system: Aircraft, settings: Settings):
     """Solves the linear system A * GAMMA = RHS for the vortex strengths."""
 
-    analysis: dict[str, jnp.ndarray] = system.analysis_data
+    analysis: dict[str, jax.Array] = system.analysis_data
     VD = analysis["vortex_distribution"]
 
     # Extract the arrays we built in previous steps
@@ -2017,23 +2017,23 @@ class Surrogate(eqx.Module):
 
     blend_transonic: bool = True
 
-    angle_of_attack: jnp.ndarray = field(lambda: jnp.linspace(-5.0, 15.0, 40) * U.deg)
-    sideslip_angle: jnp.ndarray = field(lambda: jnp.linspace(0.0, 15.0, 30) * U.deg)
-    mach: jnp.ndarray = field(lambda: jnp.linspace(0.0, 0.85, 20))
+    angle_of_attack: jax.Array = field(lambda: jnp.linspace(-5.0, 15.0, 40) * U.deg)
+    sideslip_angle: jax.Array = field(lambda: jnp.linspace(0.0, 15.0, 30) * U.deg)
+    mach: jax.Array = field(lambda: jnp.linspace(0.0, 0.85, 20))
 
-    aileron_deflection: jnp.ndarray = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
-    elevator_deflection: jnp.ndarray = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
-    rudder_deflection: jnp.ndarray = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
-    flap_deflection: jnp.ndarray = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
-    slat_deflection: jnp.ndarray = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
+    aileron_deflection: jax.Array = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
+    elevator_deflection: jax.Array = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
+    rudder_deflection: jax.Array = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
+    flap_deflection: jax.Array = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
+    slat_deflection: jax.Array = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
 
-    u: jnp.ndarray = field(lambda: jnp.array([0.2, 0.1, 1e-12]))
-    v: jnp.ndarray = field(lambda: jnp.array([0.2, 0.1, 1e-12]))
-    w: jnp.ndarray = field(lambda: jnp.array([0.2, 0.1, 1e-12]))
+    u: jax.Array = field(lambda: jnp.array([0.2, 0.1, 1e-12]))
+    v: jax.Array = field(lambda: jnp.array([0.2, 0.1, 1e-12]))
+    w: jax.Array = field(lambda: jnp.array([0.2, 0.1, 1e-12]))
 
-    pitch_rate: jnp.ndarray = field(lambda: jnp.array([0.3, 0.15, 0.0]) * U.rad / U.s)
-    roll_rate: jnp.ndarray = field(lambda: jnp.array([0.3, 0.15, 0.0]) * U.rad / U.s)
-    yaw_rate: jnp.ndarray = field(lambda: jnp.array([0.3, 0.15, 0.0]) * U.rad / U.s)
+    pitch_rate: jax.Array = field(lambda: jnp.array([0.3, 0.15, 0.0]) * U.rad / U.s)
+    roll_rate: jax.Array = field(lambda: jnp.array([0.3, 0.15, 0.0]) * U.rad / U.s)
+    yaw_rate: jax.Array = field(lambda: jnp.array([0.3, 0.15, 0.0]) * U.rad / U.s)
 
     def fit(self, *args, **kwargs):
         return self.surrogate.fit(*args, **kwargs)

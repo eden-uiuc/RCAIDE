@@ -327,14 +327,14 @@ class Compressor(FlowNode):
 
 def _burner_design(
     gas: Gas,
-    T_t: jnp.ndarray,
-    P_t: jnp.ndarray,
-    T_t_out: jnp.ndarray,
-    mdot_in: jnp.ndarray,
-    LHV: jnp.ndarray | float,
-    h_t_f: jnp.ndarray | float,
-    PR: jnp.ndarray | float,
-    n_b: jnp.ndarray | float,
+    T_t: jax.Array,
+    P_t: jax.Array,
+    T_t_out: jax.Array,
+    mdot_in: jax.Array,
+    LHV: jax.Array | float,
+    h_t_f: jax.Array | float,
+    PR: jax.Array | float,
+    n_b: jax.Array | float,
 ):
 
     h_t_in = gas.compute_enthalpy(T_t)
@@ -359,12 +359,12 @@ def _burner_design(
 def _burner_performance(
     gas: Gas,  # Gas or BurnedGas model
     fuel: Propellant,
-    T_t: jnp.ndarray,
-    P_t: jnp.ndarray,
-    mdot_in: jnp.ndarray,
-    FAR: jnp.ndarray,
-    PR: jnp.ndarray | float,
-    n_b: jnp.ndarray | float,
+    T_t: jax.Array,
+    P_t: jax.Array,
+    mdot_in: jax.Array,
+    FAR: jax.Array,
+    PR: jax.Array | float,
+    n_b: jax.Array | float,
 ):
     # 1. Pressure and Mass Flow additions
     P_t_out = P_t * PR
@@ -711,11 +711,11 @@ class Turbine(FlowNode):
 
 
 def _isentropic_expansion(
-    T_t: jnp.ndarray,
-    P_t: jnp.ndarray,
-    P0: jnp.ndarray,
-    gamma: jnp.ndarray,
-    PR: jnp.ndarray | float,
+    T_t: jax.Array,
+    P_t: jax.Array,
+    P0: jax.Array,
+    gamma: jax.Array,
+    PR: jax.Array | float,
 ):
 
     # Isentropic Outputs
@@ -730,9 +730,9 @@ def _isentropic_expansion(
 
 def _mass_flux(
     gas: Gas,
-    T_t: jnp.ndarray,
-    P_t: jnp.ndarray,
-    M: jnp.ndarray,
+    T_t: jax.Array,
+    P_t: jax.Array,
+    M: jax.Array,
 ):
     gamma = gas.compute_gamma(T_t)
     R = gas.R_specific
@@ -750,12 +750,12 @@ def _mass_flux(
 
 def _nozzle_design(
     gas: Gas,
-    T_t: jnp.ndarray,
-    P_t: jnp.ndarray,
-    mdot: jnp.ndarray,
-    P0: jnp.ndarray,
-    PR: jnp.ndarray | float,
-    n_v: jnp.ndarray | float,
+    T_t: jax.Array,
+    P_t: jax.Array,
+    mdot: jax.Array,
+    P0: jax.Array,
+    PR: jax.Array | float,
+    n_v: jax.Array | float,
 ):
     # Dynamic gas properties for the exhaust flow
     gamma = gas.compute_gamma(T_t)
@@ -798,13 +798,13 @@ def _nozzle_design(
 
 def _fixed_nozzle_performance(
     gas: Gas,
-    T_t: jnp.ndarray,
-    P_t: jnp.ndarray,
-    P0: jnp.ndarray,
+    T_t: jax.Array,
+    P_t: jax.Array,
+    P0: jax.Array,
     diverging_section: bool,
-    A_throat: jnp.ndarray | float,
-    A_exit: jnp.ndarray | float,
-    n_v: jnp.ndarray | float,
+    A_throat: jax.Array | float,
+    A_exit: jax.Array | float,
+    n_v: jax.Array | float,
 ):
 
     gamma = gas.compute_gamma(T_t)
@@ -866,11 +866,11 @@ def _fixed_nozzle_performance(
 
 def _variable_nozzle_performance(
     gas: Gas,
-    T_t: jnp.ndarray,
-    P_t: jnp.ndarray,
-    P0: jnp.ndarray,
-    mdot_in: jnp.ndarray,
-    n_v: jnp.ndarray | float,
+    T_t: jax.Array,
+    P_t: jax.Array,
+    P0: jax.Array,
+    mdot_in: jax.Array,
+    n_v: jax.Array | float,
 ):
 
     gamma = gas.compute_gamma(T_t)

@@ -20,6 +20,7 @@ import equinox as eqx
 
 # package imports
 import jax
+import jax
 import jax.numpy as jnp
 
 from flowtangent.core._processes import null_step
@@ -137,7 +138,7 @@ class InitializeSegment(Process):
     active_controls: tuple[str | Control, ...] = field(tuple)
     active_residuals: tuple[NamedResidual, ...] = field(tuple)
 
-    controls_initial_guess: tuple[jnp.ndarray | float, ...] = (0.0, 0.0)
+    controls_initial_guess: tuple[jax.Array | float, ...] = (0.0, 0.0)
 
     steps: tuple[ProcessStep, ...] = field(_initialization_steps)
 
@@ -455,7 +456,7 @@ class Segment(Process):
     # Pass-through configuration for InitializeSegment
     active_controls: tuple[str | Control, ...] = field(tuple)
     active_residuals: tuple[NamedResidual, ...] = field(tuple)
-    controls_initial_guess: tuple[jnp.ndarray | float, ...] = (0.0, 0.0)
+    controls_initial_guess: tuple[jax.Array | float, ...] = (0.0, 0.0)
 
     course_profile: pf.CourseProfile = field(pf.ConstantCourse)
     position_profile: pf.PositionProfile = field(pf.ConstantAltitude)

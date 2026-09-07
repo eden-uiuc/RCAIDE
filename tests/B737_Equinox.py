@@ -6,6 +6,7 @@ from __future__ import annotations
 import dataclasses as dc
 
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 
 # Flowtangent Imports

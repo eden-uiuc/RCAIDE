@@ -8,7 +8,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
-import jax.numpy as jnp
+import jax
 
 from flowtangent.library import Areas, Component, Dimensions, Fineness
 
@@ -42,7 +42,7 @@ class FuselageSegment(Component):
 
 
 class Fuselage(Component):
-    aerodynamic_center: jnp.ndarray = empty_array((0, 3))
+    aerodynamic_center: jax.Array = empty_array((0, 3))
 
     number_of_seats: int = field(1, static=True)
     seats_abreast: int = field(0, static=True)

@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import jax
 import jax.numpy as jnp
 
 from flowtangent.data import units
@@ -22,55 +23,55 @@ from ....components import Fuselage
 
 
 def func_fuselage(
-    fuselage_wetted_area: jnp.ndarray,
-    fuselage_width: jnp.ndarray,
-    fuselage_maximum_height: jnp.ndarray,
-    fuselage_total_length: jnp.ndarray,
-    fuselage_differential_pressure: jnp.ndarray,
-    vehicle_limit_load: jnp.ndarray,
-    vehicle_max_zero_fuel_mass: jnp.ndarray,
-    vehicle_main_wing_mass: jnp.ndarray,
-    vehicle_main_wing_root_chord: jnp.ndarray,
-    vehicle_propulsion_mass: jnp.ndarray,
+    fuselage_wetted_area: jax.Array,
+    fuselage_width: jax.Array,
+    fuselage_maximum_height: jax.Array,
+    fuselage_total_length: jax.Array,
+    fuselage_differential_pressure: jax.Array,
+    vehicle_limit_load: jax.Array,
+    vehicle_max_zero_fuel_mass: jax.Array,
+    vehicle_main_wing_mass: jax.Array,
+    vehicle_main_wing_root_chord: jax.Array,
+    vehicle_propulsion_mass: jax.Array,
 ):
     """
     Library version of fuselage.
 
     Parameters
     ----------
-    fuselage_wetted_area : jnp.ndarray
+    fuselage_wetted_area : jax.Array
         Fuselage wetted area in square meters
 
-    fuselage_width : jnp.ndarray
+    fuselage_width : jax.Array
         Fuselage width in meters
 
-    fuselage_maximum_height : jnp.ndarray
+    fuselage_maximum_height : jax.Array
         Fuselage maximum height in meters
 
-    fuselage_total_length : jnp.ndarray
+    fuselage_total_length : jax.Array
         Fuselage total length in meters
 
-    fuselage_differential_pressure : jnp.ndarray
+    fuselage_differential_pressure : jax.Array
         Fuselage differential pressure in Pascals
 
-    vehicle_limit_load : jnp.ndarray
+    vehicle_limit_load : jax.Array
         Zero fuel weight limit load factor
 
-    vehicle_max_zero_fuel_mass : jnp.ndarray
+    vehicle_max_zero_fuel_mass : jax.Array
         Maximum vehicle zero fuel mass in kilograms
 
-    vehicle_main_wing_mass : jnp.ndarray
+    vehicle_main_wing_mass : jax.Array
         Vehicle main wing mass in kilograms
 
-    vehicle_main_wing_root_chord : jnp.ndarray
+    vehicle_main_wing_root_chord : jax.Array
         Vehicle main wing root chord in meters
 
-    vehicle_propulsion_mass : jnp.ndarray
+    vehicle_propulsion_mass : jax.Array
         Vehicle propulsion system mass in kilograms
 
     Returns
     -------
-    fuselage_mass : jnp.ndarray
+    fuselage_mass : jax.Array
         Fuselage mass in kilograms
 
     See Also

@@ -117,14 +117,14 @@ class Wing(Component):
     thickness_to_chord: float = 0.0
     exposed_root_chord_offset: float = 0.0
 
-    single_side_aerodynamic_center: jnp.ndarray = empty_array((0, 3))
+    single_side_aerodynamic_center: jax.Array = empty_array((0, 3))
 
     transition_x_upper: float = 0.0
     transition_x_lower: float = 0.0
 
     dynamic_pressure_ratio: float = 0.0
 
-    aerodynamic_center: jnp.ndarray = empty_array((0, 3))
+    aerodynamic_center: jax.Array = empty_array((0, 3))
 
     spans: WingDimensions = field(lambda: WingDimensions(ordinal_direction=True))
     twists: WingDimensions = field(WingDimensions)
@@ -194,15 +194,15 @@ class Wing(Component):
 
     @staticmethod
     def _compute_segment_properties(
-        seg_span_fractions: jnp.ndarray,  # Shape: (N+1,)
-        seg_root_chord_fractions: jnp.ndarray,  # Shape: (N+1,)
+        seg_span_fractions: jax.Array,  # Shape: (N+1,)
+        seg_root_chord_fractions: jax.Array,  # Shape: (N+1,)
         wing_root_chord: float,
         wing_projected_span: float,
         is_symmetric: float,
         wing_exposed_root_offset: float,
         wing_t_c: float,
-        seg_t_c: jnp.ndarray,  # Shape: (N,)
-    ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        seg_t_c: jax.Array,  # Shape: (N,)
+    ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array]:
         """Computes basic geometries for each individual segment."""
         symm_mult = 1.0 if is_symmetric else 0.0
         wing_semispan = wing_projected_span / (1.0 + symm_mult)
@@ -244,17 +244,17 @@ class Wing(Component):
 
     @staticmethod
     def _compute_global_planform(
-        seg_dy: jnp.ndarray,  # Shape: (N,)
-        seg_c_root: jnp.ndarray,  # Shape: (N,)
-        seg_c_tip: jnp.ndarray,  # Shape: (N,)
-        seg_s_ref: jnp.ndarray,  # Shape: (N,)
-        seg_s_wet: jnp.ndarray,  # Shape: (N,)
-        seg_span_fractions: jnp.ndarray,  # Shape: (N+1,)
-        seg_quarter_chord_sweeps: jnp.ndarray,  # Shape: (N,)
-        seg_dihedrals: jnp.ndarray,  # Shape: (N+1,)
+        seg_dy: jax.Array,  # Shape: (N,)
+        seg_c_root: jax.Array,  # Shape: (N,)
+        seg_c_tip: jax.Array,  # Shape: (N,)
+        seg_s_ref: jax.Array,  # Shape: (N,)
+        seg_s_wet: jax.Array,  # Shape: (N,)
+        seg_span_fractions: jax.Array,  # Shape: (N+1,)
+        seg_quarter_chord_sweeps: jax.Array,  # Shape: (N,)
+        seg_dihedrals: jax.Array,  # Shape: (N+1,)
         wing_projected_span: float,
         is_symmetric: bool,
-    ) -> tuple[float, float, float, float, float, float, jnp.ndarray, float, float, jnp.ndarray, jnp.ndarray, float]:
+    ) -> tuple[float, float, float, float, float, float, jax.Array, float, float, jax.Array, jax.Array, float]:
         """Rolls up segment properties into global wing metrics."""
         symm_mult = 1.0 if is_symmetric else 0.0
         wing_semispan = wing_projected_span / (1.0 + symm_mult)

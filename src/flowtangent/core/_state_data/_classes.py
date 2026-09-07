@@ -62,7 +62,7 @@ class StateData(eqx.Module):
                 N = 1
 
         def _expand(leaf):
-            if isinstance(leaf, (jnp.ndarray)):
+            if isinstance(leaf, (jax.Array)):
                 # Zero-copy expansion for actual data
                 if leaf.ndim == 1:
                     # e.g., Shape (X,) -> Shape (n, X)
@@ -80,7 +80,7 @@ class StateData(eqx.Module):
         def _expand(leaf):
             if _is_static_node(leaf):
                 return leaf
-            if isinstance(leaf, jnp.ndarray):
+            if isinstance(leaf, jax.Array):
                 # # Intercept the empty placeholders
                 # if leaf.size==0:
                 #     trailing_dims = (1,) if leaf.ndim==1 else leaf.shape[1:]
@@ -97,7 +97,7 @@ class StateData(eqx.Module):
             first_leaf = leaves[0]
             if _is_static_node(first_leaf):
                 return first_leaf
-            if isinstance(first_leaf, jnp.ndarray):
+            if isinstance(first_leaf, jax.Array):
                 return jnp.concatenate(leaves, axis=0)
             return first_leaf
 
@@ -110,7 +110,7 @@ class StateData(eqx.Module):
                 return leaf
 
             # 2. Slice the batch dimension (axis 0) of the array
-            if isinstance(leaf, jnp.ndarray):
+            if isinstance(leaf, jax.Array):
                 return leaf[:size]
 
             return leaf
@@ -123,7 +123,7 @@ class StateData(eqx.Module):
                 # JAX allows prefix-trees for in_axes. Returning None for the whole
                 # object tells JAX to broadcast everything inside this class.
                 return None
-            if isinstance(leaf, jnp.ndarray):
+            if isinstance(leaf, jax.Array):
                 return 0
             return None
 

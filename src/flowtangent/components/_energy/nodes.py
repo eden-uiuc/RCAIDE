@@ -321,7 +321,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
             )
             object.__setattr__(self, "subcomponents", self.subcomponents + (mixer,))
 
-    def mix_inputs(self, state: State) -> tuple[Gas, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    def mix_inputs(self, state: State) -> tuple[Gas, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array]:
 
         M = self.get_primary_input_state(state, "flow", "mach_number")
 
@@ -404,13 +404,13 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
     @staticmethod
     def stagnation(
         gas: Gas,
-        T_t: jnp.ndarray | float,
-        P_t: jnp.ndarray | float,
-        PR: jnp.ndarray | float,
-        n_isn: jnp.ndarray | float,
+        T_t: jax.Array | float,
+        P_t: jax.Array | float,
+        PR: jax.Array | float,
+        n_isn: jax.Array | float,
         # Ignored for subsonic flows
-        M: jnp.ndarray | float = 0.0,
-        P_rec: jnp.ndarray | float = 1.0,
+        M: jax.Array | float = 0.0,
+        P_rec: jax.Array | float = 1.0,
     ):
         g_in = gas.compute_gamma(T_t)
         T_t_out_ideal = T_t * (PR ** ((g_in - 1.0) / g_in))
@@ -446,10 +446,10 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
     @staticmethod
     def statics(
         gas: Gas,
-        T_t: float | jnp.ndarray,
-        P_t: float | jnp.ndarray,
-        mdot: float | jnp.ndarray,
-        area: float | jnp.ndarray,
+        T_t: float | jax.Array,
+        P_t: float | jax.Array,
+        mdot: float | jax.Array,
+        area: float | jax.Array,
     ):
         # fmt: off
         gamma   = jnp.atleast_2d(gas.compute_gamma(T_t))

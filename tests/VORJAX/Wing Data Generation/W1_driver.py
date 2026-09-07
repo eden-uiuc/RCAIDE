@@ -6,6 +6,7 @@ import logging
 import numpy as np
 import pandas as pd
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 import plotly.graph_objects as go
 
