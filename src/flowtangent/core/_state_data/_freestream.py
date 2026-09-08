@@ -8,21 +8,20 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
-import jax.numpy as jnp
 
 from flowtangent.core._state_data import StateData
 from flowtangent.data.atmospheres import Atmosphere, USStandard1976
 from flowtangent.data.planets import Earth, Planet
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register
+from ...utils import field
+from ...utils.typing import TimeScalar, _
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Freestream
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class Freestream(StateData):
     """
     Represents the freestream conditions in a flight environment.
@@ -35,42 +34,42 @@ class Freestream(StateData):
     name : str, optional
         Name of the freestream condition. Default is 'Freestream'.
 
-    velocity : jnp.ndarray, optional
+    velocity : jax.Array, optional
         Velocity (speed) of the freestream. Default is empty(0).
-    u : jnp.ndarray, optional
+    u : jax.Array, optional
         X-component of velocity. Default is empty(0).
-    v : jnp.ndarray, optional
+    v : jax.Array, optional
         Y-component of velocity. Default is empty(0).
-    w : jnp.ndarray, optional
+    w : jax.Array, optional
         Z-component of velocity. Default is empty(0).
 
-    altitude : jnp.ndarray, optional
+    altitude : jax.Array, optional
         Altitude of the freestream condition. Default is empty(0).
 
-    gravity : jnp.ndarray, optional
+    gravity : jax.Array, optional
         Gravitational acceleration. Default is empty(0).
 
-    pressure : jnp.ndarray, optional
+    pressure : jax.Array, optional
         Atmospheric pressure. Default is empty(0).
-    temperature : jnp.ndarray, optional
+    temperature : jax.Array, optional
         Atmospheric temperature. Default is empty(0).
-    density : jnp.ndarray, optional
+    density : jax.Array, optional
         Air density. Default is empty(0).
 
-    speed_of_sound : jnp.ndarray, optional
+    speed_of_sound : jax.Array, optional
         Speed of sound in the atmosphere. Default is empty(0).
 
-    dynamic_viscosity : jnp.ndarray, optional
+    dynamic_viscosity : jax.Array, optional
         Dynamic viscosity of the air. Default is empty(0).
-    dynamic_pressure : jnp.ndarray, optional
+    dynamic_pressure : jax.Array, optional
         Dynamic pressure of the freestream. Default is empty(0).
 
-    mach_number : jnp.ndarray, optional
+    mach_number : jax.Array, optional
         Mach number of the freestream. Default is empty(0).
-    reynolds_number : jnp.ndarray, optional
+    reynolds_number : jax.Array, optional
         Reynolds number of the flow. Default is empty(0).
 
-    delta_ISA : jnp.ndarray, optional
+    delta_ISA : jax.Array, optional
         Deviation from International Standard Atmosphere. Default is empty(0).
 
     Notes
@@ -78,29 +77,28 @@ class Freestream(StateData):
     All attributes are initialized as zero arrays of shape (1, 1) by default.
     """
 
-    name: str = field("Freestream", static=True)
     atmosphere: Atmosphere = field(USStandard1976)
     planet: Planet = field(Earth)
 
-    speed: jnp.ndarray = empty_array()
-    altitude: jnp.ndarray = empty_array()
-    gravity: jnp.ndarray = empty_array()
+    speed: TimeScalar = _
+    altitude: TimeScalar = _
+    gravity: TimeScalar = _
 
-    speed_of_sound: jnp.ndarray = empty_array()
-    pressure: jnp.ndarray = empty_array()
-    temperature: jnp.ndarray = empty_array()
-    density: jnp.ndarray = empty_array()
+    speed_of_sound: TimeScalar = _
+    pressure: TimeScalar = _
+    temperature: TimeScalar = _
+    density: TimeScalar = _
 
-    dynamic_viscosity: jnp.ndarray = empty_array()
-    dynamic_pressure: jnp.ndarray = empty_array()
+    dynamic_viscosity: TimeScalar = _
+    dynamic_pressure: TimeScalar = _
 
-    stagnation_pressure: jnp.ndarray = empty_array()
-    stagnation_temperature: jnp.ndarray = empty_array()
+    stagnation_pressure: TimeScalar = _
+    stagnation_temperature: TimeScalar = _
 
-    mach_number: jnp.ndarray = empty_array()
-    reynolds_number: jnp.ndarray = empty_array()
+    mach_number: TimeScalar = _
+    reynolds_number: TimeScalar = _
 
-    delta_ISA: jnp.ndarray = empty_array()  # noqa: N815
-    gamma: jnp.ndarray = empty_array()
-    Cp: jnp.ndarray = empty_array()
-    R: jnp.ndarray = empty_array()
+    delta_ISA: TimeScalar = _  # noqa: N815
+    gamma: TimeScalar = _
+    Cp: TimeScalar = _
+    R: TimeScalar = _

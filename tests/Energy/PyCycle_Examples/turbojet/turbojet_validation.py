@@ -30,8 +30,11 @@ def numerical_environment():
 
 numerical_environment()
 
+import flowtangent as ft
+
 import json
 
+import jax
 import jax.numpy as jnp
 import equinox as eqx
 import numpy as np
@@ -40,18 +43,16 @@ import pandas as pd
 from pathlib import Path
 from dataclasses import replace
 
-from flowtangent.utils import save_data, load_data, format_array, configure_environment
+
+from flowtangent.utils import save_data, load_data, format_array, configure_environment, LoggingSettings
 
 from flowtangent.data import units
-from flowtangent.library.components.energy.networks import TurbojetNetwork, JetNetDesign
-from flowtangent.library.components.energy.jets.classes import TurbojetEngine, TurbojetOpPoint
-from flowtangent.library.components.energy.lines import TurbojetLine
+from flowtangent.components.energy.jets import TurbojetEngine, TurbojetOpPoint, TurbojetLine, TurbojetNetwork, JetNetParameters
 
-from flowtangent.framework import State, Aircraft, Settings
-from flowtangent.core._settings import LoggingSettings
-from flowtangent.framework.analyses.energy.jets import build_turbojet_design, build_turbojet_performance, JetSettings
-from flowtangent.framework.simulation.initialize import initialize_energy
-from flowtangent.framework.simulation.update import update_freestream
+from flowtangent import State, Aircraft, Settings
+from flowtangent.solve.energy.jets import build_turbojet_design, build_turbojet_performance, JetSettings
+from flowtangent.sim.initialize import initialize_energy
+from flowtangent.sim.update import update_freestream
 
 def system_setup():
 
@@ -136,7 +137,7 @@ def system_setup():
 
     line = TurbojetLine(name="Line", subcomponents=(des_engine,),)
     
-    net_design = JetNetDesign(
+    net_design = JetNetParameters(
         altitude=0.0,
         mach_number=1e-6,
         thrust=11_800 * units.lbf,
@@ -154,15 +155,15 @@ def off_design_point(
     thrust: float,
     system: Aircraft,
     settings: Settings,
-    initial_Rline: float | jnp.ndarray = 2.0,
-    initial_turb_PR: float | jnp.ndarray = 5.0,
-    initial_RPM: float | jnp.ndarray = 1000 * units.rpm,
-    initial_MFR: float | jnp.ndarray = 100 * units.kg / units.s,
-    initial_FAR: float | jnp.ndarray = 1e-4,
+    initial_Rline: float | jax.Array = 2.0,
+    initial_turb_PR: float | jax.Array = 5.0,
+    initial_RPM: float | jax.Array = 1000 * units.rpm,
+    initial_MFR: float | jax.Array = 100 * units.kg / units.s,
+    initial_FAR: float | jax.Array = 1e-4,
 ):
 
     network: TurbojetNetwork = system.energy
-    des: JetNetDesign = network.design_parameters
+    des: JetNetParameters = network.design_parameters
 
     atmo = des.atmosphere_model
     a0 = atmo.compute_speed_of_sound(alt)
@@ -173,7 +174,7 @@ def off_design_point(
             s.freestream.mach_number,
             s.frames.inertial.velocity_vector,
         ),
-        State().expand_time(1),
+        ft.State().expand_time(1),
         (
             jnp.array([[0., 0., -alt]]),
             jnp.atleast_2d(M0),
@@ -203,7 +204,7 @@ def off_design_point(
     )
 
     new_settings = JetSettings(design_mode=False, statics=od_settings.analysis.energy.statics)
-    od_settings = eqx.tree_at(lambda s: s.analysis.energy, od_settings, new_settings)
+    od_settings = update(od_settings, "analysis.energy", new_settings)
     od_state, od_system, od_settings = od_analysis.run(od_state, od_system, od_settings, initialize=True)
 
     return od_state, od_system, od_settings
@@ -378,12 +379,13 @@ if __name__ == "__main__":
         print(" Design Point Analysis")
         print("-"*80)
 
-        des_st, des_sys, des_set = build_turbojet_design(
-            state=State(),
+        des_st, des_sys, des_set, des_analysis = build_turbojet_design(
+            state=ft.State(),
             system=system,  # type: ignore
             settings=settings,
-            initialize=True
         )
+
+        des_st, des_sys, des_set = des_analysis.run(des_st, des_sys, des_set, initialize=True)
 
         des_sys = des_sys.replace_subcomponent(des_sys.energy.sync_and_clear_nodes())
 

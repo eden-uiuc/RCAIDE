@@ -3,9 +3,11 @@ import json
 from pathlib import Path
 
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 
-from flowtangent.utils import empty_array, field, register
+from ....utils import empty_array, field
+from ....utils.typing import ScalarFloat
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Helper Functions
@@ -67,35 +69,34 @@ def interp_2d_extrapolate(x, y, x_grid, y_grid, z_table):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class CompressorMap(eqx.Module):
     name: str = field("Compressor Map", static=True)
 
     # 1D Grid Axes
-    alpha_grid: jnp.ndarray = empty_array()  # FADEC Inlet Guide Vane Angle
-    Nc_grid: jnp.ndarray = empty_array()  # Corrected Speed
-    Rline_grid: jnp.ndarray = empty_array()  # Orthogonal Coordinate
+    alpha_grid: jax.Array = empty_array()  # FADEC Inlet Guide Vane Angle
+    Nc_grid: jax.Array = empty_array()  # Corrected Speed
+    Rline_grid: jax.Array = empty_array()  # Orthogonal Coordinate
 
     # 3D Data Tables (Shape: [len(alpha_grid), len(Nc_grid), len(PR_grid)])
-    Wc_table: jnp.ndarray = empty_array()  # Mass flow rate
-    PR_table: jnp.ndarray = empty_array()  # Pressure Ratio
-    eff_table: jnp.ndarray = empty_array()  # Isentropic Efficiency
+    Wc_table: jax.Array = empty_array()  # Mass flow rate
+    PR_table: jax.Array = empty_array()  # Pressure Ratio
+    eff_table: jax.Array = empty_array()  # Isentropic Efficiency
 
     # Map scaling values
-    Rline_stall: float = 1.0
+    Rline_stall: ScalarFloat = 1.0
 
-    s_Wc: float = 1.0
-    s_PR: float = 1.0
-    s_eff: float = 1.0
-    s_Nc: float = 1.0
+    s_Wc: ScalarFloat = 1.0
+    s_PR: ScalarFloat = 1.0
+    s_eff: ScalarFloat = 1.0
+    s_Nc: ScalarFloat = 1.0
 
-    Nc_des: float = 1.0
-    alpha_des: float = 0.0
-    PR_des: float = 5.0
-    Wc_des: float = 25.0
-    eff_des: float = 0.85
-    Rline_des: float = 2.0
-    Rline_stall: float = 1.0
+    Nc_des: ScalarFloat = 1.0
+    alpha_des: ScalarFloat = 0.0
+    PR_des: ScalarFloat = 5.0
+    Wc_des: ScalarFloat = 25.0
+    eff_des: ScalarFloat = 0.85
+    Rline_des: ScalarFloat = 2.0
+    Rline_stall: ScalarFloat = 1.0
 
     def evaluate(self, alpha, Nc, Rline):
         # Speed scaling
@@ -170,30 +171,29 @@ class CompressorMap(eqx.Module):
         )
 
 
-@register
 class TurbineMap(eqx.Module):
     name: str = field("Turbine Map", static=True)
 
     # 1D Grid Axes
-    alpha_grid: jnp.ndarray = empty_array()  # Turbine Nozzle Ratio
-    Np_grid: jnp.ndarray = empty_array()
-    PR_grid: jnp.ndarray = empty_array()
+    alpha_grid: jax.Array = empty_array()  # Turbine Nozzle Ratio
+    Np_grid: jax.Array = empty_array()
+    PR_grid: jax.Array = empty_array()
 
     # 2D Data Tables (Shape: [len(Nc_grid), len(PR_grid)])
-    Wp_table: jnp.ndarray = empty_array()
-    eff_table: jnp.ndarray = empty_array()
+    Wp_table: jax.Array = empty_array()
+    eff_table: jax.Array = empty_array()
 
     # Map scaling Values
-    s_Wp: float = 1.0
-    s_PR: float = 1.0
-    s_eff: float = 1.0
-    s_Np: float = 1.0
+    s_Wp: ScalarFloat = 1.0
+    s_PR: ScalarFloat = 1.0
+    s_eff: ScalarFloat = 1.0
+    s_Np: ScalarFloat = 1.0
 
-    alpha_des: float = 0.0
-    Np_des: float = 100.0
-    PR_des: float = 5.0
-    Wp_des: float = 5.0
-    eff_des: float = 0.85
+    alpha_des: ScalarFloat = 0.0
+    Np_des: ScalarFloat = 100.0
+    PR_des: ScalarFloat = 5.0
+    Wp_des: ScalarFloat = 5.0
+    eff_des: ScalarFloat = 0.85
 
     def evaluate(self, alpha, Np, PR):
         # Un-scale the inputs to read the base map

@@ -46,6 +46,6 @@ def compute_something_stateful(state: "State", system: "System", settings: "Sett
     # result = func_compute_something(val)
 
     # 3. Pack and return
-    # current_state = eqx.tree_at(lambda s: s.aerodynamics.result, state, result)
+    # current_state = update(state, "aerodynamics.result", result)
 
     return state, system, settings

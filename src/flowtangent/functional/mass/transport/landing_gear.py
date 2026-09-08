@@ -9,10 +9,11 @@
 from typing import TYPE_CHECKING
 
 # package imports
-import equinox as eqx
 
 if TYPE_CHECKING:
     from flowtangent.framework import Aircraft, Settings, State
+
+from ....utils import update
 
 # -------------------------------------------------------------------------------
 #  Functional/Library Version
@@ -41,6 +42,6 @@ def landing_gear(state: "State", system: "Aircraft", settings: "Settings"):
 
     lg_mass = func_landing_gear(system.mass_properties.max_takeoff)
 
-    updated_system = eqx.tree_at(lambda s: s.landing_gear.mass_properties.total, system, lg_mass)
+    updated_system = update(system, "landing_gear.mass_properties.total", lg_mass)
 
     return state, updated_system, settings

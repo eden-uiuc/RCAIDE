@@ -10,13 +10,12 @@
 from dataclasses import fields
 from typing import Optional, Self, Sequence
 
-import equinox as eqx
-
 # package imports
 import jax
 import jax.numpy as jnp
 
-from flowtangent.utils import field
+from ...utils import Module, field, update
+from ...utils.base import StateDataMeta
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Conditions
@@ -29,8 +28,7 @@ def _is_static_node(node):
     return hasattr(node, "__class__") and node.__class__.__name__ in STATIC_DATA
 
 
-class StateData(eqx.Module):
-    name: str = field("Conditions", static=True)
+class StateData(Module, metaclass=StateDataMeta):
 
     @property
     def subconditions(self) -> tuple:
@@ -62,7 +60,10 @@ class StateData(eqx.Module):
                 N = 1
 
         def _expand(leaf):
-            if isinstance(leaf, (jnp.ndarray)):
+            if isinstance(leaf, (jax.Array)):
+                if leaf.size == 0:
+                    trailing_dims = leaf.shape[1:] if leaf.ndim > 0 else ()
+                    return jnp.zeros((N,) + trailing_dims, dtype=leaf.dtype)
                 # Zero-copy expansion for actual data
                 if leaf.ndim == 1:
                     # e.g., Shape (X,) -> Shape (n, X)
@@ -80,11 +81,11 @@ class StateData(eqx.Module):
         def _expand(leaf):
             if _is_static_node(leaf):
                 return leaf
-            if isinstance(leaf, jnp.ndarray):
+            if isinstance(leaf, jax.Array):
                 # # Intercept the empty placeholders
-                # if leaf.size==0:
-                #     trailing_dims = (1,) if leaf.ndim==1 else leaf.shape[1:]
-                #     return jnp.zeros((batch_size,) + trailing_dims, dtype=leaf.dtype)
+                if leaf.size == 0:
+                    trailing_dims = (1,) if leaf.ndim == 1 else leaf.shape[1:]
+                    return jnp.zeros((batch_size,) + trailing_dims, dtype=leaf.dtype)
                 # # Zero-copy expansion prepending batch dim
                 return jnp.broadcast_to(leaf, (batch_size,) + leaf.shape)
             return leaf
@@ -97,7 +98,7 @@ class StateData(eqx.Module):
             first_leaf = leaves[0]
             if _is_static_node(first_leaf):
                 return first_leaf
-            if isinstance(first_leaf, jnp.ndarray):
+            if isinstance(first_leaf, jax.Array):
                 return jnp.concatenate(leaves, axis=0)
             return first_leaf
 
@@ -110,7 +111,7 @@ class StateData(eqx.Module):
                 return leaf
 
             # 2. Slice the batch dimension (axis 0) of the array
-            if isinstance(leaf, jnp.ndarray):
+            if isinstance(leaf, jax.Array):
                 return leaf[:size]
 
             return leaf
@@ -123,7 +124,7 @@ class StateData(eqx.Module):
                 # JAX allows prefix-trees for in_axes. Returning None for the whole
                 # object tells JAX to broadcast everything inside this class.
                 return None
-            if isinstance(leaf, jnp.ndarray):
+            if isinstance(leaf, jax.Array):
                 return 0
             return None
 
@@ -132,19 +133,19 @@ class StateData(eqx.Module):
     def add_subcondition(self, subcondition: "StateData"):
 
         new_subconditions = self.subconditions + (subcondition,)
-        new_self = eqx.tree_at(lambda c: c.subconditions, self, new_subconditions)
+        new_self = update(self, "subconditions", new_subconditions)
 
         return new_self
 
     def insert_subcondition(self, subcondition: "StateData", index: int):
         new_subconditions = self.subconditions[:index] + (subcondition,) + self.subconditions[index:]
 
-        return eqx.tree_at(lambda c: c.subconditions, self, new_subconditions)
+        return update(self, "subconditions", new_subconditions)
 
     def replace_subcondition(self, subcondition: "StateData", index: int):
         new_subconditions = self.subconditions[:index] + (subcondition,) + self.subconditions[index + 1 :]
 
-        return eqx.tree_at(lambda c: c.subconditions, self, new_subconditions)
+        return update(self, "subconditions", new_subconditions)
 
     def __repr__(self):
         repr_str = self.name + " - Subconditions: [" + ", ".join([sc.name for sc in self.subconditions]) + "]"

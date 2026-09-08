@@ -9,6 +9,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -24,7 +29,9 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from ._settings import JacobianMap
+    from .. import Settings, State, System
+    from ..solve import JacobianMap
+    FlowtangentFunction: TypeAlias = Callable[[State, System, Settings], Tuple[State, System, Settings]]
 
 import inspect
 import os
@@ -43,18 +50,13 @@ import jax.numpy as jnp
 import networkx as nx
 import numpy as np  # Used only for OptimizerInterface class w/ legacy optimizers
 
-from ..utils import MERMAID_STYLES, TreePath, compute_tree_delta, field, get_target, null_step
-from ._settings import Settings
-
-# Flowtangent imports
-from ._state import State
-from ._systems import System
+from ..utils import MERMAID_STYLES, TreePath, compute_tree_delta, field, get_target, null_step, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  ProcessStep
 # ----------------------------------------------------------------------------------------------------------------------
 
-FlowtangentFunction: TypeAlias = Callable[[State, System, Settings], Tuple[State, System, Settings]]
+
 
 
 class ProcessStep(eqx.Module):
@@ -320,7 +322,7 @@ class Process(ProcessStep):
                     flat_st, flat_sys, state, system, settings
                 )
 
-                final_st = eqx.tree_at(lambda s: s.process_jacobian, final_st, jacobian_matrix)
+                final_st = update(final_st, "process_jacobian", jacobian_matrix)
                 return final_st, final_sys, final_setts
             else:
                 warnings.warn(
@@ -483,36 +485,26 @@ class Process(ProcessStep):
         logged_steps = []
 
         for i, step in enumerate(self.steps[self.initial_step :]):
-            logged_step = eqx.tree_at(
-                lambda s: (s.state_delta, s.system_delta, s.settings_delta),
+            logged_step = update(
                 step,
                 (
-                    compute_tree_delta(raw_hist[i + 1][0], raw_hist[i][0]),
-                    compute_tree_delta(raw_hist[i + 1][1], raw_hist[i][1]),
-                    compute_tree_delta(raw_hist[i + 1][2], raw_hist[i][2]),
+                    ("state_delta", compute_tree_delta(raw_hist[i + 1][0], raw_hist[i][0])),
+                    ("system_delta", compute_tree_delta(raw_hist[i + 1][1], raw_hist[i][1])),
+                    ("settings_delta", compute_tree_delta(raw_hist[i + 1][2], raw_hist[i][2])),
                 ),
             )
             logged_steps.append(logged_step)
 
-        logged_process = eqx.tree_at(
-            lambda p: (
-                p.steps,
-                p.initial_state,
-                p.initial_system,
-                p.initial_settings,
-                p.state_delta,
-                p.system_delta,
-                p.settings_delta,
-            ),
+        logged_process = update(
             self,
             (
-                tuple(logged_steps),
-                state,
-                system,
-                settings,
-                compute_tree_delta(f_st, state),
-                compute_tree_delta(f_sys, system),
-                compute_tree_delta(f_setts, settings),
+                ("steps", tuple(logged_steps)),
+                ("initial_state", state),
+                ("initial_system", system),
+                ("initial_settings", settings),
+                ("state_delta", compute_tree_delta(f_st, state)),
+                ("system_delta", compute_tree_delta(f_sys, system)),
+                ("settings_delta", compute_tree_delta(f_setts, settings)),
             ),
             is_leaf=lambda x: x is None,
         )
@@ -521,7 +513,7 @@ class Process(ProcessStep):
 
     def append(self, step: ProcessStep | Self):
         new_steps = self.steps + (step,)
-        return eqx.tree_at(lambda p: p.steps, self, new_steps)
+        return update(self, "steps", new_steps)
 
     def count(self, step: ProcessStep):
         return self.steps.count(step)
@@ -555,11 +547,11 @@ class Process(ProcessStep):
 
     def insert(self, step: ProcessStep, index: int):
         new_steps = self.steps[:index] + (step,) + self.steps[index:]
-        return eqx.tree_at(lambda c: c.steps, self, new_steps)
+        return update(self, "steps", new_steps)
 
     def pop(self, index: int):
         new_steps = self.steps[:index] + self.steps[index + 1 :]
-        return eqx.tree_at(lambda p: p.steps, self, new_steps)
+        return update(self, "steps", new_steps)
 
     def _remove_tag(self, name: str):
         return self.pop(self._index_tag(name))

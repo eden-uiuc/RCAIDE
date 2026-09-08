@@ -45,6 +45,7 @@ import pycycle.api as pyc
 import scipy.sparse
 
 import jax
+import jax
 import jax.numpy as jnp
 import equinox as eqx
 

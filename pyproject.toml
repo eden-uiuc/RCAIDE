@@ -9,8 +9,10 @@ description = "A differentiable, GPU-accelerated aerospace systems design enviro
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "beartype",
     "equinox",
     "jax",
+    "jaxtyping",
     "matplotlib",
     "networkx",
     "numcodecs",
@@ -26,6 +28,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "chex",
     "openmdao",
     "pycycle",
     "pytest",
@@ -35,14 +38,12 @@ dev = [
 ]
 
 [tool.ruff]
-# Scientific codebases often need longer lines for complex equations
 line-length = 120 
 
 # Python 3.12 as the minimum
 target-version = "py312"
 
 [tool.ruff.lint]
-# Which rule sets to enable
 select = [
     "E",   # pycodestyle errors (spacing, indentation)
     "W",   # pycodestyle warnings
@@ -53,12 +54,8 @@ select = [
     "PD",  # Pandas checks
 ]
 
-# Which specific rules to turn off
 ignore = [
-    # Scientific code often uses single letters like 'I', 'O', or 'l'
     "E741", 
-    # Math heavily relies on capital letters for matrices and thermodynamic states (PR, Wc, T_t).
-    # These rules force all variables and functions to be lowercase, which ruins math readability.
     "N802",
     "N803", 
     "N806",
@@ -85,11 +82,14 @@ section-order = [
     "local-folder"        # Relative imports (e.g., from . import utils)
 ]
 
-# Catch numpy tracer errors (Brilliant addition, by the way)
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "numpy".msg = "Use jax.numpy as jnp in all computational modules to prevent XLA tracer crashes"
 
 [tool.ruff.lint.per-file-ignores]
-# __init__.py files are designed to re-export modules. 
-# Ignore unused imports (F401) and import sorting (I) globally.
+# Ignore unused imports (F401) and import sorting (I) globally for init files
 "__init__.py" = ["F401", "I","E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]       # Only look for tests in the tests/ directory
+python_files = "test_*.py"  # Only run files that start with test_
+addopts = "-p no:doctest"   # Explicitly disable doctest auto-discovery

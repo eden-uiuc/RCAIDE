@@ -3,24 +3,26 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    pass
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
     from flowtangent.framework import Settings, State, System
 
-import equinox as eqx
 import jax.numpy as jnp
 
-from flowtangent.utils import field, outputs, register
-from flowtangent.utils import inputs as func_inputs
+from flowtangent.utils import field, io, update
 
-from .jets.classes import TurbofanEngine, TurbojetEngine
-from .nodes import EnergyStore, FuelTank, GraphInput, GraphNode, Splitter
+from .jets._classes import TurbofanEngine, TurbojetEngine
+from .nodes import EnergyStore, FuelTank, GraphInput, PACTNode, Splitter
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Energy Line
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
-class EnergyLine(GraphNode):
+class PACTLine(PACTNode):
     name: str = field("Line", static=True)
     _bookkeeping: dict = field(
         lambda: {
@@ -42,8 +44,7 @@ def _TurbojetLineSetup():
     return TurbojetEngine(), FuelTank()
 
 
-@register
-class TurbojetLine(EnergyLine):
+class TurbojetLine(PACTLine):
     subcomponents: tuple = field(_TurbojetLineSetup)
 
     inputs: tuple | GraphInput = field(
@@ -66,14 +67,14 @@ class TurbojetLine(EnergyLine):
         static=True,
     )
 
-    @func_inputs(
+    @io.inputs(
         # "state.energy.nodes['{fuel_tanks.network_id}'].mass",
         "state.energy.nodes['{fuel_inputs.network_id}'].fuel.flow_rate",
         # "system.energy.nodes['{fuel_tanks.network_id}'].selector_ratio",
         # "system.energy.nodes['{fuel_tanks.network_id}'].mass_properties.total",
         "system.energy.nodes['{network_id}'].tank_draw_ratios",
     )
-    @outputs(
+    @io.outputs(
         # "state.energy.nodes['{fuel_tanks}'].fuel.flow_rate",
         "state.mass.rate_of_change",
         "state.energy.nodes['{network_id}'].force.thrust",
@@ -109,35 +110,38 @@ class TurbojetLine(EnergyLine):
         tank_burns = tuple(-balanced_draws[i] * total_fuel_burn for i in range(len(self.fuel_tanks)))
 
         # Apply updates sequentially
-        updated_state = eqx.tree_at(
+        updated_state = update(
             lambda s: tuple(s.energy.nodes[t.network_id].fuel.flow_rate for t in self.fuel_tanks),
             state,
             tank_burns,
         )
 
-        updated_state = eqx.tree_at(
-            lambda s: s.mass.rate_of_change, updated_state, updated_state.mass.rate_of_change - total_fuel_burn
+        updated_state = update(
+            updated_state,
+            ("mass.rate_of_change", updated_state.mass.rate_of_change - total_fuel_burn),
         )
 
         # Total Thrust ---------------------------------------------------------
 
-        updated_state = eqx.tree_at(
-            lambda s: (
-                s.energy.nodes[self.network_id].force.thrust,
-                s.energy.nodes[self.network_id].residual.thrust,
-            ),
+        updated_state = update(
             updated_state,
             (
-                self.apply_domain_op(jnp.sum, updated_state, "force", "thrust"),
-                self.apply_domain_op(jnp.sum, updated_state, "residual", "thrust"),
+                (
+                    "energy.nodes[self.network_id].force.thrust",
+                    self.apply_domain_op(jnp.sum, updated_state, "force", "thrust"),
+                ),
+                (
+                    "energy.nodes[self.network_id].residual.thrust",
+                    self.apply_domain_op(jnp.sum, updated_state, "residual", "thrust"),
+                ),
             ),
         )
 
         # Power Imbalance ------------------------------------------------------
 
-        updated_state = eqx.tree_at(
-            lambda s: s.energy.nodes[self.network_id].residual.power,
+        updated_state = update(
             updated_state,
+            lambda s: s.energy.nodes[self.network_id].residual.power,
             self.apply_domain_op(jnp.sum, updated_state, "residual", "power"),
         )
 

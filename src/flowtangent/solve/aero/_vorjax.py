@@ -13,6 +13,11 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ... import Aircraft, Settings, State
+
 import dataclasses
 import warnings
 from pathlib import Path
@@ -26,17 +31,27 @@ import jax.numpy as jnp
 # package imports
 import sklearn
 
-from ... import Aircraft, Settings, State, TreePath, field, method_field
-from ...components._wings import Sweeps, Wing, WingSegment
+from ... import TreePath, field, method_field
+from ...components._wings import Wing, WingSegment, WingSweeps
 from ...core._processes import Process, ProcessStep
 from ...data import units as U  # noqa: N812
 from ...functional.aero.shocks import oblique_shock, theta_beta_mach
 from ...functional.aero.transonic import ensemble_CL_spline, peaked_CL_spline
 from ...sim.initialize import aero as initialize_aero
-from ...utils import io
+from ...utils import io, update
 
 # FT imports
-from ..batched import BatchedAnalysis
+from .._batched import BatchedAnalysis
+
+# ----------------------------------------------------------------------------------------------------------------------
+#  API Setup
+# ----------------------------------------------------------------------------------------------------------------------
+
+__all__ =[
+    "VORJAX",
+    "BatchedVORJAX",
+    "VORJAXSettings",
+]
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  VLM Initialization
@@ -121,8 +136,12 @@ def initialize_VORJAX_data(state: State, system: Aircraft, settings: Settings):
         "dCp": None,
     }
 
-    updated_system = eqx.tree_at(
-        lambda s: (s.reference_geometry, s.analysis_data), system, (new_ref_geom, initial_analysis_data)
+    updated_system = update(
+        system,
+        (
+            ("reference_geometry", new_ref_geom),
+            ("analysis_data", initial_analysis_data),
+        ),
     )
 
     return state, updated_system, settings
@@ -140,15 +159,15 @@ class VortexDistribution(eqx.Module):
     """
 
     # --- Base Geometric State ---
-    panel_vertices: jnp.ndarray  # (N, 4, 3), CCW from Front-Left
-    camber_slopes: jnp.ndarray  # (N,) Camber slope at each panel
-    wedge_angles: jnp.ndarray  # (N_s,) Leading edge wedge angle for supersonic correction
+    panel_vertices: jax.Array  # (N, 4, 3), CCW from Front-Left
+    camber_slopes: jax.Array  # (N,) Camber slope at each panel
+    wedge_angles: jax.Array  # (N_s,) Leading edge wedge angle for supersonic correction
 
     # --- Identity & Topology (Calculated before flattening!) ---
-    surface_id: jnp.ndarray  # (N,) ID of the originating wing/fuselage
-    control_surface_id: jnp.ndarray  # (N,) ID of the control surface (-1 for solid wing)
-    is_leading_edge: jnp.ndarray  # (N,) Boolean mask
-    is_trailing_edge: jnp.ndarray  # (N,) Boolean mask
+    surface_id: jax.Array  # (N,) ID of the originating wing/fuselage
+    control_surface_id: jax.Array  # (N,) ID of the control surface (-1 for solid wing)
+    is_leading_edge: jax.Array  # (N,) Boolean mask
+    is_trailing_edge: jax.Array  # (N,) Boolean mask
 
     # --- Static Structural Integers (NOT traced by JAX) ---
     total_panels: int = eqx.field(static=True)
@@ -359,7 +378,7 @@ def merge_vortex_distributions(vd_list: list[VortexDistribution]) -> VortexDistr
             # Explicitly sum the structural integers across all meshes
             merged_kwargs[key] = sum(getattr(vd, key) for vd in vd_list)
 
-        elif isinstance(first_val, jnp.ndarray):
+        elif isinstance(first_val, jax.Array):
             # One-shot concatenation for all geometry, flags, and surface IDs
             arrays_to_concat = [getattr(vd, key) for vd in vd_list]
             merged_kwargs[key] = jnp.concatenate(arrays_to_concat, axis=0)
@@ -384,7 +403,7 @@ def convert_to_segmented_wing(wing):
         return wing.segments
 
     # 1. Build Root Segment
-    root_sweeps = Sweeps(quarter_chord=wing.sweeps.quarter_chord, leading_edge=wing.sweeps.leading_edge)
+    root_sweeps = WingSweeps(quarter_chord=wing.sweeps.quarter_chord, leading_edge=wing.sweeps.leading_edge)
 
     root_segment = WingSegment(
         name="root_segment",
@@ -396,10 +415,10 @@ def convert_to_segmented_wing(wing):
         thickness_to_chord=wing.thickness_to_chord,
     )
     if hasattr(wing, "airfoil") and wing.airfoil is not None:
-        root_segment = eqx.tree_at(lambda s: s.airfoil, root_segment, wing.airfoil)
+        root_segment = update(root_segment, "airfoil", wing.airfoil)
 
     # 2. Build Tip Segment
-    tip_sweeps = Sweeps(
+    tip_sweeps = WingSweeps(
         quarter_chord=0.0,
         leading_edge=1e-8,
     )
@@ -415,7 +434,7 @@ def convert_to_segmented_wing(wing):
     )
 
     if hasattr(wing, "airfoil") and wing.airfoil is not None:
-        tip_segment = eqx.tree_at(lambda s: s.airfoil, tip_segment, wing.airfoil)
+        tip_segment = update(tip_segment, "airfoil", wing.airfoil)
 
     return (root_segment, tip_segment)
 
@@ -444,7 +463,7 @@ def validate_airfoil_resolutions(wing):
         return 2  # Number of airfoil coordinates, 2 if no airfoil for flat line
 
 
-def find_intervals(wing: Wing) -> tuple[jnp.ndarray, jnp.ndarray]:
+def find_intervals(wing: Wing) -> tuple[jax.Array, jax.Array]:
     """
     Finds every unique spanwise slicing plane (from segments and control surfaces)
     and builds non-overlapping spanwise intervals.
@@ -506,17 +525,17 @@ def find_intervals(wing: Wing) -> tuple[jnp.ndarray, jnp.ndarray]:
     return jnp.stack([eta_starts, eta_ends, le_cuts, te_cuts, le_id, te_id], axis=1), strip_segment_idx
 
 
-def generate_spanwise_coordinates(intervals_data: jnp.ndarray, n_sw: int, cosine_spacing: bool = False) -> jnp.ndarray:
+def generate_spanwise_coordinates(intervals_data: jax.Array, n_sw: int, cosine_spacing: bool = False) -> jax.Array:
     """
     Generates piecewise spanwise coordinates (eta) guaranteeing breaks at the interval boundaries.
 
     Args:
-        intervals_data: jnp.ndarray of shape (N_intervals, 4) -> [eta_start, eta_end, le_cut, te_cut]
+        intervals_data: jax.Array of shape (N_intervals, 4) -> [eta_start, eta_end, le_cut, te_cut]
         n_sw: int, total number of spanwise panels requested.
         cosine_spacing: bool, whether to cluster panels at interval boundaries.
 
     Returns:
-        eta_vertices: jnp.ndarray of shape (n_sw + 1,)
+        eta_vertices: jax.Array of shape (n_sw + 1,)
     """
     n_intervals = intervals_data.shape[0]
 
@@ -571,9 +590,7 @@ def generate_spanwise_coordinates(intervals_data: jnp.ndarray, n_sw: int, cosine
     return eta_vertices, interval_mapping
 
 
-def generate_chordwise_coordinates(
-    le_cut: float, te_cut: float, n_cw: int, cosine_spacing: bool = False
-) -> jnp.ndarray:
+def generate_chordwise_coordinates(le_cut: float, te_cut: float, n_cw: int, cosine_spacing: bool = False) -> jax.Array:
     """
     Generates piecewise chordwise coordinates (0.0 to 1.0) for a single strip.
     """
@@ -616,7 +633,7 @@ def generate_chordwise_coordinates(
     return x_c_vertices
 
 
-def calculate_macro_properties(wing, eta_vertices: jnp.ndarray, semispan: float) -> tuple:
+def calculate_macro_properties(wing, eta_vertices: jax.Array, semispan: float) -> tuple:
     """
     Vectorized lofting of the structural wing, directly evaluated at the computational grid.
     """
@@ -746,7 +763,7 @@ def discretize_surfaces(state: State, system: "Aircraft", settings: Settings):
         if len(wing.segments) == 0:
             # convert to preferred format for the panelization loop
             new_segments = convert_to_segmented_wing(wing)
-            wing = eqx.tree_at(lambda w: w.segments, wing, new_segments)
+            wing = update(wing, "segments", new_segments)
         else:
             # TODO: Add support for All_Moving_Surface class
             for segment in wing.segments:
@@ -871,9 +888,9 @@ def discretize_surfaces(state: State, system: "Aircraft", settings: Settings):
 
     updated_analysis_data = system.analysis_data | {"vortex_distribution": full_VD}
 
-    updated_system = eqx.tree_at(lambda s: s.analysis_data, updated_system, updated_analysis_data)
+    updated_system = update(updated_system, "analysis_data", updated_analysis_data)
 
-    updated_settings = eqx.tree_at(lambda s: s.analysis.aerodynamics, settings, vlm_settings)
+    updated_settings = update(settings, "analysis.aerodynamics", vlm_settings)
 
     return state, updated_system, updated_settings
 
@@ -898,8 +915,12 @@ def check_freestream(state: State, system: Aircraft, settings: Settings):
     safe_velocity = jnp.where(velocity == 0.0, 1e-6, velocity)
     safe_speed = jnp.linalg.norm(safe_velocity, axis=-1, keepdims=True)
 
-    current_state = eqx.tree_at(
-        lambda s: (s.frames.inertial.velocity_vector, s.freestream.speed), state, (safe_velocity, safe_speed)
+    current_state = update(
+        state,
+        (
+            ("frames.inertial.velocity_vector", safe_velocity),
+            ("freestream.speed", safe_speed),
+        ),
     )
 
     return current_state, system, settings
@@ -980,7 +1001,7 @@ def compute_boundary_conditions(state: State, system: Aircraft, settings: Settin
         "relative_velocity": v_total,
     }
 
-    updated_system = eqx.tree_at(lambda s: s.analysis_data, system, updated_analysis_data)
+    updated_system = update(system, "analysis_data", updated_analysis_data)
 
     return state, updated_system, settings
 
@@ -1389,7 +1410,7 @@ def compute_induced_velocity(state: State, system: Aircraft, settings: Settings)
         "singularities": singularity_flag,
     }
 
-    updated_system = eqx.tree_at(lambda s: s.analysis_data, system, updated_analysis_data)
+    updated_system = update(system, "analysis_data", updated_analysis_data)
 
     return state, updated_system, settings
 
@@ -1411,7 +1432,7 @@ def compute_induced_velocity(state: State, system: Aircraft, settings: Settings)
 def compute_vortex_strength(state: State, system: Aircraft, settings: Settings):
     """Solves the linear system A * GAMMA = RHS for the vortex strengths."""
 
-    analysis: dict[str, jnp.ndarray] = system.analysis_data
+    analysis: dict[str, jax.Array] = system.analysis_data
     VD = analysis["vortex_distribution"]
 
     # Extract the arrays we built in previous steps
@@ -1444,7 +1465,7 @@ def compute_vortex_strength(state: State, system: Aircraft, settings: Settings):
     # Pack the results
     updated_analysis_data = analysis | {"vortex_strengths": GAMMA}
 
-    updated_system = eqx.tree_at(lambda s: s.analysis_data, system, updated_analysis_data)
+    updated_system = update(system, "analysis_data", updated_analysis_data)
 
     return state, updated_system, settings
 
@@ -1481,7 +1502,7 @@ def apply_aerodynamic_forces(state: State, system: Aircraft, settings: Settings)
     wind_forces = wind_forces.at[:, 2].set(F_Z.flatten())
     wind_forces = wind_forces.at[:, 0].set(F_X.flatten())
 
-    state = eqx.tree_at(lambda s: s.frames.wind.total_force_vector, state, wind_forces)
+    state = update(state, "frames.wind.total_force_vector", wind_forces)
 
     return state, system, settings
 
@@ -1584,7 +1605,7 @@ def compute_panel_pressures(state: State, system: Aircraft, settings: Settings):
 
     updated_analysis_data = analysis | {"dCp": dCp}
 
-    updated_system = eqx.tree_at(lambda s: s.analysis_data, system, updated_analysis_data)
+    updated_system = update(system, "analysis_data", updated_analysis_data)
 
     return state, updated_system, settings
 
@@ -1923,24 +1944,24 @@ def compute_coefficients(state: State, system: Aircraft, settings: Settings):
     # Update the Vehicle/Segment State with the aerodynamic coefficients
     C = state.aerodynamics.coefficients
 
-    C = eqx.tree_at(lambda C: C.lift.total, C, CL[:, None])
-    C = eqx.tree_at(lambda C: C.drag.total, C, CDi[:, None])
-    C = eqx.tree_at(lambda C: C.drag.induced.total, C, CDi[:, None])
-    C = eqx.tree_at(lambda C: C.drag.induced.inviscid.total, C, CDi[:, None])
-    C = eqx.tree_at(lambda C: C.drag.induced.near_field, C, CDi_near[:, None])
-    C = eqx.tree_at(lambda C: C.drag.induced.far_field, C, CDi_far[:, None])
+    C = update(C, "lift.total", CL[:, None])
+    C = update(C, "drag.total", CDi[:, None])
+    C = update(C, "drag.induced.total", CDi[:, None])
+    C = update(C, "drag.induced.inviscid.total", CDi[:, None])
+    C = update(C, "drag.induced.near_field", CDi_near[:, None])
+    C = update(C, "drag.induced.far_field", CDi_far[:, None])
 
     # Wind-Frame Coefficients
-    C = eqx.tree_at(lambda C: C.X, C, CX[:, None])
-    C = eqx.tree_at(lambda C: C.Y, C, CY[:, None])
-    C = eqx.tree_at(lambda C: C.Z, C, CZ[:, None])
+    C = update(C, "X", CX[:, None])
+    C = update(C, "Y", CY[:, None])
+    C = update(C, "Z", CZ[:, None])
 
     # Moment Coefficients
-    C = eqx.tree_at(lambda C: C.moments.pitch, C, C_m[:, None])
-    C = eqx.tree_at(lambda C: C.moments.roll, C, C_l[:, None])
-    C = eqx.tree_at(lambda C: C.moments.yaw, C, C_n[:, None])
+    C = update(C, "moments.pitch", C_m[:, None])
+    C = update(C, "moments.roll", C_l[:, None])
+    C = update(C, "moments.yaw", C_n[:, None])
 
-    state = eqx.tree_at(lambda s: s.aerodynamics.coefficients, state, C)
+    state = update(state, "aerodynamics.coefficients", C)
 
     return state, system, settings
 
@@ -2009,23 +2030,23 @@ class Surrogate(eqx.Module):
 
     blend_transonic: bool = True
 
-    angle_of_attack: jnp.ndarray = field(lambda: jnp.linspace(-5.0, 15.0, 40) * U.deg)
-    sideslip_angle: jnp.ndarray = field(lambda: jnp.linspace(0.0, 15.0, 30) * U.deg)
-    mach: jnp.ndarray = field(lambda: jnp.linspace(0.0, 0.85, 20))
+    angle_of_attack: jax.Array = field(lambda: jnp.linspace(-5.0, 15.0, 40) * U.deg)
+    sideslip_angle: jax.Array = field(lambda: jnp.linspace(0.0, 15.0, 30) * U.deg)
+    mach: jax.Array = field(lambda: jnp.linspace(0.0, 0.85, 20))
 
-    aileron_deflection: jnp.ndarray = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
-    elevator_deflection: jnp.ndarray = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
-    rudder_deflection: jnp.ndarray = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
-    flap_deflection: jnp.ndarray = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
-    slat_deflection: jnp.ndarray = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
+    aileron_deflection: jax.Array = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
+    elevator_deflection: jax.Array = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
+    rudder_deflection: jax.Array = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
+    flap_deflection: jax.Array = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
+    slat_deflection: jax.Array = field(lambda: jnp.array([30, 10.0, 1e-12]) * U.deg)
 
-    u: jnp.ndarray = field(lambda: jnp.array([0.2, 0.1, 1e-12]))
-    v: jnp.ndarray = field(lambda: jnp.array([0.2, 0.1, 1e-12]))
-    w: jnp.ndarray = field(lambda: jnp.array([0.2, 0.1, 1e-12]))
+    u: jax.Array = field(lambda: jnp.array([0.2, 0.1, 1e-12]))
+    v: jax.Array = field(lambda: jnp.array([0.2, 0.1, 1e-12]))
+    w: jax.Array = field(lambda: jnp.array([0.2, 0.1, 1e-12]))
 
-    pitch_rate: jnp.ndarray = field(lambda: jnp.array([0.3, 0.15, 0.0]) * U.rad / U.s)
-    roll_rate: jnp.ndarray = field(lambda: jnp.array([0.3, 0.15, 0.0]) * U.rad / U.s)
-    yaw_rate: jnp.ndarray = field(lambda: jnp.array([0.3, 0.15, 0.0]) * U.rad / U.s)
+    pitch_rate: jax.Array = field(lambda: jnp.array([0.3, 0.15, 0.0]) * U.rad / U.s)
+    roll_rate: jax.Array = field(lambda: jnp.array([0.3, 0.15, 0.0]) * U.rad / U.s)
+    yaw_rate: jax.Array = field(lambda: jnp.array([0.3, 0.15, 0.0]) * U.rad / U.s)
 
     def fit(self, *args, **kwargs):
         return self.surrogate.fit(*args, **kwargs)
@@ -2232,7 +2253,7 @@ VORJAX_Outputs = {
 }
 
 
-class BatchVORJAX(BatchedAnalysis):
+class BatchedVORJAX(BatchedAnalysis):
     def __init__(
         self,
         name: str = "Batched VORJAX",

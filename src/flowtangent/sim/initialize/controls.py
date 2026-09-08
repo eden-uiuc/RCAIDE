@@ -11,17 +11,23 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    pass
+
+from typing import TYPE_CHECKING
+
 # --- Framework Imports (Strictly for Type Hinting to avoid Circular Imports) ---
 if TYPE_CHECKING:
+    from flowtangent import Component
     from flowtangent.core._settings import Settings
     from flowtangent.core._state import State
     from flowtangent.core._systems import System
-    from flowtangent.library import Component
 
-import equinox as eqx
 
+from flowtangent.components import Wing
 from flowtangent.core._state_data._controls import Control, SurfaceControl
-from flowtangent.library.components import Wing
+
+from ...utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Initialize
@@ -97,4 +103,4 @@ def build_controls_from_system(state: State, system: System | Component, setting
             f"segment.active_controls = ('control_variable', ...)"
         )
 
-    return eqx.tree_at(lambda s: s.controls, state, new_controls), system, settings
+    return update(state, "controls", new_controls), system, settings

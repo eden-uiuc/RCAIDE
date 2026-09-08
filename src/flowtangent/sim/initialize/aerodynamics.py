@@ -9,7 +9,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from typing import TYPE_CHECKING
 
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
     from flowtangent.core._systems import Aircraft
 
 from flowtangent.core._state_data._aero import ComponentCoeffs
-from flowtangent.utils import inputs, outputs
+from flowtangent.utils import inputs, outputs, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Initialize Aerodynamic Conditions
@@ -52,8 +51,13 @@ def initialize_aerodynamics(state: "State", system: "Aircraft", settings: "Setti
             new_nacelles = jnp.zeros((n_time, n_nacelles))
 
             # 3. Functionally update the leaf
-            return eqx.tree_at(
-                lambda l: (l.wings, l.fuselages, l.nacelles), leaf, (new_wings, new_fuselages, new_nacelles)
+            return update(
+                leaf,
+                (
+                    ("wings", new_wings),
+                    ("fuselages", new_fuselages),
+                    ("nacelles", new_nacelles),
+                ),
             )
         else:
             return leaf
@@ -62,6 +66,6 @@ def initialize_aerodynamics(state: "State", system: "Aircraft", settings: "Setti
         _expand_col, aero_conditions, is_leaf=lambda leaf: isinstance(leaf, ComponentCoeffs)
     )
 
-    updated_state = eqx.tree_at(lambda s: s.aerodynamics, state, updated_aero)
+    updated_state = update(state, "aerodynamics", updated_aero)
 
     return updated_state, system, settings

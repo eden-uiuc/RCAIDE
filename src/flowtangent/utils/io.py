@@ -1,14 +1,19 @@
 import gzip
 import itertools
 import json
+import logging
 import os
 import string
 import warnings
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
+import jax
 import jax.numpy as jnp
 import numpy as np
+
+from .base import FLOWTANGENT_REGISTRY, Module, field
 
 # Import our tree utility for checking defaults during serialization
 from .tree import is_equivalent
@@ -105,24 +110,13 @@ def _ft_root() -> Path:
     return Path(os.path.dirname(os.path.abspath(__file__))).resolve().parent
 
 
-FlowTangent_REGISTRY = {}
-
-
-def register(cls):
-    """Decorator to safely register any class for standalone serialization."""
-    if cls.__name__ in FlowTangent_REGISTRY:
-        raise ValueError(f"Class '{cls.__name__}' is already registered.")
-    FlowTangent_REGISTRY[cls.__name__] = cls
-    return cls
-
-
 def serialize_node(obj):
-    if isinstance(obj, (jnp.ndarray, np.ndarray)):
+    if isinstance(obj, (jax.Array, np.ndarray)):
         if obj.size == 1:
             return obj.item()
         return {"__type__": "ndarray", "data": obj.tolist()}
 
-    elif type(obj).__name__ in FlowTangent_REGISTRY:
+    elif type(obj).__name__ in FLOWTANGENT_REGISTRY:
         cls = type(obj)
         state = {}
 
@@ -168,10 +162,10 @@ def deserialize_node(data):
 
     if "__class__" in data:
         cls_name = data["__class__"]
-        if cls_name not in FlowTangent_REGISTRY:
+        if cls_name not in FLOWTANGENT_REGISTRY:
             raise ValueError(f"Class '{cls_name}' is not registered and cannot be loaded.")
 
-        cls = FlowTangent_REGISTRY[cls_name]
+        cls = FLOWTANGENT_REGISTRY[cls_name]
         try:
             instance = cls()
         except TypeError:
@@ -225,3 +219,100 @@ def load_data(filename: str | Path) -> Any:
         else f"Successfully loaded {type(obj).__name__} from {filename}"
     )
     return obj
+
+# ----------------------------------------------------------
+# Logging
+# ----------------------------------------------------------
+
+class JAXCompileFilter(logging.Filter):
+    def __init__(self, name: str = "", whitelist: Optional[tuple[str]] = None) -> None:
+        super().__init__(name)
+        self.whitelist = whitelist
+
+    def filter(self, record):
+        msg = record.getMessage()
+
+        # 1. Identify if this is a compilation/tracing log
+        is_compile_log = any(
+            keyword in msg
+            for keyword in ["Compiling", "tracing + transforming", "Finished jaxpr to MLIR", "Finished XLA compilation"]
+        )
+
+        # If it is a compile log, apply whitelist & formatting
+        if is_compile_log and self.whitelist is not None:
+            # Block it if it's not the main solve
+            if not any([f"jit({w})" in msg for w in self.whitelist]):
+                return False
+
+            # If it is the main solve, truncate the massive PyTree dump
+            if "with global shapes and types" in msg:
+                parts = msg.split("with global shapes and types")
+                prefix = parts[0] + "with global shapes and types"
+                suffix = parts[1][:30] if len(parts) > 1 else ""
+
+                record.msg = f"{prefix} {suffix} ... [PyTree Truncated]"
+                record.args = ()
+
+            return True
+
+        # If it's NOT a compile log (e.g., GPU memory warning), let it through untouched
+        return True
+
+
+class LoggingSettings(Module):
+    handle: Optional[str] = field(None, static=True)
+    log_dir: Optional[str | Path] = field(None, static=True)
+
+    format_string: str = field("[%(asctime)s] - %(levelname)s - %(message)s", static=True)
+    date_format: str = field("%Y-%m-%d %H:%M:%S", static=True)
+    stream_ouput: bool = field(False, static=True)
+    jax_logging: bool = field(False, static=True)
+    jax_compile_whitelist: Optional[tuple[str]] = field(None, static=True)
+
+    def setup_logger(self, handle: Optional[str] = None) -> None:
+        if self.log_dir is None and not self.stream_ouput:
+            return
+        else:
+            if handle is None and self.handle is None:
+                log_handle = "flowtangent"
+            else:
+                log_handle = handle if handle is not None else self.handle
+            logger = logging.getLogger(log_handle)
+            formatter = logging.Formatter(self.format_string)
+            handlers = []
+
+            if self.stream_ouput:
+                sh = logging.StreamHandler()
+                sh.setLevel(logging.INFO)
+                sh.setFormatter(formatter)
+                handlers.append(sh)
+
+            if self.log_dir is not None:
+                log_dir = Path(self.log_dir)
+                log_dir.mkdir(parents=True, exist_ok=True)
+                timestamp = datetime.now().strftime(self.date_format).replace(" ", "_").replace(":", "-")
+                logfile = log_dir / f"main_{timestamp}.log"
+                fh = logging.FileHandler(logfile)
+                fh.setLevel(logging.INFO)
+                fh.setFormatter(formatter)
+                handlers.append(fh)
+
+            for h in handlers:
+                logger.addHandler(h)
+
+            if self.jax_logging:
+                jl = logging.getLogger("jax")
+                jl.propagate = False
+                jl.handlers.clear()
+                j_filter = JAXCompileFilter("jax_compile_filter", self.jax_compile_whitelist)
+
+                for h in handlers:
+                    h.addFilter(j_filter)
+                    jl.addHandler(h)
+
+                if getattr(jax.config, "jax_log_compiles", False):
+                    jl.setLevel(logging.INFO)
+                else:
+                    jl.setLevel(logging.WARNING)
+
+            return

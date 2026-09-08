@@ -10,23 +10,28 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
 from typing import Any, Optional
 
 # package imports
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 
 from flowtangent.data.solids import Aluminum, Solid
 
 # Flowtangent imports
-from flowtangent.utils import field, register
+from flowtangent.utils import field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Component
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class Fineness(eqx.Module):
     # Attribute     Type    Default Value
     effective: float = 1.0
@@ -37,7 +42,6 @@ class Fineness(eqx.Module):
         return f"Eff.: {self.effective}"
 
 
-@register
 class Dimensions(eqx.Module):
     # Attribute         Type    Default Value
     ordinal_direction: bool = field(False, static=True)
@@ -56,7 +60,6 @@ class Dimensions(eqx.Module):
         return ""
 
 
-@register
 class Areas(eqx.Module):
     # Attribute         Type    Default Value
     reference: float = 0.0
@@ -82,7 +85,6 @@ class Areas(eqx.Module):
         return ""
 
 
-@register
 class MaterialProperties(eqx.Module):
     # Attribute                 Type        Default Value
     tensile_stress_carrier: Solid = field(Aluminum)
@@ -93,7 +95,6 @@ class MaterialProperties(eqx.Module):
         return ""
 
 
-@register
 class MassProperties(eqx.Module):
     # Attribute                         Type        Default Value
     total: float = 0.0
@@ -103,22 +104,21 @@ class MassProperties(eqx.Module):
     volume: float = 1.0
     density: float = 0.0
 
-    center_of_gravity: jnp.ndarray = field(lambda: jnp.zeros((1, 3)))
-    moments_of_inertia: jnp.ndarray = field(lambda: jnp.zeros((3, 3)))
-    subcomponent_moments_of_inertia: jnp.ndarray = field(lambda: jnp.zeros((3, 3)))
+    center_of_gravity: jax.Array = field(lambda: jnp.zeros((1, 3)))
+    moments_of_inertia: jax.Array = field(lambda: jnp.zeros((3, 3)))
+    subcomponent_moments_of_inertia: jax.Array = field(lambda: jnp.zeros((3, 3)))
 
     def __repr__(self):
         return ""
 
 
-@register
 class Component(eqx.Module):
     name: str = field("Component", static=True)
     is_control_component: bool = field(False, static=True)
 
     segments: tuple[Component, ...] = field(tuple)
     subcomponents: tuple[Component, ...] = field(tuple)
-    origin: jnp.ndarray = field(lambda: jnp.zeros((1, 3)))
+    origin: jax.Array = field(lambda: jnp.zeros((1, 3)))
 
     # ---------------------------------------------------AREAS----------------------------------------------------------
     areas: Areas = field(Areas)
@@ -195,35 +195,35 @@ class Component(eqx.Module):
             new_segments = self.segments[:index] + (segment,) + self.segments[index:]
 
         # Functionally replace and return the new Component
-        return eqx.tree_at(lambda c: c.segments, self, new_segments)
+        return update(self, "segments", new_segments)
 
     def insert_segment(self, segment: "Component", index: int):
         new_segments = self.segments[:index] + (segment,) + self.segments[index:]
 
-        return eqx.tree_at(lambda c: c.segments, self, new_segments)
+        return update(self, "segments", new_segments)
 
     def replace_segment(self, segment: "Component", index: int):
         new_segments = self.segments[:index] + (segment,) + self.segments[index + 1 :]
 
-        return eqx.tree_at(lambda c: c.segments, self, new_segments)
+        return update(self, "segments", new_segments)
 
     def add_subcomponent(self, subcomponent: "Component"):
 
         new_subcomponents = self.subcomponents + (subcomponent,)
-        new_self = eqx.tree_at(lambda c: c.subcomponents, self, new_subcomponents)
+        new_self = update(self, "subcomponents", new_subcomponents)
 
         return new_self
 
     def insert_subcomponent(self, subcomponent: "Component", index: int):
         new_subcomponents = self.subcomponents[:index] + (subcomponent,) + self.subcomponents[index:]
 
-        return eqx.tree_at(lambda c: c.subcomponents, self, new_subcomponents)
+        return update(self, "subcomponents", new_subcomponents)
 
     def replace_subcomponent(self, subcomponent: "Component", index: Optional[int] = None):
         if index is not None:
             new_subcomponents = self.subcomponents[:index] + (subcomponent,) + self.subcomponents[index + 1 :]
 
-            return eqx.tree_at(lambda c: c.subcomponents, self, new_subcomponents)
+            return update(self, "subcomponents", new_subcomponents)
         else:
             matched_types = [s for s in self.subcomponents if isinstance(s, type(subcomponent))]
             if len(matched_types) == 1:
@@ -236,7 +236,7 @@ class Component(eqx.Module):
     def remove_subcomponent(self, index: int):
         new_subcomponents = self.subcomponents[:index] + self.subcomponents[index + 1 :]
 
-        return eqx.tree_at(lambda c: c.subcomponents, self, new_subcomponents)
+        return update(self, "subcomponents", new_subcomponents)
 
 
 class ControlComponent(Component):

@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
 from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, overload
 
 if TYPE_CHECKING:
@@ -34,24 +39,32 @@ from jax.tree_util import (
 
 
 @overload
-def update(obj: Any, where_or_updates: Callable, val: Any) -> Any: ...
+def update(obj: Any, where_or_updates: Callable, val: Any, **kwargs) -> Any: ...
 
 
 @overload
-def update(obj: Any, where_or_updates: TreePath | tuple | Sequence[TreePath | tuple]) -> Any: ...
+def update(obj: Any, where_or_updates: TreePath | tuple | Sequence[TreePath | tuple], **kwargs) -> Any: ...
 
 
-def update(obj, where_or_updates, val=None):
+@overload
+def update(obj: Any, where_or_updates: str, val: Any, **kwargs) -> Any: ...
+
+
+def update(obj, where_or_updates, val=None, **kwargs):
     """
     FlowTangent wrapper for eqx.tree_at.
     """
     # Route 1: The Canonical Equinox Lambda
     if callable(where_or_updates):
-        return eqx.tree_at(where_or_updates, obj, val)
+        return eqx.tree_at(where_or_updates, obj, val, **kwargs)
 
-    # Route 2: Single Tuple or TreePath (e.g., ('aero.alpha', 3.0))
-    # We check if it's a tuple where the first element is a string/tuple path
-    if isinstance(where_or_updates, TreePath) or (
+    # Route 1.5: String path and value (Ergonomic API)
+    if isinstance(where_or_updates, str):
+        # We package it into a tuple so your existing cast logic handles it
+        paths = [TreePath.cast((where_or_updates, val))]
+
+    # Route 2: Single Tuple or TreePath
+    elif isinstance(where_or_updates, TreePath) or (
         isinstance(where_or_updates, tuple)
         and len(where_or_updates) in (2, 3)
         and isinstance(where_or_updates[0], (str, tuple))
@@ -63,11 +76,11 @@ def update(obj, where_or_updates, val=None):
         paths = [TreePath.cast(u) for u in where_or_updates]
 
     else:
-        raise TypeError("update() requires a lambda function, a TreePath, a path tuple, or a sequence of updates.")
+        raise TypeError("update() requires a lambda, a string path, a TreePath, a tuple, or a sequence.")
 
     where_fn = partial(get_all_targets, input_map=paths)
     vals = tuple(p.value for p in paths)
-    return eqx.tree_at(where_fn, obj, vals)
+    return eqx.tree_at(where_fn, obj, vals, **kwargs)
 
 
 # -----------------------------------------------------------------------------
@@ -177,8 +190,8 @@ def is_equivalent(a, b):
         return False
 
     for la, lb in zip(a_leaves, b_leaves):
-        is_num_a = isinstance(la, (jnp.ndarray, np.ndarray, float, int, bool))
-        is_num_b = isinstance(lb, (jnp.ndarray, np.ndarray, float, int, bool))
+        is_num_a = isinstance(la, (jax.Array, np.ndarray, float, int, bool))
+        is_num_b = isinstance(lb, (jax.Array, np.ndarray, float, int, bool))
 
         if is_num_a and is_num_b:
             arr_a = jnp.squeeze(jnp.asarray(la))
@@ -207,7 +220,7 @@ def compute_tree_delta(old_tree, new_tree):
     for i, (old, new) in enumerate(zip(old_leaves, new_leaves)):
         if old is new:
             continue
-        if isinstance(old, jnp.ndarray) and isinstance(new, jnp.ndarray):
+        if isinstance(old, jax.Array) and isinstance(new, jax.Array):
             if old.shape == new.shape and jnp.all(old == new):
                 continue
 

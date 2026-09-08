@@ -12,6 +12,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
 
 # package imports
 
@@ -29,37 +34,3 @@ def func_tf_mass_from_SLS(sls_thrust: float):
     mass = (0.4054 * t_lbf**0.9255) * 0.453592
 
     return mass
-
-
-# -------------------------------------------------------------------------------
-#  Stateful/Framework Version
-# -------------------------------------------------------------------------------
-
-
-# def tf_mass_from_SLS(
-#     state: State,
-#     system: Aircraft,
-#     settings: Settings,
-# ):
-#     """
-#     Framework version of tf_mass_from_SLS. Assumes a turbofan engine.
-
-#     See Also
-#     --------
-#     func_tf_Mass_from_SLS:
-#         Functional implementation which this method calls.
-#     """
-
-#     def update_tf_mass(node):
-#         if (
-#             isinstance(node, TurbofanEngine)
-#             and node.mass_properties.total == 0.0
-#             and node.design_parameters.SLS_thrust != 0.0
-#         ):
-#             return eqx.tree_at(
-#                 lambda t: t.mass_properties.total, node, func_tf_mass_from_SLS(node.design_parameters.SLS_thrust)
-#             )
-
-#     updated_system = jax.tree_util.tree_map(update_tf_mass, system, is_leaf=lambda x: isinstance(x, TurbofanEngine))
-
-#     return state, updated_system, settings

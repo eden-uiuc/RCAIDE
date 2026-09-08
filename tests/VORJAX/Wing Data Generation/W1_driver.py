@@ -6,6 +6,7 @@ import logging
 import numpy as np
 import pandas as pd
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 import plotly.graph_objects as go
 
@@ -186,7 +187,7 @@ def wing_generator(df_geometries):
         ).update_geometry(calculate_reference_area=True, calculate_wetted_area=True)
 
         system = Aircraft(name=f"W1_System", areas=wing.areas).add_subcomponent(wing)
-        system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
+        system = update(system, "mass_properties.center_of_gravity", jnp.array([[0.0, 0.0, 0.0]]))
 
         meta = {
             "aspect_ratio": row.aspect_ratio,

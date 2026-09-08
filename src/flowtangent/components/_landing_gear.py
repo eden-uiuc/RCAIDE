@@ -10,8 +10,8 @@
 # package imports
 
 # Flowtangent imports
-from flowtangent.library import Component
-from flowtangent.utils import field
+from ..core._component import Component
+from ..utils import static_field
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Landing_Gear
@@ -19,12 +19,12 @@ from flowtangent.utils import field
 
 
 class LandingGear(Component):
-    name: str = field("Landing Gear", static=True)
+    name: str = static_field("Landing Gear")
 
     deployed: bool = False
 
-    number_of_units: int = field(1, static=True)
-    number_of_wheels: int = field(0, static=True)
+    number_of_units: int =  static_field(1)
+    number_of_wheels: int = static_field(0)
 
     strut_length: float = 0.0
     tire_diameter: float = 0.0

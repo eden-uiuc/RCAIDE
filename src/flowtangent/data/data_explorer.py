@@ -4,20 +4,21 @@ import glob
 import os
 
 import dask.array as da
-import equinox as eqx
 import jax.numpy as jnp
 import numexpr as ne
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from flowtangent.framework import Aircraft, Settings, State
-from flowtangent.framework.analyses.aero.VORJAX import VORJAX_Settings, Vortices
-from flowtangent.framework.methods.aero.VORJAX import discretize_surfaces
+from flowtangent.aero.VORJAX import discretize_surfaces
 from flowtangent.framework.plotting import plot_vlm_panels
 from flowtangent.library.components.wings import Chords, Sweeps, Wing, WingDimensions
+from flowtangent.solve.aero.VORJAX import VORJAX_Settings, Vortices
 
+from flowtangent import Aircraft, Settings, State
 from flowtangent.core._settings import AnalysisSettings
+
+from .._utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Filter Functions
@@ -140,7 +141,7 @@ def wing_generator(aspect_ratio, taper, sweep, dihedral, twist):
     ).update_geometry(calculate_reference_area=True, calculate_wetted_area=True)
 
     system = Aircraft(name="W1 System", areas=wing.areas).add_subcomponent(wing)
-    system = eqx.tree_at(lambda s: s.mass_properties.center_of_gravity, system, jnp.array([[0.0, 0.0, 0.0]]))
+    system = update(system, "mass_properties.center_of_gravity", jnp.array([[0.0, 0.0, 0.0]]))
 
     return system, {"AR": aspect_ratio, "taper": taper, "QC_Sweep": sweep, "Dihedral": dihedral}
 

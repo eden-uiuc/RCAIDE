@@ -9,7 +9,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from typing import TYPE_CHECKING
 
-import equinox as eqx
 import jax.numpy as jnp
 
 # --- Framework Imports (Strictly for Type Hinting to avoid Circular Imports) ---
@@ -18,7 +17,8 @@ if TYPE_CHECKING:
     from flowtangent.core._state import State
     from flowtangent.core._systems import System
 
-from flowtangent.data import units
+from ...data import units
+from ...utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Update Planetary Position
@@ -53,8 +53,12 @@ def update_planetary_position(state: "State", system: "System", settings: "Setti
     lat_0 = state.frames.planet.latitude[0, 0]
     lon_0 = state.frames.planet.longitude[0, 0]
 
-    updated_state = eqx.tree_at(
-        lambda s: (s.frames.planet.latitude, s.frames.planet.longitude), state, (lat_0 + lamda, lon_0 + mu)
+    updated_state = update(
+        state,
+        (
+            ("frames.planet.latitude", lat_0 + lamda),
+            ("frames.planet.longitude", lon_0 + mu),
+        ),
     )
 
     return updated_state, system, settings

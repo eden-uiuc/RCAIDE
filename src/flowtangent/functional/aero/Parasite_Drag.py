@@ -9,7 +9,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from typing import TYPE_CHECKING
 
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     from flowtangent.core._state import State
     from flowtangent.core._systems import Aircraft
 
-from flowtangent.utils import cubic_spline_blender, inputs, outputs
+from flowtangent.utils import cubic_spline_blender, inputs, outputs, update
 
 from .friction import func_flat_plate_friction
 
@@ -245,7 +244,7 @@ def compute_parasite_drag(state: "State", system: "Aircraft", settings: "Setting
     packed_wings = jnp.column_stack(wing_drags)
     total_wing_parasite_drag = jnp.sum(packed_wings, axis=1)[:, None] if wing_drags else jnp.zeros_like(M)
 
-    updated_state = eqx.tree_at(lambda s: s.aerodynamics.coefficients.drag.parasite.wings, updated_state, packed_wings)
+    updated_state = update(updated_state, "aerodynamics.coefficients.drag.parasite.wings", packed_wings)
 
     if settings.analysis.aerodynamics.model_fuselage:
         # Fuselage Parasite Drag -------------------------------
@@ -270,8 +269,9 @@ def compute_parasite_drag(state: "State", system: "Aircraft", settings: "Setting
             jnp.sum(packed_fuselages, axis=1)[:, None] if fuselage_drags else jnp.zeros_like(M)
         )
 
-        updated_state = eqx.tree_at(
-            lambda s: s.aerodynamics.coefficients.drag.parasite.fuselages, updated_state, packed_fuselages
+        updated_state = update(
+            updated_state,
+            ("aerodynamics.coefficients.drag.parasite.fuselages", packed_fuselages),
         )
 
         # Nacelle Parasite Drag --------------------------------
@@ -295,8 +295,9 @@ def compute_parasite_drag(state: "State", system: "Aircraft", settings: "Setting
         packed_nacelles = jnp.column_stack(nacelle_drags)
         total_nacelle_parasite_drag = jnp.sum(packed_nacelles, axis=1)[:, None] if nacelle_drags else jnp.zeros_like(M)
 
-        updated_state = eqx.tree_at(
-            lambda s: s.aerodynamics.coefficients.drag.parasite.nacelles, updated_state, packed_nacelles
+        updated_state = update(
+            updated_state,
+            ("aerodynamics.coefficients.drag.parasite.nacelles", packed_nacelles),
         )
     else:
         total_fuselage_parasite_drag = jnp.zeros_like(M)
@@ -307,13 +308,12 @@ def compute_parasite_drag(state: "State", system: "Aircraft", settings: "Setting
     new_total_drag = state.aerodynamics.coefficients.drag.total + total_parasite_drag
 
     # Update the state tree with the new total drag values
-    updated_state = eqx.tree_at(
-        lambda s: (
-            s.aerodynamics.coefficients.drag.parasite.total,
-            s.aerodynamics.coefficients.drag.total,
-        ),
+    updated_state = update(
         updated_state,
-        (total_parasite_drag, new_total_drag),
+        (
+            ("aerodynamics.coefficients.drag.parasite.total", total_parasite_drag),
+            ("aerodynamics.coefficients.drag.total", new_total_drag),
+        ),
     )
 
     return updated_state, system, settings

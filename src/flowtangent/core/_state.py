@@ -7,14 +7,13 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #  IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
-from dataclasses import replace
+from typing import Optional
 
-import equinox as eqx
+import jax
+from ..utils import Module, empty_array, field, update
 
 # package imports
-import jax.numpy as jnp
-
-from flowtangent.core._state_data import (
+from ._state_data import (
     Aerodynamics,
     FrameData,
     Freestream,
@@ -24,30 +23,27 @@ from flowtangent.core._state_data import (
     StateData,
     Time,
 )
-from flowtangent.utils import empty_array, field, register
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  State
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class State[EnergyType: NetworkState](StateData):
-    name: str = field("State", static=True)
 
-    initials: eqx.Module | None = None
+    initials: Optional[Module] = None
     time: Time = field(Time)
 
     frames: FrameData = field(FrameData)
     freestream: Freestream = field(Freestream)
 
     mass: Mass = field(Mass)
-    energy: EnergyType = field(NetworkState)
+    energy: EnergyType = field(NetworkState) #type: ignore
     aerodynamics: Aerodynamics = field(Aerodynamics)
     stability: StabilityData = field(StabilityData)
 
-    process_jacobian: jnp.ndarray = empty_array()
+    process_jacobian: jax.Array = empty_array()
 
     def freeze_initials(self):
-        frozen_initials = eqx.tree_at(lambda s: s.initials, self, None, is_leaf=lambda x: x is None)
-        return replace(self, initials=frozen_initials)
+        frozen_initials = update(self, "initials", None, is_leaf=lambda x: x is None)
+        return update(self, "initials", frozen_initials)

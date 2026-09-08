@@ -9,12 +9,17 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
 from typing import TYPE_CHECKING, Callable, Iterable, Literal, cast, get_args
 
 # --- Framework Imports (Strictly for Type Hinting to avoid Circular Imports) ---
 if TYPE_CHECKING:
-    from flowtangent.framework import Settings, State, System
-    from flowtangent.framework.analyses.energy.jets import JetSettings
+    from ... import Settings, State, System
+    from ...solve.energy.jets import JetSettings
 
 import warnings
 from dataclasses import replace
@@ -23,10 +28,10 @@ from functools import reduce
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from flowtangent.library import Component
 
-from flowtangent.data.gases import Air, Gas
-from flowtangent.utils import field, register
+from ...core._component import Component
+from ...data.gases import Air, Gas
+from ...utils import field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Graph Nodes
@@ -35,7 +40,6 @@ from flowtangent.utils import field, register
 # Inputs & Nodes ---------------------------------------------------------------
 
 
-@register
 class Efficiencies(eqx.Module):
     total: float | jax.Array = 1.0
 
@@ -51,7 +55,6 @@ class Efficiencies(eqx.Module):
 GraphDomain = Literal["flow", "mechanical", "electrical", "fuel", "force", "residual"]
 
 
-@register
 class GraphInput(eqx.Module):
     domain: GraphDomain = field("flow", static=True)
     network_id: str = field("network", static=True)
@@ -73,8 +76,7 @@ class GraphInput(eqx.Module):
         return reduce(getattr, (state.energy.nodes[self.network_id], self.domain, value))
 
 
-@register
-class GraphNode(Component):
+class PACTNode(Component):
     network_id: str = field("energy_node", static=True)
 
     inputs: tuple[GraphInput, ...] | GraphInput = field(tuple, static=True)
@@ -96,7 +98,7 @@ class GraphNode(Component):
             domain = item.replace("_inputs", "")
             return self._get_inputs_by_domain(domain)
         else:
-            return super(GraphNode, self).__getattr__(item)
+            return super(PACTNode, self).__getattr__(item)
 
     @property
     @eqx.filter_jit
@@ -156,8 +158,7 @@ class GraphNode(Component):
 # Splitters --------------------------------------------------------------------
 
 
-@register
-class Splitter(GraphNode):
+class Splitter(PACTNode):
     values: str | tuple[str] = field(tuple, static=True)
     fractions: float | Callable | tuple[float | Callable] = field(tuple, static=True)
 
@@ -196,14 +197,16 @@ class Splitter(GraphNode):
             else:
                 frac = self.value_fractions
 
-            split_input = eqx.tree_at(
-                lambda t: getattr(t, value),
+            split_input = update(
                 domain_input,
+                lambda t: getattr(t, value),
                 jnp.atleast_2d(total_input * frac),
             )
 
-            updated_state = eqx.tree_at(
-                lambda s: getattr(s.energy.nodes[self.network_id], domain), updated_state, split_input
+            updated_state = update(
+                updated_state,
+                lambda s: getattr(s.energy.nodes[self.network_id], domain),
+                split_input,
             )
 
         return updated_state, system, settings
@@ -212,7 +215,6 @@ class Splitter(GraphNode):
 # ----------------------------------------------------------------------------------------------------------------------
 #  Flow Nodes
 # ----------------------------------------------------------------------------------------------------------------------
-@register
 class FlowOpPoint(eqx.Module):
     # fmt: off
     pressure_ratio:     float | jax.Array = 1.0
@@ -234,8 +236,7 @@ class FlowOpPoint(eqx.Module):
     # fmt: on
 
 
-@register
-class BleedFlow(GraphNode):
+class BleedFlow(PACTNode):
     name: str = field("Bleed Flow", static=True)
     fractions_dict: dict[str, float | Callable] = field(dict)
 
@@ -244,9 +245,9 @@ class BleedFlow(GraphNode):
 
     def transmit(self, state: State, system: System, settings: Settings):
 
-        updated_state = eqx.tree_at(
-            lambda s: s.energy.nodes[self.network_id].flow,
+        updated_state = update(
             state,
+            lambda s: s.energy.nodes[self.network_id].flow,
             state.energy.nodes[self.grandparent_id].flow,
         )
 
@@ -264,26 +265,25 @@ class BleedFlow(GraphNode):
             else:
                 bleed_value = in_value + (out_value - in_value) * frac
 
-            updated_state = eqx.tree_at(
-                lambda s: getattr(s.energy.nodes[self.network_id].flow, attr),
+            updated_state = update(
                 updated_state,
+                lambda s: getattr(s.energy.nodes[self.network_id].flow, attr),
                 bleed_value,
             )
 
             if attr == "stagnation_enthalpy":
                 fluid: Gas = state.energy.nodes[self.parent_id].flow.fluid
                 T_t = fluid.invert_enthalpy(bleed_value)
-                updated_state = eqx.tree_at(
-                    lambda s: s.energy.nodes[self.network_id].flow.stagnation_temperature,
+                updated_state = update(
                     updated_state,
+                    lambda s: s.energy.nodes[self.network_id].flow.stagnation_temperature,
                     T_t,
                 )
 
         return updated_state, system, settings
 
 
-@register
-class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
+class FlowNode[DesignType: FlowOpPoint | tuple](PACTNode):
     design_parameters: DesignType = field(FlowOpPoint)
     working_fluid: Gas = field(Air)
     add_mixer: bool = field(False)
@@ -319,7 +319,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
             )
             object.__setattr__(self, "subcomponents", self.subcomponents + (mixer,))
 
-    def mix_inputs(self, state: State) -> tuple[Gas, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    def mix_inputs(self, state: State) -> tuple[Gas, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array]:
 
         M = self.get_primary_input_state(state, "flow", "mach_number")
 
@@ -402,13 +402,13 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
     @staticmethod
     def stagnation(
         gas: Gas,
-        T_t: jnp.ndarray | float,
-        P_t: jnp.ndarray | float,
-        PR: jnp.ndarray | float,
-        n_isn: jnp.ndarray | float,
+        T_t: jax.Array | float,
+        P_t: jax.Array | float,
+        PR: jax.Array | float,
+        n_isn: jax.Array | float,
         # Ignored for subsonic flows
-        M: jnp.ndarray | float = 0.0,
-        P_rec: jnp.ndarray | float = 1.0,
+        M: jax.Array | float = 0.0,
+        P_rec: jax.Array | float = 1.0,
     ):
         g_in = gas.compute_gamma(T_t)
         T_t_out_ideal = T_t * (PR ** ((g_in - 1.0) / g_in))
@@ -444,10 +444,10 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
     @staticmethod
     def statics(
         gas: Gas,
-        T_t: float | jnp.ndarray,
-        P_t: float | jnp.ndarray,
-        mdot: float | jnp.ndarray,
-        area: float | jnp.ndarray,
+        T_t: float | jax.Array,
+        P_t: float | jax.Array,
+        mdot: float | jax.Array,
+        area: float | jax.Array,
     ):
         # fmt: off
         gamma   = jnp.atleast_2d(gas.compute_gamma(T_t))
@@ -523,15 +523,11 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
                     mdot=W_out,
                 )
 
-                updated_design_parameters = eqx.tree_at(
-                    lambda d: d.A_exit,
-                    self.design_parameters,
-                    A_out.squeeze(),
-                )
+                updated_design_parameters = update(self.design_parameters, ("A_exit", A_out.squeeze()))
 
-                updated_system = eqx.tree_at(
-                    lambda s: s.energy.nodes[self.network_id].design_parameters,
+                updated_system = update(
                     updated_system,
+                    lambda s: s.energy.nodes[self.network_id].design_parameters,
                     updated_design_parameters,
                 )
 
@@ -542,23 +538,23 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
 
         outputs = state.energy.nodes[self.network_id].flow
 
-        outputs = eqx.tree_at(lambda o: o.mass_flow_rate, outputs, jnp.atleast_2d(W_out))
-        outputs = eqx.tree_at(lambda o: o.stagnation_pressure, outputs, jnp.atleast_2d(P_t_out))
-        outputs = eqx.tree_at(lambda o: o.stagnation_temperature, outputs, jnp.atleast_2d(T_t_out))
-        outputs = eqx.tree_at(lambda o: o.stagnation_enthalpy, outputs, jnp.atleast_2d(h_t_out))
-        outputs = eqx.tree_at(lambda o: o.fuel_air_ratio, outputs, jnp.atleast_2d(FAR))
+        outputs = update(outputs, "mass_flow_rate", jnp.atleast_2d(W_out))
+        outputs = update(outputs, "stagnation_pressure", jnp.atleast_2d(P_t_out))
+        outputs = update(outputs, "stagnation_temperature", jnp.atleast_2d(T_t_out))
+        outputs = update(outputs, "stagnation_enthalpy", jnp.atleast_2d(h_t_out))
+        outputs = update(outputs, "fuel_air_ratio", jnp.atleast_2d(FAR))
 
         if statics:
-            outputs = eqx.tree_at(lambda o: o.temperature, outputs, jnp.atleast_2d(T_out))
-            outputs = eqx.tree_at(lambda o: o.pressure, outputs, jnp.atleast_2d(P_out))
-            outputs = eqx.tree_at(lambda o: o.speed, outputs, jnp.atleast_2d(u_out))
-            outputs = eqx.tree_at(lambda o: o.mach_number, outputs, jnp.atleast_2d(M_out))
-            outputs = eqx.tree_at(lambda o: o.enthalpy, outputs, jnp.atleast_2d(h_out))
-            outputs = eqx.tree_at(lambda o: o.area, outputs, jnp.atleast_2d(A_out))
+            outputs = update(outputs, "temperature", jnp.atleast_2d(T_out))
+            outputs = update(outputs, "pressure", jnp.atleast_2d(P_out))
+            outputs = update(outputs, "speed", jnp.atleast_2d(u_out))
+            outputs = update(outputs, "mach_number", jnp.atleast_2d(M_out))
+            outputs = update(outputs, "enthalpy", jnp.atleast_2d(h_out))
+            outputs = update(outputs, "area", jnp.atleast_2d(A_out))
 
-        updated_state = eqx.tree_at(
-            lambda s: s.energy.nodes[self.network_id].flow,
+        updated_state = update(
             updated_state,
+            lambda s: s.energy.nodes[self.network_id].flow,
             outputs,
         )
 
@@ -570,8 +566,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
-class EnergyStore(GraphNode):
+class EnergyStore(PACTNode):
     name: str = field("Energy Store", static=True)
 
     max_energy: float = 0.0
@@ -585,7 +580,6 @@ class EnergyStore(GraphNode):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class FuelTank(EnergyStore):
     name: str = field("Fuel Tank", static=True)
 
@@ -606,7 +600,6 @@ class FuelTank(EnergyStore):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class RagoneParameters(eqx.Module):
     const_1: float = 0.0
     const_2: float = 0.0
@@ -614,7 +607,6 @@ class RagoneParameters(eqx.Module):
     i: float = 0.0
 
 
-@register
 class Battery(EnergyStore):
     name: str = field("Battery", static=True)
 

@@ -10,10 +10,14 @@
 # Flowtangent Imports
 from __future__ import annotations
 
-import equinox as eqx
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ... import Settings, State, System
+
 import jax.numpy as jnp
 
-from ... import Settings, State, System
+from ...utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Initialize Time
@@ -29,10 +33,10 @@ def initialize_time(state: State, system: System, settings: Settings):
     t_current = state.frames.inertial.time
 
     # Use explicit positive indexing to avoid JAX dynamic shape issues with -1
-    last_idx = int(state.numerics.number_of_control_points) - 1
+    last_idx = int(state.time.dimensionless.number_of_control_points) - 1
     delta_t = t_initial[last_idx, 0] - t_current[0, 0]
     offset_time = t_current + delta_t
 
-    state = eqx.tree_at(lambda s: (s.frames.planet.start_time, s.frames.inertial.time), state, (t_initial, offset_time))
+    state = update(state, lambda s: (s.frames.planet.start_time, s.frames.inertial.time), (t_initial, offset_time))
 
     return state, system, settings

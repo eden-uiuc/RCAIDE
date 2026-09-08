@@ -1,0 +1,47 @@
+name: FlowTangent CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Pinned to 3.12 to match your pyproject.toml requires-python
+        python-version: ["3.12"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Installs flowtangent in editable mode with your [dev] dependencies
+          pip install -e .[dev]
+          # Explicitly install pyright since it's not currently in the dev group
+          pip install pyright
+
+      - name: Enforce Formatting (Ruff)
+        run: ruff format --check .
+
+      - name: Lint (Ruff)
+        run: ruff check .
+
+      - name: Type Check (Pyright)
+        run: pyright src/flowtangent
+
+      - name: Run Tests (Pytest)
+        run: pytest

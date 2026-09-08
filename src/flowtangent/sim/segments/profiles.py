@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 from flowtangent.data import units
 from flowtangent.framework import ProcessStep
-from flowtangent.utils import field
+from flowtangent.utils import field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Segment Profiles
@@ -34,7 +34,7 @@ class ConstantCourse(ProcessStep):
 
     def __call__(self, state, system, settings):
         course_arr = jnp.full_like(state.freestream.altitude, self.true_course)
-        updated_state = eqx.tree_at(lambda s: s.frames.planet.true_course, state, course_arr)
+        updated_state = update(state, "frames.planet.true_course", course_arr)
 
         return updated_state, system, settings
 
@@ -142,7 +142,7 @@ class ConstantAltitudeChangeRate(ProcessStep):
         updated_velocity = state.frames.inertial.velocity_vector.at[:, 0].set(v_x.squeeze(-1))
         updated_velocity = updated_velocity.at[:, 2].set(v_z)
 
-        updated_state = eqx.tree_at(lambda s: s.frames.inertial.velocity_vector, state, updated_velocity)
+        updated_state = update(state, "frames.inertial.velocity_vector", updated_velocity)
         return updated_state, system, settings
 
 
@@ -164,7 +164,7 @@ class FixedDistance(ProcessStep):
         t_nondim = state.numerics.dimensionless.control_points
         time = t_nondim * (t_f - t_0) + t_0
 
-        updated_state = eqx.tree_at(lambda s: s.frames.inertial.time, state, time)
+        updated_state = update(state, "frames.inertial.time", time)
 
         return updated_state, system, settings
 
@@ -180,7 +180,7 @@ class FixedTime(ProcessStep):
         t_nondim = state.numerics.dimensionless.control_points
         time = t_nondim * (t_f - t_0) + t_0
 
-        updated_state = eqx.tree_at(lambda s: s.frames.inertial.time, state, time)
+        updated_state = update(state, "frames.inertial.time", time)
 
         return updated_state, system, settings
 

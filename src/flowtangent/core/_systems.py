@@ -9,27 +9,32 @@
 
 from __future__ import annotations
 
-import equinox as eqx
+from typing import TYPE_CHECKING
 
-# package imports
-import jax.numpy as jnp
-from flowtangent.library import Component, MassProperties
-from flowtangent.library.attributes import AircraftClass, MediumRange
-from flowtangent.library.components.energy.networks import GraphNetwork
-from flowtangent.library.components.fuselages import Fuselage
-from flowtangent.library.components.landing_gear import LandingGear
-from flowtangent.library.components.nacelles import Nacelle
-from flowtangent.library.components.wings import Wing
+if TYPE_CHECKING:
+    pass
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..components.energy import PACTNetwork
+
+import equinox as eqx
+import jax
+
+from ..components import Fuselage, LandingGear, Nacelle, Wing
+from ..core._component import Component, MassProperties
+from ..data.ac_classes import AircraftClass, MediumRange
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register
+from ..utils import Module, empty_array, field
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Components
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class VehicleEnvelope(eqx.Module):
+class VehicleEnvelope(Module):
     # Attribute             Type        Default Value
     ultimate_load_factor: float = 0.0
     limit_load_factor: float = 0.0
@@ -40,9 +45,7 @@ class VehicleEnvelope(eqx.Module):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class System(Component):
-    name: str = field("System", static=True)
 
     configurations: Component = field(lambda: Component(name="Configurations"))
 
@@ -52,15 +55,13 @@ class System(Component):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class AircraftReferenceGeometry(eqx.Module):
-    mean_aerodynamic_chord: jnp.ndarray = empty_array()
-    projected_span: jnp.ndarray = empty_array()
-    aerodynamic_center: jnp.ndarray = empty_array((0, 3))
-    center_of_gravity: jnp.ndarray = empty_array((0, 3))
+    mean_aerodynamic_chord: jax.Array = empty_array()
+    projected_span: jax.Array = empty_array()
+    aerodynamic_center: jax.Array = empty_array((0, 3))
+    center_of_gravity: jax.Array = empty_array((0, 3))
 
 
-@register
 class AircraftMassProperties(MassProperties):
     max_takeoff: float = 0.0
     takeoff: float = 0.0
@@ -69,7 +70,6 @@ class AircraftMassProperties(MassProperties):
     cargo: float = 0.0
 
 
-@register
 class AircraftDesign(eqx.Module):
     ac_class: AircraftClass = field(MediumRange, static=True)
     envelope: VehicleEnvelope = field(VehicleEnvelope, static=True)
@@ -81,8 +81,7 @@ class AircraftDesign(eqx.Module):
     cruise_alt: float = field(0.0, static=True)
 
 
-@register
-class Aircraft[EnergyType: GraphNetwork](System):
+class Aircraft[EnergyType: PACTNetwork](System):
     name: str = field("Aircraft", static=True)
 
     mass_properties: AircraftMassProperties = field(AircraftMassProperties)  # type: ignore
@@ -90,7 +89,7 @@ class Aircraft[EnergyType: GraphNetwork](System):
 
     _bookkeeping: dict = field(
         lambda: {
-            "energy_networks": GraphNetwork,
+            "energy_networks": PACTNetwork,
             "wings": Wing,
             "fuselages": Fuselage,
             "nacelles": Nacelle,

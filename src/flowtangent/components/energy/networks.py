@@ -11,10 +11,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from flowtangent.framework import Settings, State, System
+    pass
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
     from flowtangent.core._state_data._controls import Control, Residual
     from flowtangent.data.atmospheres import Atmosphere
+
+    from ... import Settings, State, System
 
 from dataclasses import replace
 from graphlib import CycleError, TopologicalSorter
@@ -27,18 +32,17 @@ import jax.numpy as jnp
 import flowtangent.utils as tu
 from flowtangent.data import units
 from flowtangent.data.atmospheres import USStandard1976
-from flowtangent.utils import field, register
+from flowtangent.utils import field, update
 
-from .lines import EnergyLine, TurbofanLine, TurbojetLine
-from .nodes import BleedFlow, GraphDomain, GraphInput, GraphNode
+from .lines import PACTLine, TurbofanLine, TurbojetLine
+from .nodes import BleedFlow, GraphDomain, GraphInput, PACTNode
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Design Conditions
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
-class NetworkDesign(eqx.Module):
+class NetworkParameters(eqx.Module):
     altitude: float = 0.0
     mach_number: float = 0.01
     thrust: float = 1.0 * units.N
@@ -101,34 +105,33 @@ def _resolve_namespaces(node, parent_prefix=""):
     # Recurse through any subcomponents
     if hasattr(node, "subcomponents") and node.subcomponents:
         resolved_children = tuple(_resolve_namespaces(child, parent_prefix=absolute_id) for child in node.subcomponents)
-        node = eqx.tree_at(lambda n: n.subcomponents, node, resolved_children)
+        node = update(node, "subcomponents", resolved_children)
 
     return node
 
 
-@register
-class GraphNetwork[DesignType: NetworkDesign](GraphNode):
+class PACTNetwork[DesignType: NetworkParameters](PACTNode):
     name: str = field("Network", static=True)
     network_id: str = field("network", static=True)
 
-    nodes: dict[str, "GraphNode"] = field(dict)
+    nodes: dict[str, "PACTNode"] = field(dict)
     domains: tuple[GraphDomain, ...] = field(tuple, static=True)
-    design_parameters: DesignType = field(NetworkDesign)
+    design_parameters: DesignType = field(NetworkParameters)
 
-    _bookkeeping: dict = field(lambda: {"lines": EnergyLine}, static=True)
+    _bookkeeping: dict = field(lambda: {"lines": PACTLine}, static=True)
     _execution_order: tuple[str, ...] = field(tuple, static=True)
 
     controls: tuple[Control, ...] = field(tuple, static=True)
     residuals: tuple[Residual, ...] = field(tuple, static=True)
 
-    def _rebalance_flow_splitters(self) -> "GraphNetwork":
+    def _rebalance_flow_splitters(self) -> PACTNetwork:
         """Rebalances fractions directly within the subcomponents tree."""
         # Grab a temporary flat dict just to look at the hierarchy
         temp_dict = {}
 
         def _temp_recurse(subs):
             for c in subs:
-                if isinstance(c, GraphNode):
+                if isinstance(c, PACTNode):
                     temp_dict[c.network_id] = c
                 if hasattr(c, "subcomponents") and c.subcomponents:
                     _temp_recurse(c.subcomponents)
@@ -152,11 +155,11 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
             return self
 
         def _apply(node):
-            if isinstance(node, GraphNode) and node.network_id in corrected_fractions:
-                return eqx.tree_at(lambda n: n.extraction_fraction, node, corrected_fractions[node.network_id])
+            if isinstance(node, PACTNode) and node.network_id in corrected_fractions:
+                return update(node, "extraction_fraction", corrected_fractions[node.network_id])
             return node
 
-        return jax.tree_util.tree_map(_apply, self, is_leaf=lambda x: isinstance(x, GraphNode))
+        return jax.tree_util.tree_map(_apply, self, is_leaf=lambda x: isinstance(x, PACTNode))
 
     def assign_network_ids(self):
 
@@ -168,28 +171,24 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
             resolved_line = _resolve_namespaces(line, parent_prefix=f"{updated_network.get_field_name()}")
             resolved_lines.append(resolved_line)
 
-        updated_network = eqx.tree_at(
-            lambda n: n.subcomponents,
-            updated_network,
-            tuple(resolved_lines),
-        ).update_node_topology()
+        updated_network = update(updated_network, "subcomponents", tuple(resolved_lines)).update_node_topology()
 
         return updated_network
 
-    def _get_all_nodes(self) -> "GraphNetwork":
+    def _get_all_nodes(self) -> PACTNetwork:
         nodes_dict = {}
 
         def _recurse(subcomponents):
             for comp in subcomponents:
-                if isinstance(comp, GraphNode):
+                if isinstance(comp, PACTNode):
                     nodes_dict[comp.network_id] = comp
                 if hasattr(comp, "subcomponents") and comp.subcomponents:
                     _recurse(comp.subcomponents)
 
         _recurse(self.subcomponents)
-        return eqx.tree_at(lambda n: n.nodes, self, nodes_dict)
+        return update(self, "nodes", nodes_dict)
 
-    def update_node_topology(self) -> "GraphNetwork":
+    def update_node_topology(self) -> PACTNetwork:
         """The single entry point to finalize the network for execution.
         Use after running initialize_energy so parts are properly ID'd."""
 
@@ -205,7 +204,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
         except CycleError as e:
             raise ValueError(f"Cyclic dependency detected: {e}")
 
-    def sync_and_clear_nodes(self) -> GraphNetwork:
+    def sync_and_clear_nodes(self) -> PACTNetwork:
         """
         Projects the updated nodes from the flat 'nodes' dictionary
         back onto their original positions in the nested subcomponents tree.
@@ -214,7 +213,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
 
         def _walk_and_sync(component):
             # If we hit an EnergyNode, replace it with the latest version from the dict
-            if isinstance(component, GraphNode):
+            if isinstance(component, PACTNode):
                 # Grab the updated node (fallback to current if not in dict)
                 component = self.nodes.get(component.network_id, component)
 
@@ -222,7 +221,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
             if hasattr(component, "subcomponents") and component.subcomponents:
                 synced_children = tuple(_walk_and_sync(child) for child in component.subcomponents)
                 # Functionally update the component's subcomponents
-                component = eqx.tree_at(lambda c: c.subcomponents, component, synced_children)
+                component = update(component, "subcomponents", synced_children)
 
             return component
 
@@ -243,7 +242,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class _JetNetwork[DesignType: JetNetDesign](GraphNetwork[DesignType]):
+class _JetNetwork[DesignType: JetNetParameters](PACTNetwork[DesignType]):
     """
     Jet network shell without design parameters.
     """
@@ -274,20 +273,19 @@ class _JetNetwork[DesignType: JetNetDesign](GraphNetwork[DesignType]):
         total_thrust = jnp.atleast_2d(self.apply_domain_op(jnp.sum, state, "force", "thrust"))
         total_force_vector = jnp.hstack((total_thrust, jnp.zeros((total_thrust.shape[0], 2))))
 
-        updated_state = eqx.tree_at(
-            lambda s: (
-                s.energy.total_force_vector,
-                s.energy.residual.thrust,
-            ),
+        updated_state = update(
             updated_state,
-            (total_force_vector, (total_thrust - state.energy.target_thrust) / state.energy.target_thrust),
+            (
+                ("energy.total_force_vector", total_force_vector),
+                ("energy.residual.thrust", (total_thrust - state.energy.target_thrust) / state.energy.target_thrust),
+            ),
         )
 
         # Power Imbalance (Single Spool Only) ----------------------------------
 
         total_d_power = self.apply_domain_op(jnp.sum, updated_state, "residual", "power")
 
-        updated_state = eqx.tree_at(lambda s: s.energy.residual.power, updated_state, total_d_power)
+        updated_state = update(updated_state, "energy.residual.power", total_d_power)
 
         return updated_state, system, settings
 
@@ -299,15 +297,13 @@ def _TurbojetNetworkSetup():
     return (TurbojetLine(name="Line"),)
 
 
-@register
-class JetNetDesign(NetworkDesign):
+class JetNetParameters(NetworkParameters):
     number_of_engines: int = field(1, static=True)
 
 
-@register
-class TurbojetNetwork(_JetNetwork[JetNetDesign]):
+class TurbojetNetwork(_JetNetwork[JetNetParameters]):
     subcomponents: tuple = field(_TurbojetNetworkSetup)
-    design_parameters: JetNetDesign = field(JetNetDesign)
+    design_parameters: JetNetParameters = field(JetNetParameters)
 
 
 # Turbofan ---------------------------------------------------------------------
@@ -317,6 +313,5 @@ def _TurbofanNetworkSetup():
     return (TurbofanLine(),)
 
 
-@register
-class TurbofanNetwork(_JetNetwork[JetNetDesign]):
+class TurbofanNetwork(_JetNetwork[JetNetParameters]):
     subcomponents: tuple = field(_TurbofanNetworkSetup)

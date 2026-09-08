@@ -9,111 +9,104 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
-import jax.numpy as jnp
 
 from flowtangent.core._state_data import StateData
 from flowtangent.data.gases import Air, Gas
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register
+from ...utils import field
+from ...utils.typing import TimeScalar, TimeVector3, _
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Energy Interfaces
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class MechanicalOutputs(StateData):
     name: str = field("Mechanical Outputs", static=True)
 
-    work: jnp.ndarray = empty_array()
-    power: jnp.ndarray = empty_array()
+    work: TimeScalar = _
+    power: TimeScalar = _
 
 
-@register
 class ElectricalOutputs(StateData):
     name: str = field("Electrical Outputs", static=True)
 
-    power: jnp.ndarray = empty_array()
-    voltage: jnp.ndarray = empty_array()
-    current: jnp.ndarray = empty_array()
+    power: TimeScalar = _
+    voltage: TimeScalar = _
+    current: TimeScalar = _
 
 
-@register
 class FuelOutputs(StateData):
     name: str = field("Fuel Outputs", static=True)
 
-    TSFC: jnp.ndarray = empty_array()
-    flow_rate: jnp.ndarray = empty_array()
+    TSFC: TimeScalar = _
+    flow_rate: TimeScalar = _
 
 
-@register
 class FlowOutputs(StateData):
     name: str = field("Flow Outputs", static=True)
     fluid: Gas = field(Air)
 
-    speed: jnp.ndarray = empty_array()
-    speed_of_sound: jnp.ndarray = empty_array()
-    mach_number: jnp.ndarray = empty_array()
-    reynolds_number: jnp.ndarray = empty_array()
+    speed: TimeScalar = _
+    speed_of_sound: TimeScalar = _
+    mach_number: TimeScalar = _
+    reynolds_number: TimeScalar = _
 
-    pressure: jnp.ndarray = empty_array()
-    temperature: jnp.ndarray = empty_array()
-    enthalpy: jnp.ndarray = empty_array()
+    pressure: TimeScalar = _
+    temperature: TimeScalar = _
+    enthalpy: TimeScalar = _
 
-    stagnation_pressure: jnp.ndarray = empty_array()
-    stagnation_temperature: jnp.ndarray = empty_array()
-    stagnation_enthalpy: jnp.ndarray = empty_array()
+    stagnation_pressure: TimeScalar = _
+    stagnation_temperature: TimeScalar = _
+    stagnation_enthalpy: TimeScalar = _
 
-    area: jnp.ndarray = empty_array()
-    density: jnp.ndarray = empty_array()
-    mass_flow_rate: jnp.ndarray = empty_array()
-    fuel_air_ratio: jnp.ndarray = empty_array()
+    area: TimeScalar = _
+    density: TimeScalar = _
+    mass_flow_rate: TimeScalar = _
+    fuel_air_ratio: TimeScalar = _
 
-    dynamic_viscosity: jnp.ndarray = empty_array()
-    dynamic_pressure: jnp.ndarray = empty_array()
+    dynamic_viscosity: TimeScalar = _
+    dynamic_pressure: TimeScalar = _
 
-    gamma: jnp.ndarray = empty_array()
-    Cp: jnp.ndarray = empty_array()
-    R: jnp.ndarray = empty_array()
+    gamma: TimeScalar = _
+    Cp: TimeScalar = _
+    R: TimeScalar = _
 
 
-@register
 class ResidualOutputs(StateData):
     name: str = field("Residual Outputs", static=True)
 
-    mass: jnp.ndarray = empty_array()
-    mass_flow_rate: jnp.ndarray = empty_array()
+    mass: TimeScalar = _
+    mass_flow_rate: TimeScalar = _
 
-    work: jnp.ndarray = empty_array()
-    power: jnp.ndarray = empty_array()
+    work: TimeScalar = _
+    power: TimeScalar = _
 
-    thrust: jnp.ndarray = empty_array()
-    area: jnp.ndarray = empty_array()
+    thrust: TimeScalar = _
+    area: TimeScalar = _
 
     # Single Spool Turbojet Residuals
-    compressor_Wc: jnp.ndarray = empty_array()
-    turbine_Wp: jnp.ndarray = empty_array()
+    compressor_Wc: TimeScalar = _
+    turbine_Wp: TimeScalar = _
 
     # Dual Spool Turbofan Residuals
-    fan_Wc: jnp.ndarray = empty_array()
-    lpc_Wc: jnp.ndarray = empty_array()
-    hpc_Wc: jnp.ndarray = empty_array()
+    fan_Wc: TimeScalar = _
+    lpc_Wc: TimeScalar = _
+    hpc_Wc: TimeScalar = _
 
-    lpt_Wp: jnp.ndarray = empty_array()
-    hpt_Wp: jnp.ndarray = empty_array()
+    lpt_Wp: TimeScalar = _
+    hpt_Wp: TimeScalar = _
 
 
-@register
 class ForceOutputs(StateData):
     name: str = field("Force Outputs", static=True)
 
-    thrust: jnp.ndarray = empty_array()
-    nondimensional_thrust: jnp.ndarray = empty_array()
-    specific_impulse: jnp.ndarray = empty_array()
+    thrust: TimeScalar = _
+    nondimensional_thrust: TimeScalar = _
+    specific_impulse: TimeScalar = _
 
 
-@register
 class NodeState(StateData):
     name: str = field("Node Outputs", static=True)
 
@@ -124,7 +117,7 @@ class NodeState(StateData):
     force: ForceOutputs = field(ForceOutputs)
     residual: ResidualOutputs = field(ResidualOutputs)
 
-    mass: jnp.ndarray = empty_array()
+    mass: TimeScalar = _
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -132,7 +125,6 @@ class NodeState(StateData):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class BatteryCellConditions(NodeState):
     # Attribute                 Type        Default Value
     name: str = field("Battery Cell", static=True)
@@ -141,12 +133,11 @@ class BatteryCellConditions(NodeState):
     resistance_growth_factor: float = field(0.0, static=True)
     capacity_fade_factor: float = field(0.0, static=True)
 
-    temperature: jnp.ndarray = empty_array()
-    charge_throughput: jnp.ndarray = empty_array()
-    state_of_charge: jnp.ndarray = empty_array()
+    temperature: TimeScalar = _
+    charge_throughput: TimeScalar = _
+    state_of_charge: TimeScalar = _
 
 
-@register
 class BatteryPackConditions(NodeState):
     # Attribute             Type                    Default Value
     name: str = field("Battery Pack", static=True)
@@ -155,7 +146,7 @@ class BatteryPackConditions(NodeState):
 
     cell: BatteryCellConditions = field(BatteryCellConditions)
 
-    temperature: jnp.ndarray = empty_array()
+    temperature: TimeScalar = _
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -163,55 +154,52 @@ class BatteryPackConditions(NodeState):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class NetworkState(NodeState):
     name: str = field("Energy Network", static=True)
 
     nodes: dict = field(dict)
 
-    total_energy: jnp.ndarray = empty_array()
-    total_efficiency: jnp.ndarray = empty_array()
+    total_energy: TimeScalar = _
+    total_efficiency: TimeScalar = _
 
-    throttle: jnp.ndarray = empty_array()
-    total_power: jnp.ndarray = empty_array()
+    throttle: TimeScalar = _
+    total_power: TimeScalar = _
 
-    total_force_vector: jnp.ndarray = empty_array((0, 3))
-    total_moment_vector: jnp.ndarray = empty_array((0, 3))
+    total_force_vector: TimeVector3 = _
+    total_moment_vector: TimeVector3 = _
 
 
-@register
 class TurbojetState(NetworkState):
     name: str = field("Turbojet Network", static=True)
 
     # Control hooks
-    fuel_air_ratio: jnp.ndarray = empty_array()
-    mass_flow_rate: jnp.ndarray = empty_array()
-    rotation_speed: jnp.ndarray = empty_array()
-    compressor_Rline: jnp.ndarray = empty_array()
-    turbine_PR: jnp.ndarray = empty_array()
+    fuel_air_ratio: TimeScalar = _
+    mass_flow_rate: TimeScalar = _
+    rotation_speed: TimeScalar = _
+    compressor_Rline: TimeScalar = _
+    turbine_PR: TimeScalar = _
 
-    target_thrust: jnp.ndarray = empty_array()
-    target_temperature: jnp.ndarray = empty_array()
+    target_thrust: TimeScalar = _
+    target_temperature: TimeScalar = _
 
 
-@register
 class TurbofanState(NetworkState):
     name: str = field("Turbofan Network", static=True)
 
     # Control hooks
-    fuel_air_ratio: jnp.ndarray = empty_array()
-    mass_flow_rate: jnp.ndarray = empty_array()
+    fuel_air_ratio: TimeScalar = _
+    mass_flow_rate: TimeScalar = _
 
-    LP_speed: jnp.ndarray = empty_array()
-    HP_speed: jnp.ndarray = empty_array()
+    LP_speed: TimeScalar = _
+    HP_speed: TimeScalar = _
 
-    fan_Rline: jnp.ndarray = empty_array()
-    lpc_Rline: jnp.ndarray = empty_array()
-    hpc_Rline: jnp.ndarray = empty_array()
+    fan_Rline: TimeScalar = _
+    lpc_Rline: TimeScalar = _
+    hpc_Rline: TimeScalar = _
 
-    lpt_PR: jnp.ndarray = empty_array()
-    hpt_PR: jnp.ndarray = empty_array()
+    lpt_PR: TimeScalar = _
+    hpt_PR: TimeScalar = _
 
-    bypass_ratio: jnp.ndarray = empty_array()
-    target_thrust: jnp.ndarray = empty_array()
-    target_temperature: jnp.ndarray = empty_array()
+    bypass_ratio: TimeScalar = _
+    target_thrust: TimeScalar = _
+    target_temperature: TimeScalar = _

@@ -8,11 +8,14 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 
-# package imports
-import equinox as eqx
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from ... import Settings, State, System
+
+# package imports
 # Flowtangent imports
-from ... import Settings, State, System
+from ...utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Update Time Differentials
@@ -35,10 +38,13 @@ def update_time_differentials(
     D_scaled = D / T
     I_scaled = I * T
 
-    state = eqx.tree_at(
-        lambda s: (s.numerics.time.control_points, s.numerics.time.differentiate, s.numerics.time.integrate),
+    state = update(
         state,
-        (t_scaled, D_scaled, I_scaled),
+        (
+            ("numerics.time.control_points", t_scaled),
+            ("numerics.time.differentiate", D_scaled),
+            ("numerics.time.integrate", I_scaled),
+        ),
         is_leaf=lambda x: x is None,
     )
 

@@ -1,9 +1,35 @@
 from flowtangent.utils import field
 
-from ... import Process, ProcessStep
-from ...functional.mass import transport as t_mass
+from .. import Module, Process, ProcessStep
+from ..functional.mass import transport as t_mass
 
-# from Flowtangent.Framework.Methods.Mass.Energy import tf_mass_from_SLS
+# API
+
+__all__ = [
+    "ReductionFactors",
+    "SizingFractions",
+    "MassAnalysisSettings",
+    "Transport",
+]
+
+# Settings
+
+class ReductionFactors(Module):
+    main_wing: float = 0.0
+    fuselage: float = 0.0
+    empennage: float = 0.0
+    systems: float = 0.0
+
+
+class SizingFractions(Module):
+    rudder_sizing: float = field(0.25, static=True)
+
+
+class MassAnalysisSettings(Module):
+    reduction_factors: ReductionFactors = field(ReductionFactors)
+    sizing_fractions: SizingFractions = field(SizingFractions)
+
+# Transport Mass Analysis
 
 
 def _default_transport_steps() -> tuple[ProcessStep, ...]:

@@ -1,13 +1,14 @@
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 
-from flowtangent.framework.analyses.aero.VORJAX import InitializeVORJAX, VORJAX, Vortices, VORJAX_Settings
+from flowtangent.framework.analyses.aero.VORJAX import InitializeVORJAX, VORJAX, Vortices, VORJAXSettings
 from flowtangent.library.components.wings import Wing, WingSegment, Sweeps, Chords, WingDimensions
 from flowtangent.core._systems import Aircraft
 from flowtangent.library.components import Areas
 from flowtangent.data import units
 
-from flowtangent.utils import configure_environment, TreePath
+from flowtangent.utils import configure_environment, TreePath, update
 
 from flowtangent.framework import State, Settings, Process
 from flowtangent.core._settings import JacobianMap, NumericalSettings
@@ -79,28 +80,24 @@ if __name__ == "__main__":
     )
 
     initial_state = State().freeze_initials()
-    initial_state = eqx.tree_at(
-        lambda s: (
-            s.stability.static.roll_rate,
-            s.stability.static.pitch_rate,
-            s.stability.static.yaw_rate),
+    initial_state = update(
         initial_state,
         (
-            jnp.zeros((1, 1)),
-            jnp.zeros((1, 1)),
-            jnp.zeros((1, 1))
+            ("stability.static.roll_rate", jnp.zeros((1, 1))),
+            ("stability.static.pitch_rate", jnp.zeros((1, 1))),
+            ("stability.static.yaw_rate", jnp.zeros((1, 1))),
         )
     )
 
-    initial_state = eqx.tree_at(lambda s: s.aerodynamics.angles.alpha, initial_state, jnp.atleast_2d(3.0 * units.deg))
-    initial_state = eqx.tree_at(lambda s: s.aerodynamics.angles.beta, initial_state, jnp.atleast_2d(0.0 * units.deg))
-    initial_state = eqx.tree_at(lambda s: s.freestream.mach_number, initial_state, jnp.atleast_2d(0.0))
+    initial_state = update(initial_state, "aerodynamics.angles.alpha", jnp.atleast_2d(3.0 * units.deg))
+    initial_state = update(initial_state, "aerodynamics.angles.beta", jnp.atleast_2d(0.0 * units.deg))
+    initial_state = update(initial_state, "freestream.mach_number", jnp.atleast_2d(0.0))
 
-    # initial_state = eqx.tree_at(lambda s: s.freestream.speed, initial_state, jnp.array([[100.0]]))
-    initial_state = eqx.tree_at(lambda s: s.freestream.density, initial_state, jnp.array([[1.0]]))
-    initial_state = eqx.tree_at(lambda s: s.freestream.gamma, initial_state, jnp.array([[1.4]]))
-    initial_state = eqx.tree_at(lambda s: s.freestream.temperature, initial_state, jnp.array([[273.15]]))
-    initial_state = eqx.tree_at(lambda s: s.frames.inertial.velocity_vector, initial_state, jnp.array([[100.0, 0., 0.]]))
+    # initial_state = update(initial_state, "freestream.speed", jnp.array([[100.0]]))
+    initial_state = update(initial_state, "freestream.density", jnp.array([[1.0]]))
+    initial_state = update(initial_state, "freestream.gamma", jnp.array([[1.4]]))
+    initial_state = update(initial_state, "freestream.temperature", jnp.array([[273.15]]))
+    initial_state = update(initial_state, "frames.inertial.velocity_vector", jnp.array([[100.0, 0., 0.]]))
 
     analysis = VORJAX()
 
@@ -115,16 +112,12 @@ if __name__ == "__main__":
     jac_map = JacobianMap(state_inputs=(alpha_path,), state_outputs=(lift_path,))
     num_sets = NumericalSettings(jacobian_map=jac_map)
 
-    settings = eqx.tree_at(
-        lambda s: (
-            s.analysis.aerodynamics,
-            s.numerical
-        ),
-        Settings(DEBUG_MODE=True,),
+    settings = update(
+        Settings(DEBUG_MODE=True),
         (
-            VORJAX_Settings(vortices=panelization),
-            num_sets
-        )
+            ("analysis.aerodynamics", VORJAXSettings(vortices=panelization),
+            ("numerical", num_sets),
+        ),
     )
     configure_environment(settings)
 

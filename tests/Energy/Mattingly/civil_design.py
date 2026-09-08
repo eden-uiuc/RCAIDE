@@ -1,14 +1,12 @@
 import pandas as pd
 
-import equinox as eqx
-
 from flowtangent.utils import configure_environment
 
-from flowtangent.library.components.energy.jets import data as jet_data
-from flowtangent.library.components.energy.networks import TurbofanNetwork
+from flowtangent.components._energy.jets import _data as jet_data
+from flowtangent.components._energy.networks import TurbofanNetwork
 
-from flowtangent.framework import State, Settings, Aircraft
-from flowtangent.framework.analyses.energy.jets import design_turbofan_mp, JetSettings
+from flowtangent import State, Settings, Aircraft
+from flowtangent._analyses._energy.jets import design_turbofan_mp, JetSettings
 
 if __name__ == "__main__":
     
@@ -38,7 +36,7 @@ if __name__ == "__main__":
         # "FJ44",
     ]:
         engine = getattr(jet_data, e_name, False)
-        e_setts = eqx.tree_at(lambda s: s.analysis.energy, setts, JetSettings("Imperial", True))
+        e_setts = update(setts, "analysis.energy", JetSettings("Imperial", True))
         
         if not engine:
             print(f"Failed to import '{e_name}'. Skipping...")
@@ -46,7 +44,7 @@ if __name__ == "__main__":
             print("="*70)
             print(f"Designing {e_name.replace('_','-')}")
             print("-"*70)
-            e_sys = eqx.tree_at(lambda n: n.energy.line.engine, sys, engine)
+            e_sys = update(sys, "energy.line.engine", engine)
             d_st, d_sys, d_setts = design_turbofan_mp(e_st, e_sys, e_setts)
 
             # thrust = d_st.energy.nodes['network.line.engine'].force.thrust.item()

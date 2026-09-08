@@ -18,7 +18,7 @@ import numpy as np
 
 # Flowtangent imports
 from flowtangent.data import units
-from flowtangent.utils.io import _ft_root, register
+from flowtangent.utils.io import _ft_root
 
 jax.config.update("jax_enable_x64", True)
 
@@ -132,7 +132,6 @@ def _eval_s0(T):
     return jnp.where(jnp.expand_dims(T_arr, axis=-1) > NASA_MID, s_high, s_low)
 
 
-@register
 class Gas(eqx.Module):
     mass_fractions: jax.Array
 
@@ -153,7 +152,7 @@ class Gas(eqx.Module):
             self.mass_fractions = jnp.zeros(len(SPECIES_LIST), dtype=jnp.float64)
 
     def __repr__(self) -> str:
-        if isinstance(self.mass_fractions, jax.core.Flowtangentr):
+        if isinstance(self.mass_fractions, jax.core.Tracer):
             return "Gas(Flowtangentd Composition)"
 
         # Convert to standard numpy.
@@ -180,7 +179,7 @@ class Gas(eqx.Module):
     def R_specific(self):
         return jnp.sum(self.mass_fractions * R_SPEC, axis=-1, keepdims=True)
 
-    def compute_density(self, T: float | jnp.ndarray = 298.15, P: float | jnp.ndarray = 101325.0):
+    def compute_density(self, T: float | jax.Array = 298.15, P: float | jax.Array = 101325.0):
         return P / (self.R_specific * T)
 
     def compute_Cp(self, T: float | jax.Array = 298.15):
@@ -196,7 +195,7 @@ class Gas(eqx.Module):
         h_ref = self.compute_absolute_enthalpy(298.15)
         return h_abs - h_ref
 
-    def invert_enthalpy(self, h_target: float | jnp.ndarray, T_guess: float | jnp.ndarray = 1000.0, max_iter: int = 5):
+    def invert_enthalpy(self, h_target: float | jax.Array, T_guess: float | jax.Array = 1000.0, max_iter: int = 5):
         def step(T, _):
             h = self.compute_enthalpy(T)
             cp = self.compute_Cp(T)
@@ -217,16 +216,16 @@ class Gas(eqx.Module):
         P_ref = 101325.0
         return s0_mixed - self.R_specific * jnp.log(P / P_ref)
 
-    def compute_gamma(self, T: float | jnp.ndarray = 298.15):
+    def compute_gamma(self, T: float | jax.Array = 298.15):
         cp = self.compute_Cp(T)
         gamma = cp / (cp - self.R_specific)
         return gamma
 
-    def compute_speed_of_sound(self, T: float | jnp.ndarray = 298.0):
+    def compute_speed_of_sound(self, T: float | jax.Array = 298.0):
         g = self.compute_gamma(T)
         return jnp.sqrt(g * self.R_specific * T)
 
-    def compute_absolute_viscosity(self, T: float | jnp.ndarray = 298.0):
+    def compute_absolute_viscosity(self, T: float | jax.Array = 298.0):
         return 1.8e-5
 
 

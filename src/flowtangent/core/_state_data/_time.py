@@ -9,34 +9,31 @@
 
 
 # package imports
-import equinox as eqx
+import jax
 import jax.numpy as jnp
 
 from flowtangent.core._state_data import StateData
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register
+from flowtangent.utils import empty_array, field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Time Conditions
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class NumericalTime(StateData):
-    control_points: jnp.ndarray = empty_array()
-    differentiate: jnp.ndarray = empty_array()
-    integrate: jnp.ndarray | None = None
+    control_points: jax.Array = empty_array()
+    differentiate: jax.Array = empty_array()
+    integrate: jax.Array | None = None
 
     def __repr__(self):
         return ""
 
 
-@register
 class Time(StateData):
-    name: str = field("Time", static=True)
 
-    N: int = field(1, static=True)
+    N: int = static_field(1)
 
     dimensionless: NumericalTime = field(lambda: NumericalTime(name="Dimensionless Time"))
     dimensional: NumericalTime = field(lambda: NumericalTime(name="Dimensional Time"))
@@ -89,11 +86,7 @@ class Time(StateData):
             integrate=I,
         )
 
-        updated_time = eqx.tree_at(
-            lambda s: s.dimensionless,
-            self,
-            updated_dimensionless,
-        )
+        updated_time = update(self, "dimensionless", updated_dimensionless)
 
         return updated_time
 

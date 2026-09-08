@@ -14,21 +14,34 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
 import networkx as nx
 
-from flowtangent.framework import Process, ProcessStep
-from flowtangent.library.components.energy.networks import GraphNetwork
-from flowtangent.utils import field, inputs, outputs, parse_io
+from ... import Process, ProcessStep
+from ...components.energy.networks import PACTNetwork
+from ...utils import field, inputs, outputs, parse_io
+
+# API
+
+__all__ = [
+    "PACTAnalysis",
+    "build_PACT_analysis"
+]
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Graph Energy Network Analysis
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class PACTNetwork(Process):
-    analysis_network: GraphNetwork = field(GraphNetwork)
+class PACTAnalysis(Process):
+    analysis_network: PACTNetwork = field(PACTNetwork)
 
-    def __init__(self, analysis_network: GraphNetwork, **kwargs):
+    def __init__(self, analysis_network: PACTNetwork, **kwargs):
         super().__init__(**kwargs)
         self.analysis_network = analysis_network
 
@@ -48,7 +61,7 @@ class PACTNetwork(Process):
         return G
 
 
-def build_analysis_from_network(network: GraphNetwork):
+def build_PACT_analysis(network: PACTAnalysis):
 
     analysis_network = network.assign_network_ids()
 
@@ -108,7 +121,7 @@ def build_analysis_from_network(network: GraphNetwork):
 
     full_steps = node_steps + (net_step,)
 
-    network_analysis = PACTNetwork(
+    network_analysis = PACTAnalysis(
         name=f"{network.name} Analysis",
         analysis_network=analysis_network,
         steps=full_steps,

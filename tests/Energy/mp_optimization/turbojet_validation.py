@@ -32,6 +32,7 @@ numerical_environment()
 
 import json
 
+import jax
 import jax.numpy as jnp
 import equinox as eqx
 import numpy as np
@@ -154,11 +155,11 @@ def off_design_point(
     thrust: float,
     system: Aircraft,
     settings: Settings,
-    initial_Rline: float | jnp.ndarray = 2.0,
-    initial_turb_PR: float | jnp.ndarray = 5.0,
-    initial_RPM: float | jnp.ndarray = 1000 * units.rpm,
-    initial_MFR: float | jnp.ndarray = 100 * units.kg / units.s,
-    initial_FAR: float | jnp.ndarray = 1e-4,
+    initial_Rline: float | jax.Array = 2.0,
+    initial_turb_PR: float | jax.Array = 5.0,
+    initial_RPM: float | jax.Array = 1000 * units.rpm,
+    initial_MFR: float | jax.Array = 100 * units.kg / units.s,
+    initial_FAR: float | jax.Array = 1e-4,
 ):
 
     network: TurbojetNetwork = system.energy
@@ -203,7 +204,7 @@ def off_design_point(
     )
 
     new_settings = JetSettings(design_mode=False, statics=od_settings.analysis.energy.statics)
-    od_settings = eqx.tree_at(lambda s: s.analysis.energy, od_settings, new_settings)
+    od_settings = update(od_settings, "analysis.energy", new_settings)
     od_state, od_system, od_settings = od_analysis.run(od_state, od_system, od_settings, initialize=True)
 
     return od_state, od_system, od_settings

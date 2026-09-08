@@ -10,11 +10,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ... import Settings, State, System
+
 import jax.numpy as np
 
 from flowtangent.data import units
-
-from ... import Settings, State, System
 
 # -----------------------------------------------------------------------
 # Functional/Library Version

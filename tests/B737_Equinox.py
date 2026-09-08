@@ -2,10 +2,14 @@
 # Imports
 # ----------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    pass
 # package imports
 import dataclasses as dc
 
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 
 # Flowtangent Imports
@@ -463,7 +467,7 @@ def mission_setup(state: State, system: Aircraft, settings: Settings):
     controls = (
         "body_angle",
         # DirectControlVariable(name='Thrust', path=("frames", "body", "thrust_force_vector",), active=True),
-        Control(name='Throttle', state_path=("energy", "throttle"), _active=True)
+        Variablename='Throttle', state_path=("energy", "throttle"), _active=True)
     )
 
     residuals = ("force_x", "force_z")
@@ -471,7 +475,7 @@ def mission_setup(state: State, system: Aircraft, settings: Settings):
     vortex_settings = Vortices(n_spanwise=20, n_chordwise=12)
     aero_settings = VORJAX_Settings(vortices=vortex_settings)
 
-    updated_settings = eqx.tree_at(lambda s: s.analysis.aerodynamics, settings, aero_settings)
+    updated_settings = update(settings, "analysis.aerodynamics", aero_settings)
 
     # Create Segments
 
@@ -544,7 +548,7 @@ def mission_setup(state: State, system: Aircraft, settings: Settings):
 
         updated_segments.append(updated_segment)
 
-    updated_mission = eqx.tree_at(lambda m: m.steps, mission, tuple(updated_segments))
+    updated_mission = update(mission, "steps", tuple(updated_segments))
 
     VORJAX_Graph = aero_analysis.to_mermaid(save_path="./tests/VORJAX_graph.md")
     Energy_Graph = energy_analysis.to_mermaid(save_path="./tests/energy_graph.md")
@@ -595,7 +599,7 @@ if __name__ == '__main__':
     #     # Setup Phase (Pure Python, executes every time)
 
     #     # Update the mass dynamically
-    #     system = eqx.tree_at(lambda s: s.mass_properties.total, system, total_mass)
+    #     system = update(system, "mass_properties.total", total_mass)
 
     #     # Execution Phase (JIT compiled solver)
     #     final_state, _, _ = mission_b737(state, system, settings)

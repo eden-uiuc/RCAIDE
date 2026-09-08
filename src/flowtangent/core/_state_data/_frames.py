@@ -9,89 +9,71 @@
 
 
 # package imports
+import jax
 import jax.numpy as jnp
 
 from flowtangent.core._state_data import StateData
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register
+from ...utils import field
+from ...utils.typing import TimeScalar, TimeVector3, _
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Frames
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class Frame(StateData):
-    # Attribute             Type        Default Value
-    name: str = field("Frame", static=True)
 
-    transform_to_inertial: jnp.ndarray = empty_array((0, 3))
+    transform_to_inertial: TimeVector3 = _
 
-    total_force_vector: jnp.ndarray = empty_array((0, 3))
-    total_moment_vector: jnp.ndarray = empty_array((0, 3))
+    total_force_vector: TimeVector3 = _
+    total_moment_vector: TimeVector3 = _
 
 
-@register
 class Inertial(Frame):
-    # Attribute                     Type        Default Value
-    name: str = field("Inertial Frame", static=True)
 
-    position_vector: jnp.ndarray = empty_array((0, 3))
+    position_vector: TimeVector3 = _
 
-    velocity_vector: jnp.ndarray = empty_array((0, 3))
-    acceleration_vector: jnp.ndarray = empty_array((0, 3))
+    velocity_vector: TimeVector3 = _
+    acceleration_vector: TimeVector3 = _
 
-    angular_velocity_vector: jnp.ndarray = empty_array((0, 3))
-    angular_acceleration_vector: jnp.ndarray = empty_array((0, 3))
+    angular_velocity_vector: TimeVector3 = _
+    angular_acceleration_vector: TimeVector3 = _
 
-    gravity_force_vector: jnp.ndarray = empty_array((0, 3))
+    gravity_force_vector: TimeVector3 = _
 
-    time: jnp.ndarray = empty_array((0))
-    system_range: jnp.ndarray = empty_array((0))
+    time: TimeScalar = _
+    system_range: TimeScalar = _
 
 
-@register
 class Body(Frame):
-    # Attribute             Type        Default Value
-    name: str = field("Body Frame", static=True)
 
-    inertial_rotations: jnp.ndarray = empty_array((0, 3))
-    thrust_force_vector: jnp.ndarray = empty_array((0, 3))
-    moment_vector: jnp.ndarray = empty_array((0, 3))
+    inertial_rotations: TimeVector3 = _
+    thrust_force_vector: TimeVector3 = _
+    moment_vector: TimeVector3 = _
 
 
-@register
 class Wind(Frame):
-    # Attribute         Type            Default Value
-    name: str = field("Wind Frame", static=True)
+    body_rotations: TimeVector3 = _
+    transform_to_body: TimeVector3 = _
 
-    body_rotations: jnp.ndarray = empty_array((0, 3))
-    transform_to_body: jnp.ndarray = empty_array((0, 3))
-
-    velocity_vector: jnp.ndarray = empty_array((0, 3))
-    force_vector: jnp.ndarray = empty_array((0, 3))
-    moment_vector: jnp.ndarray = empty_array((0, 3))
+    velocity_vector: TimeVector3 = _
+    force_vector: TimeVector3 = _
+    moment_vector: TimeVector3 = _
 
 
-@register
 class Planet(Frame):
-    # Attribute     Type            Default Value
-    name: str = field("Planet Frame", static=True)
-    start_time: jnp.ndarray = empty_array()
+    start_time: TimeScalar = _
 
     # Default to takeoff at JFK
-    latitude: jnp.ndarray = field(lambda: jnp.array([40.6446]))
-    longitude: jnp.ndarray = field(lambda: jnp.array([73.7797]))
+    latitude: jax.Array = field(jnp.array([40.6446]))
+    longitude: jax.Array = field(jnp.array([73.7797]))
 
-    true_course: jnp.ndarray = empty_array()
+    true_course: TimeScalar = _
 
 
-@register
 class FrameData(StateData):
-    # Attribute     Type            Default Value
-    name: str = field("Dynamic Frames", static=True)
-
     inertial: Inertial = field(Inertial)
     body: Body = field(Body)
     wind: Wind = field(Wind)

@@ -9,19 +9,19 @@
 
 
 # package imports
-import jax.numpy as jnp
+
 
 from flowtangent.core._state_data import StateData
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register
+from ...utils import field
+from ...utils.typing import TimeScalar, TimeVector3, _
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Mass
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class Mass(StateData):
     """
     Represents the mass conditions for a vehicle or system.
@@ -54,11 +54,10 @@ class Mass(StateData):
     # Attribute             Type        Default Value
     name: str = field("Mass Conditions", static=True)
 
-    total: jnp.ndarray = empty_array(())
-    rate_of_change: jnp.ndarray = empty_array(())
-    volume: jnp.ndarray = empty_array(())
-    density: jnp.ndarray = empty_array(())
-    center_of_gravity: jnp.ndarray = empty_array((0, 3))
-    moments_of_inertia: jnp.ndarray = empty_array((0, 3, 3))
+    total: TimeScalar = _
+    rate_of_change: TimeScalar = _
+    volume: TimeScalar = _
+    density: TimeScalar = _
+    center_of_gravity: TimeVector3 = _
 
     breakdown: StateData = field(lambda: StateData(name="Mass Breakdown"))

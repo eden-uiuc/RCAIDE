@@ -1,7 +1,7 @@
 # src/eden_trace/utils/__init__.py
 
 # 1. Base / Syntax
-from .base import null_step, field, static_field, method_field, empty_array, Module, StateData
+from .base import null_step, field, static_field, method_field, empty_array, Module
 
 # 2. PyTree Facade
 from .tree import (
@@ -30,9 +30,14 @@ from .tree import (
     is_array_like,
 )
 
+from .backend import configure_environment
+
 # 3. I/O and Serialization
-from .io import inputs, outputs, parse_io, jax_path_string, register, save_data, load_data
+from .io import inputs, outputs, parse_io, jax_path_string, save_data, load_data, LoggingSettings
 
 # 4. Math and Display
 from .display import format_array, MERMAID_STYLES
 from .math import cubic_spline_blender
+
+# 5. JAX Typing
+from .typing import ScalarFloat, ScalarInt, ScalarBool, TimeScalar, TimeVector3

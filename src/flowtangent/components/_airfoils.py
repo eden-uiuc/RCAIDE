@@ -12,14 +12,15 @@ from functools import lru_cache
 from pathlib import Path
 
 # package imports
+import jax
 import jax.numpy as jnp
 from scipy.interpolate import PchipInterpolator
-
-from flowtangent import Component
 
 # Flowtangent imports
 from flowtangent.utils import empty_array, field
 from flowtangent.utils.io import _ft_root
+
+from ..core._component import Component
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Airfoil
@@ -33,17 +34,17 @@ class Airfoil(Component):
     max_thickness: float = 0.0
     wedge_angle: float = 0.0
 
-    coordinates: jnp.ndarray = empty_array((0, 2))
-    camber: jnp.ndarray = empty_array()
+    coordinates: jax.Array = empty_array((0, 2))
+    camber: jax.Array = empty_array()
 
-    x_coordinates: jnp.ndarray = empty_array()
-    y_coordinates: jnp.ndarray = empty_array()
+    x_coordinates: jax.Array = empty_array()
+    y_coordinates: jax.Array = empty_array()
 
-    x_upper_surface: jnp.ndarray = empty_array()
-    x_lower_surface: jnp.ndarray = empty_array()
+    x_upper_surface: jax.Array = empty_array()
+    x_lower_surface: jax.Array = empty_array()
 
-    y_upper_surface: jnp.ndarray = empty_array()
-    y_lower_surface: jnp.ndarray = empty_array()
+    y_upper_surface: jax.Array = empty_array()
+    y_lower_surface: jax.Array = empty_array()
 
     @classmethod
     def NACA_4_Series(cls, series_number: str | int, n_pts: int = 201, edge_factor: float = 1.5):
@@ -265,7 +266,7 @@ class Airfoil(Component):
 #  Airfoil Directory
 # ----------------------------------------------------------------------------------------------------------------------
 
-_AF_DIR = _ft_root() / "/library/data/airfoil_files"
+_AF_DIR = _ft_root() / "/data/airfoils"
 
 
 @lru_cache(maxsize=None)
