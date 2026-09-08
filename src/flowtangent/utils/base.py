@@ -57,8 +57,7 @@ class Module(eqx.Module):
 
         if cls.__name__ in FLOWTANGENT_REGISTRY:
             raise ValueError(
-                f"Class '{cls.__name__}' is already registered. "
-                "Ensure all FlowTangent module class names are unique."
+                f"Class '{cls.__name__}' is already registered. Ensure all FlowTangent module class names are unique."
             )
         FLOWTANGENT_REGISTRY[cls.__name__] = cls
 
@@ -96,7 +95,6 @@ class StateDataMeta(type(eqx.Module)):
             val = namespace.get(key)
             if key not in namespace or isinstance(val, _Placeholder):
                 if "ndarray" in hint_str or "Array" in hint_str:
-
                     # Deduce the correct placeholder shape directly from the type hint!
                     shape = (0,)
                     if "time 1" in hint_str:

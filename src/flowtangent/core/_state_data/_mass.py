@@ -60,5 +60,4 @@ class Mass(StateData):
     density: TimeScalar = _
     center_of_gravity: TimeVector3 = _
 
-
     breakdown: StateData = field(lambda: StateData(name="Mass Breakdown"))

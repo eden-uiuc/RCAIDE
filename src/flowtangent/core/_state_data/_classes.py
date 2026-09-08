@@ -23,8 +23,10 @@ from ...utils.base import StateDataMeta
 
 STATIC_DATA = ("AtmosphericBreakpoints",)
 
+
 def _is_static_node(node):
     return hasattr(node, "__class__") and node.__class__.__name__ in STATIC_DATA
+
 
 class StateData(Module, metaclass=StateDataMeta):
     name: str = field("Conditions", static=True)
@@ -82,8 +84,8 @@ class StateData(Module, metaclass=StateDataMeta):
                 return leaf
             if isinstance(leaf, jax.Array):
                 # # Intercept the empty placeholders
-                if leaf.size==0:
-                    trailing_dims = (1,) if leaf.ndim==1 else leaf.shape[1:]
+                if leaf.size == 0:
+                    trailing_dims = (1,) if leaf.ndim == 1 else leaf.shape[1:]
                     return jnp.zeros((batch_size,) + trailing_dims, dtype=leaf.dtype)
                 # # Zero-copy expansion prepending batch dim
                 return jnp.broadcast_to(leaf, (batch_size,) + leaf.shape)
