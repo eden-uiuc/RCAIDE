@@ -18,8 +18,6 @@ from .energy.networks import (
     # General networks
     PACTNetwork,
     NetworkParameters,
-
-
 )
 
 __all__ = [

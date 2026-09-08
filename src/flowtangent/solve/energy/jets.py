@@ -193,7 +193,7 @@ def build_turbojet_design(state: State, system: Aircraft, settings: Settings):
     design_analysis = ImplicitAnalysis(
         name="Turbojet Design",
         analyze=base_analysis,
-        controls=(mass_ctrl, turb_ctrl),
+        variables=(mass_ctrl, turb_ctrl),
         residuals=(d_thrust, d_power),
     )
 
@@ -246,7 +246,7 @@ def build_turbofan_design(state: State, system: Aircraft, settings: Settings) ->
     design_analysis = ImplicitAnalysis(
         name="Turbofan Design",
         analyze=base_analysis,
-        controls=(mass_ctrl, LPT_ctrl, HPT_ctrl),
+        variables=(mass_ctrl, LPT_ctrl, HPT_ctrl),
         residuals=(d_thrust, d_LP_power, d_HP_power),
     )
 
@@ -360,7 +360,7 @@ def build_turbojet_performance(
     return ImplicitAnalysis(
         name="Turbojet Performance",
         analyze=build_PACT_analysis(network),
-        controls=ctrls,
+        variables=ctrls,
         residuals=res,
     )
 
@@ -548,7 +548,7 @@ def build_turbofan_performance(network: TurbofanNetwork):
     return ImplicitAnalysis(
         name="Turbofan Performance",
         analyze=build_PACT_analysis(network),
-        controls=ctrls,
+        variables=ctrls,
         residuals=res,
     )
 
@@ -698,7 +698,7 @@ def design_turbofan_mp(state: State, system: Aircraft, settings: Settings) -> tu
     MP_outer_loop = ImplicitAnalysis(
         name="Multi-Point Turbofan Design",
         analyze=MP_inner_loop,
-        controls=(F_ctrl, T_ctrl),
+        variables=(F_ctrl, T_ctrl),
         residuals=(d_F, d_TSFC),
         # solver='hybr'
     )

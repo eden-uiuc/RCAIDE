@@ -24,8 +24,6 @@ from ...utils.typing import TimeScalar, TimeVector3, _
 
 
 class Frame(StateData):
-    # Attribute             Type        Default Value
-    name: str = field("Frame", static=True)
 
     transform_to_inertial: TimeVector3 = _
 
@@ -34,8 +32,6 @@ class Frame(StateData):
 
 
 class Inertial(Frame):
-    # Attribute                     Type        Default Value
-    name: str = field("Inertial Frame", static=True)
 
     position_vector: TimeVector3 = _
 
@@ -52,8 +48,6 @@ class Inertial(Frame):
 
 
 class Body(Frame):
-    # Attribute             Type        Default Value
-    name: str = field("Body Frame", static=True)
 
     inertial_rotations: TimeVector3 = _
     thrust_force_vector: TimeVector3 = _
@@ -61,9 +55,6 @@ class Body(Frame):
 
 
 class Wind(Frame):
-    # Attribute         Type            Default Value
-    name: str = field("Wind Frame", static=True)
-
     body_rotations: TimeVector3 = _
     transform_to_body: TimeVector3 = _
 
@@ -73,21 +64,16 @@ class Wind(Frame):
 
 
 class Planet(Frame):
-    # Attribute     Type            Default Value
-    name: str = field("Planet Frame", static=True)
     start_time: TimeScalar = _
 
     # Default to takeoff at JFK
-    latitude: jax.Array = field(lambda: jnp.array([40.6446]))
-    longitude: jax.Array = field(lambda: jnp.array([73.7797]))
+    latitude: jax.Array = field(jnp.array([40.6446]))
+    longitude: jax.Array = field(jnp.array([73.7797]))
 
     true_course: TimeScalar = _
 
 
 class FrameData(StateData):
-    # Attribute     Type            Default Value
-    name: str = field("Dynamic Frames", static=True)
-
     inertial: Inertial = field(Inertial)
     body: Body = field(Body)
     wind: Wind = field(Wind)

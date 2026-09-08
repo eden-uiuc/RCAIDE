@@ -12,7 +12,7 @@
 from flowtangent.core._state_data import StateData
 
 # Flowtangent imports
-from ...utils import field
+from ...utils import field, static_field
 from ...utils.typing import TimeScalar, _
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -27,8 +27,6 @@ from ...utils.typing import TimeScalar, _
 
 
 class ComponentCoeffs(StateData):
-    name: str = field("Component Coefficients", static=True)
-
     total: TimeScalar = _
 
     wings: TimeScalar = _
@@ -40,7 +38,6 @@ class ComponentCoeffs(StateData):
 
 
 class LiftCoeffs(StateData):
-    name: str = field("Lift Coefficients", static=True)
 
     total: TimeScalar = _
 
@@ -52,7 +49,6 @@ class LiftCoeffs(StateData):
 
 
 class InducedDrag(StateData):
-    name: str = field("Induced Drag", static=True)
 
     total: TimeScalar = _
 
@@ -63,8 +59,6 @@ class InducedDrag(StateData):
 
 
 class DragCoeffs(StateData):
-    # Attribute     Type            Default Value
-    name: str = field("Drag Coefficients", static=True)
 
     total: TimeScalar = _
 
@@ -80,8 +74,6 @@ class DragCoeffs(StateData):
 
 
 class MomentCoeffs(StateData):
-    # Attribute         Type            Default Value
-    name: str = field("Moment Coefficients", static=True)
 
     pitch: TimeScalar = _
     roll: TimeScalar = _
@@ -91,9 +83,7 @@ class MomentCoeffs(StateData):
 # All Coefficients -----------------------------------------
 
 
-class Coefficients(StateData):
-    # Attribute         Type                Default Value
-    name: str = field("Aerodynamic Coefficients", static=True)
+class AeroCoefficients(StateData):
 
     lift: LiftCoeffs = field(LiftCoeffs)
     drag: DragCoeffs = field(DragCoeffs)
@@ -110,9 +100,7 @@ class Coefficients(StateData):
 # ----------------------------------------------------------
 
 
-class Angles(StateData):
-    # Attribute         Type        Default Value
-    name: str = field("Aerodynamic Angles", static=True)
+class AeroAngles(StateData):
 
     alpha: TimeScalar = _  # Y-axis / angle of attack
     beta: TimeScalar = _  # Z-axis / sideslip angle
@@ -127,5 +115,5 @@ class Angles(StateData):
 class Aerodynamics(StateData):
     # Attribute     Type                    Default Value
 
-    angles: Angles = field(Angles)
-    coefficients: Coefficients = field(Coefficients)
+    angles: AeroAngles = field(AeroAngles)
+    coefficients: AeroCoefficients = field(AeroCoefficients)

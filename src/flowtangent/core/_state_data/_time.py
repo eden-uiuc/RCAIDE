@@ -32,9 +32,8 @@ class NumericalTime(StateData):
 
 
 class Time(StateData):
-    name: str = field("Time", static=True)
 
-    N: int = field(1, static=True)
+    N: int = static_field(1)
 
     dimensionless: NumericalTime = field(lambda: NumericalTime(name="Dimensionless Time"))
     dimensional: NumericalTime = field(lambda: NumericalTime(name="Dimensional Time"))

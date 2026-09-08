@@ -47,12 +47,12 @@ from dataclasses import replace
 from flowtangent.utils import save_data, load_data, format_array, configure_environment, LoggingSettings
 
 from flowtangent.data import units
-from flowtangent.components import TurbojetEngine, TurbojetOpPoint, TurbojetLine, TurbojetNetwork, JetNetParameters
+from flowtangent.components.energy.jets import TurbojetEngine, TurbojetOpPoint, TurbojetLine, TurbojetNetwork, JetNetParameters
 
 from flowtangent import State, Aircraft, Settings
 from flowtangent.solve.energy.jets import build_turbojet_design, build_turbojet_performance, JetSettings
-from flowtangent.framework.simulation.initialize import initialize_energy
-from flowtangent.framework.simulation.update import update_freestream
+from flowtangent.sim.initialize import initialize_energy
+from flowtangent.sim.update import update_freestream
 
 def system_setup():
 
@@ -137,7 +137,7 @@ def system_setup():
 
     line = TurbojetLine(name="Line", subcomponents=(des_engine,),)
     
-    net_design = JetNetDesign(
+    net_design = JetNetParameters(
         altitude=0.0,
         mach_number=1e-6,
         thrust=11_800 * units.lbf,
@@ -163,7 +163,7 @@ def off_design_point(
 ):
 
     network: TurbojetNetwork = system.energy
-    des: JetNetDesign = network.design_parameters
+    des: JetNetParameters = network.design_parameters
 
     atmo = des.atmosphere_model
     a0 = atmo.compute_speed_of_sound(alt)
@@ -174,7 +174,7 @@ def off_design_point(
             s.freestream.mach_number,
             s.frames.inertial.velocity_vector,
         ),
-        State().expand_time(1),
+        ft.State().expand_time(1),
         (
             jnp.array([[0., 0., -alt]]),
             jnp.atleast_2d(M0),
@@ -379,12 +379,13 @@ if __name__ == "__main__":
         print(" Design Point Analysis")
         print("-"*80)
 
-        des_st, des_sys, des_set = build_turbojet_design(
-            state=State(),
+        des_st, des_sys, des_set, des_analysis = build_turbojet_design(
+            state=ft.State(),
             system=system,  # type: ignore
             settings=settings,
-            initialize=True
         )
+
+        des_st, des_sys, des_set = des_analysis.run(des_st, des_sys, des_set, initialize=True)
 
         des_sys = des_sys.replace_subcomponent(des_sys.energy.sync_and_clear_nodes())
 

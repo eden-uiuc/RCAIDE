@@ -4,6 +4,7 @@ from typing import Any, Optional, dataclass_transform, get_args
 
 import equinox as eqx
 import jax.numpy as jnp
+import typing
 from beartype import beartype
 from jaxtyping import jaxtyped
 
@@ -15,7 +16,19 @@ def null_step(*args):
     return args
 
 
-def field(initializer: Any, as_value: bool = False, **kwargs):
+if typing.TYPE_CHECKING:
+    T = typing.TypeVar("T")
+    
+    # Overload 1: If passed a class/callable, Pylance binds it to 'default_factory'
+    @typing.overload
+    def field(default_factory: typing.Callable[[], T], as_value: bool = False, **kwargs) -> T: ...
+    
+    # Overload 2: If passed a standard value, Pylance binds it to 'default'
+    @typing.overload
+    def field(default: T, as_value: bool = False, **kwargs) -> T: ...
+
+# The actual runtime function remains exactly what you wrote!
+def field(initializer: typing.Any = None, as_value: bool = False, **kwargs):
     """Smart wrapper for eqx.field that auto-routes default vs default_factory."""
     if as_value:
         return eqx.field(default=initializer, **kwargs)
@@ -45,9 +58,9 @@ def empty_array(shape: tuple | int = 0, dtype: Any = float, **kwargs):
 FLOWTANGENT_REGISTRY = {}
 
 
-@dataclass_transform(field_specifiers=(eqx.field, field, static_field, method_field))
+@dataclass_transform(field_specifiers=(eqx.field, static_field, method_field))
 class Module(eqx.Module):
-    """Base class for all FlowTangent modules to preserve IDE autocompletion."""
+    """Base class for all FlowTangent modules."""
 
     name: Optional[str] = None
 
@@ -85,7 +98,7 @@ class Module(eqx.Module):
         return self.name.replace(" ", "_").lower()
 
 
-class StateDataMeta(type(eqx.Module)):
+class StateDataMeta(type(Module)):
     def __new__(mcs, name, bases, namespace):
         annotations = namespace.get("__annotations__", {})
         for key, hint in annotations.items():

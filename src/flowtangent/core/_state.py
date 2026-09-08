@@ -7,10 +7,10 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #  IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
+from typing import Optional
 
 import jax
-
-from flowtangent.utils import Module, empty_array, field, update
+from ..utils import Module, empty_array, field, update
 
 # package imports
 from ._state_data import (
@@ -31,14 +31,14 @@ from ._state_data import (
 
 class State[EnergyType: NetworkState](StateData):
 
-    initials: Module | None = None
+    initials: Optional[Module] = None
     time: Time = field(Time)
 
     frames: FrameData = field(FrameData)
     freestream: Freestream = field(Freestream)
 
     mass: Mass = field(Mass)
-    energy: EnergyType = field(NetworkState)
+    energy: EnergyType = field(NetworkState) #type: ignore
     aerodynamics: Aerodynamics = field(Aerodynamics)
     stability: StabilityData = field(StabilityData)
 

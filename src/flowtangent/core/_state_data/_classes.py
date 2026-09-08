@@ -29,7 +29,6 @@ def _is_static_node(node):
 
 
 class StateData(Module, metaclass=StateDataMeta):
-    name: str = field("Conditions", static=True)
 
     @property
     def subconditions(self) -> tuple:

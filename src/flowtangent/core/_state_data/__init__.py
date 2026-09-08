@@ -1,8 +1,8 @@
 from ._classes import StateData
 
 from ._aero import (
-    Angles,
-    Coefficients,
+    AeroAngles,
+    AeroCoefficients,
     Aerodynamics,
     ComponentCoeffs,
     DragCoeffs,
@@ -10,19 +10,11 @@ from ._aero import (
     LiftCoeffs,
 )
 
-from ._controls import (
-    ControlsConditions,
-    Control,
-    Residual,
-    DynamicsConditions,
-    SurfaceControl,
-)
-
 from ._energy import (
-    BatteryCellConditions,
-    BatteryPackConditions,
     NetworkState,
     NodeState,
+    TurbofanState,
+    TurbojetState,
 )
 
 from ._frames import Body, Frame, FrameData, Inertial, Planet, Wind
