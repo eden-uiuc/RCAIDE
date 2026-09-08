@@ -1,6 +1,5 @@
 from .acceleration import update_acceleration
 from .angular_acceleration import update_angular_acceleration
-from .converge_roots import converge_roots
 from .forces import update_forces
 from .freestream import update_freestream
 from .mass import update_mass_and_weight

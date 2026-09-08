@@ -9,9 +9,12 @@
 
 from __future__ import annotations
 
-from flowtangent.data import units
+from typing import TYPE_CHECKING
 
-from .... import Component, Settings, State, System
+if TYPE_CHECKING:
+    from .... import Component, Settings, State, System
+
+from flowtangent.data import units
 
 # -----------------------------------------------------------------------
 # Functional/Library Version

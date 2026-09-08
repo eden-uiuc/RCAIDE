@@ -13,7 +13,7 @@ from pathlib import Path
 import jax.numpy as jnp
 
 from flowtangent.components import Airfoil
-from flowtangent.components._wings import Chords, Sweeps, Wing, WingDimensions, WingSegment
+from flowtangent.components._wings import Wing, WingChords, WingDimensions, WingSegment, WingSweeps
 from flowtangent.core._component import Areas
 from flowtangent.core._systems import Aircraft
 
@@ -125,7 +125,7 @@ def parse_avl_file(filepath: str | Path) -> dict:
     return avl_data
 
 
-def convert_to_Flowtangent(avl_data: dict) -> Aircraft:
+def convert_to_flowtangent(avl_data: dict) -> Aircraft:
     """
     Converts a parsed AVL data dictionary into an Flowtangent Aircraft system,
     translating Cartesian coordinates into parametric fractions.
@@ -199,7 +199,7 @@ def convert_to_Flowtangent(avl_data: dict) -> Aircraft:
                 root_chord_percent=chord_fraction,
                 # twist=sec_in["twist"],
                 dihedral_outboard=dihedral,
-                sweeps=Sweeps(quarter_chord=qc_sweep),
+                sweeps=WingSweeps(quarter_chord=qc_sweep),
                 airfoil=airfoil,
             )
             segments_list.append(segment)
@@ -211,7 +211,7 @@ def convert_to_Flowtangent(avl_data: dict) -> Aircraft:
                 root_chord_percent=taper,
                 twist=tip_sec["twist"],
                 dihedral_outboard=0.0,
-                sweeps=Sweeps(quarter_chord=0.0),
+                sweeps=WingSweeps(quarter_chord=0.0),
                 airfoil=airfoil,
             )
         )
@@ -225,7 +225,7 @@ def convert_to_Flowtangent(avl_data: dict) -> Aircraft:
             segments=tuple(segments_list),
             spans=WingDimensions(projected=total_span),
             # twists=WingDimensions(root=root_sec["twist"], tip=tip_sec["twist"]),
-            chords=Chords(root=root_chord, tip=tip_chord, mean_aerodynamic=cref),
+            chords=WingChords(root=root_chord, tip=tip_chord, mean_aerodynamic=cref),
             origin=jnp.array(surf_data["translate"])
             + jnp.array([[root_sec["x_le"], root_sec["y_le"], root_sec["z_le"]]]),
             aerodynamic_center=jnp.array([[xref, yref, zref]]),
@@ -241,4 +241,4 @@ def convert_to_Flowtangent(avl_data: dict) -> Aircraft:
 
 def read_and_convert(file_path: str | Path) -> Aircraft:
     avl_data = parse_avl_file(file_path)
-    return convert_to_Flowtangent(avl_data)
+    return convert_to_flowtangent(avl_data)

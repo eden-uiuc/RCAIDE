@@ -9,27 +9,32 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..components.energy import PACTNetwork
+
 import equinox as eqx
 import jax
-from flowtangent.attributes import AircraftClass, MediumRange
-from flowtangent.components.energy.networks import GraphNetwork
-from flowtangent.components.fuselages import Fuselage
-from flowtangent.components.landing_gear import LandingGear
-from flowtangent.components.nacelles import Nacelle
-from flowtangent.components.wings import Wing
 
-# package imports
-from flowtangent import Component, MassProperties
+from ..components import Fuselage, LandingGear, Nacelle, Wing
+from ..core._component import Component, MassProperties
+from ..data.ac_classes import AircraftClass, MediumRange
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field
+from ..utils import Module, empty_array, field
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Components
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class VehicleEnvelope(eqx.Module):
+class VehicleEnvelope(Module):
     # Attribute             Type        Default Value
     ultimate_load_factor: float = 0.0
     limit_load_factor: float = 0.0
@@ -41,7 +46,6 @@ class VehicleEnvelope(eqx.Module):
 
 
 class System(Component):
-    name: str = field("System", static=True)
 
     configurations: Component = field(lambda: Component(name="Configurations"))
 
@@ -77,7 +81,7 @@ class AircraftDesign(eqx.Module):
     cruise_alt: float = field(0.0, static=True)
 
 
-class Aircraft[EnergyType: GraphNetwork](System):
+class Aircraft[EnergyType: PACTNetwork](System):
     name: str = field("Aircraft", static=True)
 
     mass_properties: AircraftMassProperties = field(AircraftMassProperties)  # type: ignore
@@ -85,7 +89,7 @@ class Aircraft[EnergyType: GraphNetwork](System):
 
     _bookkeeping: dict = field(
         lambda: {
-            "energy_networks": GraphNetwork,
+            "energy_networks": PACTNetwork,
             "wings": Wing,
             "fuselages": Fuselage,
             "nacelles": Nacelle,

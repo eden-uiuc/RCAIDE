@@ -9,6 +9,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -24,7 +29,9 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from ._settings import JacobianMap
+    from .. import Settings, State, System
+    from ..solve import JacobianMap
+    FlowtangentFunction: TypeAlias = Callable[[State, System, Settings], Tuple[State, System, Settings]]
 
 import inspect
 import os
@@ -44,17 +51,12 @@ import networkx as nx
 import numpy as np  # Used only for OptimizerInterface class w/ legacy optimizers
 
 from ..utils import MERMAID_STYLES, TreePath, compute_tree_delta, field, get_target, null_step, update
-from ._settings import Settings
-
-# Flowtangent imports
-from ._state import State
-from ._systems import System
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  ProcessStep
 # ----------------------------------------------------------------------------------------------------------------------
 
-FlowtangentFunction: TypeAlias = Callable[[State, System, Settings], Tuple[State, System, Settings]]
+
 
 
 class ProcessStep(eqx.Module):

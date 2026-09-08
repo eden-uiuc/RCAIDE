@@ -1,6 +1,6 @@
 # src/flowtangent/utils/base.py
 import inspect
-from typing import Any, dataclass_transform, get_args
+from typing import Any, Optional, dataclass_transform, get_args
 
 import equinox as eqx
 import jax.numpy as jnp
@@ -49,16 +49,20 @@ FLOWTANGENT_REGISTRY = {}
 class Module(eqx.Module):
     """Base class for all FlowTangent modules to preserve IDE autocompletion."""
 
-    name: str
+    name: Optional[str] = None
 
     def __init_subclass__(cls, **kwargs) -> None:
         if "name" not in cls.__dict__:
             cls.name = cls.__name__
 
         if cls.__name__ in FLOWTANGENT_REGISTRY:
-            raise ValueError(
-                f"Class '{cls.__name__}' is already registered. Ensure all FlowTangent module class names are unique."
-            )
+            existing_cls = FLOWTANGENT_REGISTRY[cls.__name__]
+            if existing_cls is not cls:
+                raise ValueError(
+                    f"Class '{cls.__name__}' is already registered.\n"
+                    f"  First registered by: {existing_cls.__module__}\n"
+                    f"  Now registered by:   {cls.__module__}"
+                )
         FLOWTANGENT_REGISTRY[cls.__name__] = cls
 
         # Auto-apply jaxtyped to all standard methods that have type annotations

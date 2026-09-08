@@ -152,7 +152,7 @@ class Gas(eqx.Module):
             self.mass_fractions = jnp.zeros(len(SPECIES_LIST), dtype=jnp.float64)
 
     def __repr__(self) -> str:
-        if isinstance(self.mass_fractions, jax.core.Flowtangentr):
+        if isinstance(self.mass_fractions, jax.core.Tracer):
             return "Gas(Flowtangentd Composition)"
 
         # Convert to standard numpy.

@@ -10,10 +10,10 @@
 # package imports
 import jax
 
-from flowtangent.library import Areas, Component, Dimensions, Fineness
-
 # Flowtangent imports
 from flowtangent.utils import empty_array, field
+
+from ..core._component import Areas, Component, Dimensions, Fineness
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Fuselage

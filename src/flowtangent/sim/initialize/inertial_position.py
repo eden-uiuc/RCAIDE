@@ -13,7 +13,15 @@
 # Flowtangent Imports
 from __future__ import annotations
 
-from ... import Settings, State, System
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ... import Settings, State, System
+
 from ...utils import update
 
 

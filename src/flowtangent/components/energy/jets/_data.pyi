@@ -1,4 +1,4 @@
-from .classes import TurbojetEngine
+from ._classes import TurbojetEngine
 
 PW4052: TurbojetEngine
 PW4084: TurbojetEngine

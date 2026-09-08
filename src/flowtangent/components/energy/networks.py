@@ -11,6 +11,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    pass
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
     from flowtangent.core._state_data._controls import Control, Residual
     from flowtangent.data.atmospheres import Atmosphere
 
@@ -29,15 +34,15 @@ from flowtangent.data import units
 from flowtangent.data.atmospheres import USStandard1976
 from flowtangent.utils import field, update
 
-from .lines import EnergyLine, TurbofanLine, TurbojetLine
-from .nodes import BleedFlow, GraphDomain, GraphInput, GraphNode
+from .lines import PACTLine, TurbofanLine, TurbojetLine
+from .nodes import BleedFlow, GraphDomain, GraphInput, PACTNode
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Design Conditions
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class NetworkDesign(eqx.Module):
+class NetworkParameters(eqx.Module):
     altitude: float = 0.0
     mach_number: float = 0.01
     thrust: float = 1.0 * units.N
@@ -105,28 +110,28 @@ def _resolve_namespaces(node, parent_prefix=""):
     return node
 
 
-class GraphNetwork[DesignType: NetworkDesign](GraphNode):
+class PACTNetwork[DesignType: NetworkParameters](PACTNode):
     name: str = field("Network", static=True)
     network_id: str = field("network", static=True)
 
-    nodes: dict[str, "GraphNode"] = field(dict)
+    nodes: dict[str, "PACTNode"] = field(dict)
     domains: tuple[GraphDomain, ...] = field(tuple, static=True)
-    design_parameters: DesignType = field(NetworkDesign)
+    design_parameters: DesignType = field(NetworkParameters)
 
-    _bookkeeping: dict = field(lambda: {"lines": EnergyLine}, static=True)
+    _bookkeeping: dict = field(lambda: {"lines": PACTLine}, static=True)
     _execution_order: tuple[str, ...] = field(tuple, static=True)
 
     controls: tuple[Control, ...] = field(tuple, static=True)
     residuals: tuple[Residual, ...] = field(tuple, static=True)
 
-    def _rebalance_flow_splitters(self) -> "GraphNetwork":
+    def _rebalance_flow_splitters(self) -> PACTNetwork:
         """Rebalances fractions directly within the subcomponents tree."""
         # Grab a temporary flat dict just to look at the hierarchy
         temp_dict = {}
 
         def _temp_recurse(subs):
             for c in subs:
-                if isinstance(c, GraphNode):
+                if isinstance(c, PACTNode):
                     temp_dict[c.network_id] = c
                 if hasattr(c, "subcomponents") and c.subcomponents:
                     _temp_recurse(c.subcomponents)
@@ -150,11 +155,11 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
             return self
 
         def _apply(node):
-            if isinstance(node, GraphNode) and node.network_id in corrected_fractions:
+            if isinstance(node, PACTNode) and node.network_id in corrected_fractions:
                 return update(node, "extraction_fraction", corrected_fractions[node.network_id])
             return node
 
-        return jax.tree_util.tree_map(_apply, self, is_leaf=lambda x: isinstance(x, GraphNode))
+        return jax.tree_util.tree_map(_apply, self, is_leaf=lambda x: isinstance(x, PACTNode))
 
     def assign_network_ids(self):
 
@@ -170,12 +175,12 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
 
         return updated_network
 
-    def _get_all_nodes(self) -> "GraphNetwork":
+    def _get_all_nodes(self) -> PACTNetwork:
         nodes_dict = {}
 
         def _recurse(subcomponents):
             for comp in subcomponents:
-                if isinstance(comp, GraphNode):
+                if isinstance(comp, PACTNode):
                     nodes_dict[comp.network_id] = comp
                 if hasattr(comp, "subcomponents") and comp.subcomponents:
                     _recurse(comp.subcomponents)
@@ -183,7 +188,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
         _recurse(self.subcomponents)
         return update(self, "nodes", nodes_dict)
 
-    def update_node_topology(self) -> "GraphNetwork":
+    def update_node_topology(self) -> PACTNetwork:
         """The single entry point to finalize the network for execution.
         Use after running initialize_energy so parts are properly ID'd."""
 
@@ -199,7 +204,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
         except CycleError as e:
             raise ValueError(f"Cyclic dependency detected: {e}")
 
-    def sync_and_clear_nodes(self) -> GraphNetwork:
+    def sync_and_clear_nodes(self) -> PACTNetwork:
         """
         Projects the updated nodes from the flat 'nodes' dictionary
         back onto their original positions in the nested subcomponents tree.
@@ -208,7 +213,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
 
         def _walk_and_sync(component):
             # If we hit an EnergyNode, replace it with the latest version from the dict
-            if isinstance(component, GraphNode):
+            if isinstance(component, PACTNode):
                 # Grab the updated node (fallback to current if not in dict)
                 component = self.nodes.get(component.network_id, component)
 
@@ -237,7 +242,7 @@ class GraphNetwork[DesignType: NetworkDesign](GraphNode):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class _JetNetwork[DesignType: JetNetDesign](GraphNetwork[DesignType]):
+class _JetNetwork[DesignType: JetNetParameters](PACTNetwork[DesignType]):
     """
     Jet network shell without design parameters.
     """
@@ -292,13 +297,13 @@ def _TurbojetNetworkSetup():
     return (TurbojetLine(name="Line"),)
 
 
-class JetNetDesign(NetworkDesign):
+class JetNetParameters(NetworkParameters):
     number_of_engines: int = field(1, static=True)
 
 
-class TurbojetNetwork(_JetNetwork[JetNetDesign]):
+class TurbojetNetwork(_JetNetwork[JetNetParameters]):
     subcomponents: tuple = field(_TurbojetNetworkSetup)
-    design_parameters: JetNetDesign = field(JetNetDesign)
+    design_parameters: JetNetParameters = field(JetNetParameters)
 
 
 # Turbofan ---------------------------------------------------------------------
@@ -308,5 +313,5 @@ def _TurbofanNetworkSetup():
     return (TurbofanLine(),)
 
 
-class TurbofanNetwork(_JetNetwork[JetNetDesign]):
+class TurbofanNetwork(_JetNetwork[JetNetParameters]):
     subcomponents: tuple = field(_TurbofanNetworkSetup)

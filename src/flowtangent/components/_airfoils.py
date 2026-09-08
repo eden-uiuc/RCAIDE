@@ -16,11 +16,11 @@ import jax
 import jax.numpy as jnp
 from scipy.interpolate import PchipInterpolator
 
-from flowtangent import Component
-
 # Flowtangent imports
 from flowtangent.utils import empty_array, field
 from flowtangent.utils.io import _ft_root
+
+from ..core._component import Component
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Airfoil
@@ -266,7 +266,7 @@ class Airfoil(Component):
 #  Airfoil Directory
 # ----------------------------------------------------------------------------------------------------------------------
 
-_AF_DIR = _ft_root() / "/library/data/airfoil_files"
+_AF_DIR = _ft_root() / "/data/airfoils"
 
 
 @lru_cache(maxsize=None)

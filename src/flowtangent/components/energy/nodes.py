@@ -9,12 +9,17 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
 from typing import TYPE_CHECKING, Callable, Iterable, Literal, cast, get_args
 
 # --- Framework Imports (Strictly for Type Hinting to avoid Circular Imports) ---
 if TYPE_CHECKING:
     from ... import Settings, State, System
-    from ...analyses.energy.jets import JetSettings
+    from ...solve.energy.jets import JetSettings
 
 import warnings
 from dataclasses import replace
@@ -24,9 +29,9 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 
-from flowtangent import Component
-from flowtangent.data.gases import Air, Gas
-from flowtangent.utils import field, update
+from ...core._component import Component
+from ...data.gases import Air, Gas
+from ...utils import field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Graph Nodes
@@ -71,7 +76,7 @@ class GraphInput(eqx.Module):
         return reduce(getattr, (state.energy.nodes[self.network_id], self.domain, value))
 
 
-class GraphNode(Component):
+class PACTNode(Component):
     network_id: str = field("energy_node", static=True)
 
     inputs: tuple[GraphInput, ...] | GraphInput = field(tuple, static=True)
@@ -93,7 +98,7 @@ class GraphNode(Component):
             domain = item.replace("_inputs", "")
             return self._get_inputs_by_domain(domain)
         else:
-            return super(GraphNode, self).__getattr__(item)
+            return super(PACTNode, self).__getattr__(item)
 
     @property
     @eqx.filter_jit
@@ -153,7 +158,7 @@ class GraphNode(Component):
 # Splitters --------------------------------------------------------------------
 
 
-class Splitter(GraphNode):
+class Splitter(PACTNode):
     values: str | tuple[str] = field(tuple, static=True)
     fractions: float | Callable | tuple[float | Callable] = field(tuple, static=True)
 
@@ -231,7 +236,7 @@ class FlowOpPoint(eqx.Module):
     # fmt: on
 
 
-class BleedFlow(GraphNode):
+class BleedFlow(PACTNode):
     name: str = field("Bleed Flow", static=True)
     fractions_dict: dict[str, float | Callable] = field(dict)
 
@@ -278,7 +283,7 @@ class BleedFlow(GraphNode):
         return updated_state, system, settings
 
 
-class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
+class FlowNode[DesignType: FlowOpPoint | tuple](PACTNode):
     design_parameters: DesignType = field(FlowOpPoint)
     working_fluid: Gas = field(Air)
     add_mixer: bool = field(False)
@@ -561,7 +566,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class EnergyStore(GraphNode):
+class EnergyStore(PACTNode):
     name: str = field("Energy Store", static=True)
 
     max_energy: float = 0.0

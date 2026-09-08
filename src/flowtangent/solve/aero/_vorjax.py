@@ -13,6 +13,11 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ... import Aircraft, Settings, State
+
 import dataclasses
 import warnings
 from pathlib import Path
@@ -26,8 +31,8 @@ import jax.numpy as jnp
 # package imports
 import sklearn
 
-from ... import Aircraft, Settings, State, TreePath, field, method_field
-from ...components._wings import Sweeps, Wing, WingSegment
+from ... import TreePath, field, method_field
+from ...components._wings import Wing, WingSegment, WingSweeps
 from ...core._processes import Process, ProcessStep
 from ...data import units as U  # noqa: N812
 from ...functional.aero.shocks import oblique_shock, theta_beta_mach
@@ -36,7 +41,17 @@ from ...sim.initialize import aero as initialize_aero
 from ...utils import io, update
 
 # FT imports
-from ..batched import BatchedAnalysis
+from .._batched import BatchedAnalysis
+
+# ----------------------------------------------------------------------------------------------------------------------
+#  API Setup
+# ----------------------------------------------------------------------------------------------------------------------
+
+__all__ =[
+    "VORJAX",
+    "BatchedVORJAX",
+    "VORJAXSettings",
+]
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  VLM Initialization
@@ -388,7 +403,7 @@ def convert_to_segmented_wing(wing):
         return wing.segments
 
     # 1. Build Root Segment
-    root_sweeps = Sweeps(quarter_chord=wing.sweeps.quarter_chord, leading_edge=wing.sweeps.leading_edge)
+    root_sweeps = WingSweeps(quarter_chord=wing.sweeps.quarter_chord, leading_edge=wing.sweeps.leading_edge)
 
     root_segment = WingSegment(
         name="root_segment",
@@ -403,7 +418,7 @@ def convert_to_segmented_wing(wing):
         root_segment = update(root_segment, "airfoil", wing.airfoil)
 
     # 2. Build Tip Segment
-    tip_sweeps = Sweeps(
+    tip_sweeps = WingSweeps(
         quarter_chord=0.0,
         leading_edge=1e-8,
     )
@@ -2238,7 +2253,7 @@ VORJAX_Outputs = {
 }
 
 
-class BatchVORJAX(BatchedAnalysis):
+class BatchedVORJAX(BatchedAnalysis):
     def __init__(
         self,
         name: str = "Batched VORJAX",

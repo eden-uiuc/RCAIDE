@@ -2,17 +2,17 @@ import csv
 import json
 import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
-from flowtangent.library.components.energy.jets.classes import TurbojetEngine
-
-from flowtangent.utils.io import _ft_root
+from ....utils.io import _ft_root
+from ._classes import TurbojetEngine
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Data Collection (Sourced from Mattingly)
 # ---------------------------------------------------------------------------------------------------------------------
 
-_DATA_DIR = _ft_root() / "library/data/turbo_engines"
+_DATA_DIR = _ft_root() / "data/jet_engines"
 _JSON_DIR = _DATA_DIR / "JSONs"
 
 
@@ -130,7 +130,7 @@ def process_design_data(csv_file):
 # Engine Loading
 # ----------------------------------------------------------------------------------------------------------------------
 
-STUB_FILE = _ft_root() / "library/components/energy/jets/data.pyi"
+STUB_FILE = Path(__file__).resolve().parent / "_data.pyi"
 
 
 @lru_cache(maxsize=None)

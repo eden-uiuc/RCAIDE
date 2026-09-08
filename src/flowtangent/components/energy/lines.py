@@ -3,21 +3,26 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    pass
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
     from flowtangent.framework import Settings, State, System
 
 import jax.numpy as jnp
 
 from flowtangent.utils import field, io, update
 
-from .jets.classes import TurbofanEngine, TurbojetEngine
-from .nodes import EnergyStore, FuelTank, GraphInput, GraphNode, Splitter
+from .jets._classes import TurbofanEngine, TurbojetEngine
+from .nodes import EnergyStore, FuelTank, GraphInput, PACTNode, Splitter
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Energy Line
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class EnergyLine(GraphNode):
+class PACTLine(PACTNode):
     name: str = field("Line", static=True)
     _bookkeeping: dict = field(
         lambda: {
@@ -39,7 +44,7 @@ def _TurbojetLineSetup():
     return TurbojetEngine(), FuelTank()
 
 
-class TurbojetLine(EnergyLine):
+class TurbojetLine(PACTLine):
     subcomponents: tuple = field(_TurbojetLineSetup)
 
     inputs: tuple | GraphInput = field(

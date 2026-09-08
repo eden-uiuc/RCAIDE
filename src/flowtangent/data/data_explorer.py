@@ -13,12 +13,12 @@ import streamlit as st
 from flowtangent.aero.VORJAX import discretize_surfaces
 from flowtangent.framework.plotting import plot_vlm_panels
 from flowtangent.library.components.wings import Chords, Sweeps, Wing, WingDimensions
+from flowtangent.solve.aero.VORJAX import VORJAX_Settings, Vortices
 
 from flowtangent import Aircraft, Settings, State
-from flowtangent.analyses.aero.VORJAX import VORJAX_Settings, Vortices
 from flowtangent.core._settings import AnalysisSettings
 
-from ..utils import update
+from .._utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Filter Functions

@@ -6,7 +6,8 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 
-from flowtangent.utils import empty_array, field
+from ....utils import empty_array, field
+from ....utils.typing import ScalarFloat
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Helper Functions
@@ -82,20 +83,20 @@ class CompressorMap(eqx.Module):
     eff_table: jax.Array = empty_array()  # Isentropic Efficiency
 
     # Map scaling values
-    Rline_stall: float = 1.0
+    Rline_stall: ScalarFloat = 1.0
 
-    s_Wc: float = 1.0
-    s_PR: float = 1.0
-    s_eff: float = 1.0
-    s_Nc: float = 1.0
+    s_Wc: ScalarFloat = 1.0
+    s_PR: ScalarFloat = 1.0
+    s_eff: ScalarFloat = 1.0
+    s_Nc: ScalarFloat = 1.0
 
-    Nc_des: float = 1.0
-    alpha_des: float = 0.0
-    PR_des: float = 5.0
-    Wc_des: float = 25.0
-    eff_des: float = 0.85
-    Rline_des: float = 2.0
-    Rline_stall: float = 1.0
+    Nc_des: ScalarFloat = 1.0
+    alpha_des: ScalarFloat = 0.0
+    PR_des: ScalarFloat = 5.0
+    Wc_des: ScalarFloat = 25.0
+    eff_des: ScalarFloat = 0.85
+    Rline_des: ScalarFloat = 2.0
+    Rline_stall: ScalarFloat = 1.0
 
     def evaluate(self, alpha, Nc, Rline):
         # Speed scaling
@@ -183,16 +184,16 @@ class TurbineMap(eqx.Module):
     eff_table: jax.Array = empty_array()
 
     # Map scaling Values
-    s_Wp: float = 1.0
-    s_PR: float = 1.0
-    s_eff: float = 1.0
-    s_Np: float = 1.0
+    s_Wp: ScalarFloat = 1.0
+    s_PR: ScalarFloat = 1.0
+    s_eff: ScalarFloat = 1.0
+    s_Np: ScalarFloat = 1.0
 
-    alpha_des: float = 0.0
-    Np_des: float = 100.0
-    PR_des: float = 5.0
-    Wp_des: float = 5.0
-    eff_des: float = 0.85
+    alpha_des: ScalarFloat = 0.0
+    Np_des: ScalarFloat = 100.0
+    PR_des: ScalarFloat = 5.0
+    Wp_des: ScalarFloat = 5.0
+    eff_des: ScalarFloat = 0.85
 
     def evaluate(self, alpha, Np, PR):
         # Un-scale the inputs to read the base map

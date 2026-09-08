@@ -8,11 +8,12 @@
 #  IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
 
-import equinox as eqx
 import jax
 
+from flowtangent.utils import Module, empty_array, field, update
+
 # package imports
-from flowtangent.core._state_data import (
+from ._state_data import (
     Aerodynamics,
     FrameData,
     Freestream,
@@ -22,7 +23,6 @@ from flowtangent.core._state_data import (
     StateData,
     Time,
 )
-from flowtangent.utils import empty_array, field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  State
@@ -30,9 +30,8 @@ from flowtangent.utils import empty_array, field, update
 
 
 class State[EnergyType: NetworkState](StateData):
-    name: str = field("State", static=True)
 
-    initials: eqx.Module | None = None
+    initials: Module | None = None
     time: Time = field(Time)
 
     frames: FrameData = field(FrameData)

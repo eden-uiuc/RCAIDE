@@ -1,20 +1,21 @@
 import json
 import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import pycycle.api as pyc
-from flowtangent.library.components.energy.maps.classes import CompressorMap, TurbineMap
 
-from flowtangent.data import units
-from flowtangent.utils.io import _ft_root
+from ....data import units
+from ....utils.io import _ft_root
+from ._classes import CompressorMap, TurbineMap
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Map Specifications (Sourced from PyCycle)
 # ----------------------------------------------------------------------------------------------------------------------
 
-_MAP_DIR = _ft_root() / "library/data/turbo_maps"
-STUB_FILE = _ft_root() / "library/components/energy/maps/data.pyi"
+_MAP_DIR = _ft_root() / "data/turbo_maps"
+STUB_FILE = Path(__file__).resolve().parent / "_data.pyi"
 
 
 @lru_cache(maxsize=None)

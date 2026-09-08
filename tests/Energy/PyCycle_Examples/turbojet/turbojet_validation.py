@@ -30,6 +30,8 @@ def numerical_environment():
 
 numerical_environment()
 
+import flowtangent as ft
+
 import json
 
 import jax
@@ -41,16 +43,14 @@ import pandas as pd
 from pathlib import Path
 from dataclasses import replace
 
-from flowtangent.utils import save_data, load_data, format_array, configure_environment
+
+from flowtangent.utils import save_data, load_data, format_array, configure_environment, LoggingSettings
 
 from flowtangent.data import units
-from flowtangent.library.components.energy.networks import TurbojetNetwork, JetNetDesign
-from flowtangent.library.components.energy.jets.classes import TurbojetEngine, TurbojetOpPoint
-from flowtangent.library.components.energy.lines import TurbojetLine
+from flowtangent.components import TurbojetEngine, TurbojetOpPoint, TurbojetLine, TurbojetNetwork, JetNetParameters
 
-from flowtangent.framework import State, Aircraft, Settings
-from flowtangent.core._settings import LoggingSettings
-from flowtangent.framework.analyses.energy.jets import build_turbojet_design, build_turbojet_performance, JetSettings
+from flowtangent import State, Aircraft, Settings
+from flowtangent.solve.energy.jets import build_turbojet_design, build_turbojet_performance, JetSettings
 from flowtangent.framework.simulation.initialize import initialize_energy
 from flowtangent.framework.simulation.update import update_freestream
 

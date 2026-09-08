@@ -9,6 +9,11 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Sequence, Tuple
 
 if TYPE_CHECKING:
@@ -30,9 +35,9 @@ import zarr
 from numcodecs import Blosc
 from tqdm import tqdm, trange
 
-from .. import Process, Settings, State, System
+from .. import Process, State, System
 from ..utils import TreePath, field, get_all_targets, update
-from .implicit import ImplicitAnalysis
+from ._implicit import ImplicitAnalysis
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Batch Analysis

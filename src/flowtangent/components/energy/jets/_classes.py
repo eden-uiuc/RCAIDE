@@ -8,11 +8,16 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
 from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from .... import Aircraft, Settings, State, System
-    from ....analyses.energy.jets import JetSettings
+    from ....solve.energy.jets import JetSettings
 
 
 import json
@@ -28,14 +33,15 @@ import jax.numpy as jnp
 import flowtangent.utils as tu
 from flowtangent.data import units
 
-# Flowtangent imports
-from flowtangent.utils import field, static_field, update
-
 from ....data.gases import Air, BurnedJetA, Gas
 from ....data.propellants import JetA, Propellant
-from ..maps import data as map_data
-from ..maps.classes import CompressorMap, TurbineMap
-from ..nodes import BleedFlow, FlowNode, FlowOpPoint, GraphInput, GraphNode, Splitter
+
+# Flowtangent imports
+from ....utils import field, static_field, update
+from ....utils.typing import ScalarFloat
+from ..maps import _data as map_data
+from ..maps._classes import CompressorMap, TurbineMap
+from ..nodes import BleedFlow, FlowNode, FlowOpPoint, GraphInput, PACTNode, Splitter
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Turbojet Components
@@ -1057,7 +1063,7 @@ class Nozzle(FlowNode):
 # Turboshaft -------------------------------------------------------------------
 
 
-class Turboshaft(GraphNode):
+class Turboshaft(PACTNode):
     name: str = field("Turboshaft", static=True)
 
     inputs: tuple | GraphInput = (
@@ -1180,9 +1186,9 @@ def _ABTurbojetSetup():
 
 
 class JetGeometry(eqx.Module):
-    xe: float = 1.0
-    ye: float = 1.0
-    Ce: float = 2.0
+    xe: ScalarFloat = 1.0
+    ye: ScalarFloat = 1.0
+    Ce: ScalarFloat = 2.0
 
 
 class JetKinematics(eqx.Module):
@@ -1190,49 +1196,49 @@ class JetKinematics(eqx.Module):
     Exit Mach numbers for turbojet components
     """
 
-    inlet: float = 0.6
+    inlet: ScalarFloat = 0.6
 
-    compressor: float = 0.3
-    burner: float = 0.1
-    turbine: float = 0.4
+    compressor: ScalarFloat = 0.3
+    burner: ScalarFloat = 0.1
+    turbine: ScalarFloat = 0.4
 
 
 class TurbojetOpPoint[KinType: JetKinematics | FanKinematics](FlowOpPoint):
     name: str = field("TOC", static=True)  # Top-of-Climb design point by default
 
     # Performance Parameters
-    thrust: float = 0.0
-    SLS_thrust: float = 0.0
-    delta_SFC: float = 0.0  # noqa: N815
+    thrust: ScalarFloat = 0.0
+    SLS_thrust: ScalarFloat = 0.0
+    delta_SFC: ScalarFloat = 0.0  # noqa: N815
 
     # Flight Conditions
-    altitude: float = 0.0
-    mach_number: float = 1e-6
+    altitude: ScalarFloat = 0.0
+    mach_number: ScalarFloat = 1e-6
 
-    temperature: float = 288.15  # Kelvin
-    stagnation_temperature: float = 288.15  # Kelvin
+    temperature: ScalarFloat = 288.15  # Kelvin
+    stagnation_temperature: ScalarFloat = 288.15  # Kelvin
 
-    pressure: float = 101325.0  # Pascal
-    stagnation_pressure: float = 101325.0  # Pascal
+    pressure: ScalarFloat = 101325.0  # Pascal
+    stagnation_pressure: ScalarFloat = 101325.0  # Pascal
 
     # Component Parameters
-    inlet_pressure_recovery: float = 0.999
-    overall_pressure_ratio: float = 20.0  # Compressor PR, 'OPR' by convention
-    burner_pressure_ratio: float = 0.97
+    inlet_pressure_recovery: ScalarFloat = 0.999
+    overall_pressure_ratio: ScalarFloat = 20.0  # Compressor PR, 'OPR' by convention
+    burner_pressure_ratio: ScalarFloat = 0.97
 
-    turbine_intake_temperature: float = 0.0
-    afterburner_exit_temperature: float = 0.0
+    turbine_intake_temperature: ScalarFloat = 0.0
+    afterburner_exit_temperature: ScalarFloat = 0.0
 
     # Control/Residual Values
-    FAR: float = 1e-2
-    TSFC: float = 0.0
-    compressor_Rline: float = 2.0  # noqa: N815
-    mass_flow_rate: float = 100 * units.kg / units.s
+    FAR: ScalarFloat = 1e-2
+    TSFC: ScalarFloat = 0.0
+    compressor_Rline: ScalarFloat = 2.0  # noqa: N815
+    mass_flow_rate: ScalarFloat = 100 * units.kg / units.s
 
     # Single Spool Controls
-    rotation_speed: float = 8_000 * units.rpm
-    turbine_PR: float = 5.0  # noqa: N815
-    power: float = 2e7 * units.W
+    rotation_speed: ScalarFloat = 8_000 * units.rpm
+    turbine_PR: ScalarFloat = 5.0  # noqa: N815
+    power: ScalarFloat = 2e7 * units.W
 
     exit_mach_numbers: KinType = field(JetKinematics, static=True)
 
@@ -1259,7 +1265,7 @@ class TurbojetEngine(FlowNode[TurbojetOpPoint]):
     name: str = field("Engine", static=True)
     subcomponents: tuple = field(_TurbojetSetup)
 
-    plug_diameter: float = 0.0
+    plug_diameter: ScalarFloat = 0.0
 
     working_fluid: Gas = field(Air)
     design_parameters: TurbojetOpPoint = field(TurbojetOpPoint)
@@ -1735,36 +1741,36 @@ class FanKinematics(eqx.Module):
     Exit Mach Numbers for turbofan components
     """
 
-    inlet: float = 0.75
-    fan: float = 0.45
+    inlet: ScalarFloat = 0.75
+    fan: ScalarFloat = 0.45
 
-    core_duct: float = 0.35
-    fan_duct: float = 0.45
+    core_duct: ScalarFloat = 0.35
+    fan_duct: ScalarFloat = 0.45
 
-    lpc: float = 0.3
-    compressor_stator: float = 0.35
-    hpc: float = 0.25
-    cooling_duct: float = 0.3
+    lpc: ScalarFloat = 0.3
+    compressor_stator: ScalarFloat = 0.35
+    hpc: ScalarFloat = 0.25
+    cooling_duct: ScalarFloat = 0.3
 
-    burner: float = 0.1
+    burner: ScalarFloat = 0.1
 
-    hpt: float = 0.35
-    turbine_stator: float = 0.3
-    lpt: float = 0.4
+    hpt: ScalarFloat = 0.35
+    turbine_stator: ScalarFloat = 0.3
+    lpt: ScalarFloat = 0.4
 
-    core_nozzle_duct: float = 0.45
+    core_nozzle_duct: ScalarFloat = 0.45
 
 
 class TurbofanDesign(TurbojetOpPoint[FanKinematics]):
     # Control Values
-    bypass_ratio: float = 0.0
-    fan_pressure_ratio: float = 0.0
+    bypass_ratio: ScalarFloat = 0.0
+    fan_pressure_ratio: ScalarFloat = 0.0
 
-    lp_rotation_speed: float = 5_000 * units.rev / units.mins
-    hp_rotation_speed: float = 15_000 * units.rev / units.mins
+    lp_rotation_speed: ScalarFloat = 5_000 * units.rev / units.mins
+    hp_rotation_speed: ScalarFloat = 15_000 * units.rev / units.mins
 
-    HPT_PR: float = 5.0
-    LPT_PR: float = 3.0
+    HPT_PR: ScalarFloat = 5.0
+    LPT_PR: ScalarFloat = 3.0
 
     exit_mach_numbers: FanKinematics = field(FanKinematics, static=True)
 

@@ -9,6 +9,15 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .. import Settings, State, System
+
 import contextlib
 import io
 import logging
@@ -28,7 +37,6 @@ import optimistix as optx
 from jax.core import Tracer
 from scipy.optimize import root
 
-from .. import Settings, State, System
 from .. import utils as ftu
 from ..core._processes import Process, array_barrier
 from ..core._state_data import Control, Residual

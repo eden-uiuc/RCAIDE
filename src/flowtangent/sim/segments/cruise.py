@@ -23,7 +23,7 @@ from flowtangent.framework import ProcessStep
 from flowtangent.framework.simulation.segments import Segment
 from flowtangent.utils import field
 
-from ...analyses.implicit import Variable
+from ..._analyses.implicit import Variable
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Cruise

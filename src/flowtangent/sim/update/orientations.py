@@ -8,6 +8,11 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ... import Settings, State, System
+
 # package imports
 # ----------------------------------------------------------------------------------------------------------------------
 #  Update Orientations
@@ -15,7 +20,6 @@ from __future__ import annotations
 import jax.numpy as jnp
 from jax import vmap
 
-from ... import Settings, State, System
 from ...utils import update
 
 

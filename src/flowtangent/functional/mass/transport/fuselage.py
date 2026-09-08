@@ -9,12 +9,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .... import Settings, State, System
+
 import jax
 import jax.numpy as jnp
 
 from flowtangent.data import units
 
-from .... import Settings, State, System
 from ....components import Fuselage
 
 # -------------------------------------------------------------------------------

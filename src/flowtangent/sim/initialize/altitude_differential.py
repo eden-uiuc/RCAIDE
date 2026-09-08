@@ -11,9 +11,16 @@
 # Flowtangent Imports
 from __future__ import annotations
 
-import jax.numpy as jnp
+from typing import TYPE_CHECKING
 
-from ... import Settings, State, System
+if TYPE_CHECKING:
+    pass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ... import Settings, State, System
+
+import jax.numpy as jnp
 
 # -------------------------------------------------------------------------------
 #  Stateful/Framework Version
@@ -31,8 +38,8 @@ def initialize_altitude_differential(state: State, settings: Settings, system: S
     """
 
     # Unpack state inputs
-    t = state.numerics.dimensionless.control_points
-    I = state.numerics.dimensionless.integrate
+    t = state.time.dimensionless.control_points
+    I = state.time.dimensionless.integrate
     r = state.frames.inertial.position_vector
     v = state.frames.inertial.velocity_vector
 

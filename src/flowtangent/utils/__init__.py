@@ -30,8 +30,10 @@ from .tree import (
     is_array_like,
 )
 
+from .backend import configure_environment
+
 # 3. I/O and Serialization
-from .io import inputs, outputs, parse_io, jax_path_string, save_data, load_data
+from .io import inputs, outputs, parse_io, jax_path_string, save_data, load_data, LoggingSettings
 
 # 4. Math and Display
 from .display import format_array, MERMAID_STYLES

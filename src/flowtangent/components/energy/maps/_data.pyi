@@ -1,4 +1,4 @@
-from .classes import CompressorMap, TurbineMap
+from ._classes import CompressorMap, TurbineMap
 
 LPT: TurbineMap
 HPT1269: TurbineMap

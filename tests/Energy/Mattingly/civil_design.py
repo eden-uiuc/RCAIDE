@@ -1,14 +1,12 @@
 import pandas as pd
 
-import equinox as eqx
-
 from flowtangent.utils import configure_environment
 
-from flowtangent.library.components.energy.jets import data as jet_data
-from flowtangent.library.components.energy.networks import TurbofanNetwork
+from flowtangent.components._energy.jets import _data as jet_data
+from flowtangent.components._energy.networks import TurbofanNetwork
 
-from flowtangent.framework import State, Settings, Aircraft
-from flowtangent.framework.analyses.energy.jets import design_turbofan_mp, JetSettings
+from flowtangent import State, Settings, Aircraft
+from flowtangent._analyses._energy.jets import design_turbofan_mp, JetSettings
 
 if __name__ == "__main__":
     

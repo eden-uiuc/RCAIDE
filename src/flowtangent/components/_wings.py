@@ -24,13 +24,13 @@ class WingDimensions(Dimensions):
     tip: float = 0.0
 
 
-class Sweeps(WingDimensions):
+class WingSweeps(WingDimensions):
     leading_edge: float = 0.0
     quarter_chord: float = 0.0
     half_chord: float = 0.0
 
 
-class Chords(WingDimensions):
+class WingChords(WingDimensions):
     mean_aerodynamic: float = 0.0
     mean_geometric: float = 0.0
 
@@ -48,8 +48,8 @@ class WingSegment(Component):
     twist: float | jax.Array = 0.0
     dihedral_outboard: float | jax.Array = 0.0
 
-    sweeps: Sweeps = field(Sweeps)
-    chords: Chords = field(Chords)
+    sweeps: WingSweeps = field(WingSweeps)
+    chords: WingChords = field(WingChords)
 
     @property
     def taper(self):
@@ -68,7 +68,7 @@ class WingSegment(Component):
         return safe_tip / safe_root
 
 
-class WingControlSurface(Component):
+class ControlSurface(Component):
     name: str = field("Wing Control Surface", static=True)
 
     span_fraction_start: float = 0.0
@@ -99,7 +99,7 @@ class Wing(Component):
     name: str = field("Wing", static=True)
     airfoil: Airfoil | None = None
 
-    _bookkeeping: dict = field(lambda: {"control_surfaces": WingControlSurface}, static=True)
+    _bookkeeping: dict = field(lambda: {"control_surfaces": ControlSurface}, static=True)
 
     # Specialty Attributes
 
@@ -128,8 +128,8 @@ class Wing(Component):
 
     spans: WingDimensions = field(lambda: WingDimensions(ordinal_direction=True))
     twists: WingDimensions = field(WingDimensions)
-    chords: Chords = field(WingDimensions)
-    sweeps: Sweeps = field(Sweeps)
+    chords: WingChords = field(WingDimensions)
+    sweeps: WingSweeps = field(WingSweeps)
 
     def __post_init__(self):
         new_taper, new_chords = self.validate_chords()
@@ -145,7 +145,7 @@ class Wing(Component):
             else:
                 tip = new_chords.root * self.segments[idx + 1].root_chord_percent
 
-            new_seg = update(seg, "chords", Chords(root=root, tip=tip))
+            new_seg = update(seg, "chords", WingChords(root=root, tip=tip))
             updated_segments.append(new_seg)
 
         object.__setattr__(self, "segments", updated_segments)
@@ -342,7 +342,7 @@ class Wing(Component):
             return self.segments
 
         # 1. Build Root Segment
-        root_sweeps = Sweeps(quarter_chord=self.sweeps.quarter_chord, leading_edge=self.sweeps.leading_edge)
+        root_sweeps = WingSweeps(quarter_chord=self.sweeps.quarter_chord, leading_edge=self.sweeps.leading_edge)
 
         root_segment = WingSegment(
             name="root_segment",
@@ -357,7 +357,7 @@ class Wing(Component):
             root_segment = update(root_segment, "airfoil", self.airfoil)
 
         # 2. Build Tip Segment
-        tip_sweeps = Sweeps(
+        tip_sweeps = WingSweeps(
             quarter_chord=0.0,
             leading_edge=1e-8,
         )
@@ -480,7 +480,7 @@ class Wing(Component):
                 new_wing = new_wing.update_geometry()
             return new_wing
 
-        elif isinstance(subcomponent, WingControlSurface):
+        elif isinstance(subcomponent, ControlSurface):
             new_controls = self.control_surfaces.add_subcomponent(subcomponent)
             return update(self, "control_surfaces", new_controls)
 

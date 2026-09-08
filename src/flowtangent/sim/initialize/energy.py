@@ -10,14 +10,18 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from flowtangent.framework import Settings, State, System
+    pass
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ... import Settings, State, System
 
 # package imports
 
 # Flowtangent Imports
-from flowtangent.components.energy.networks import GraphNetwork
-from flowtangent.core._state_data._energy import NodeState, TurbofanState, TurbojetState
-
+from ...components.energy.networks import PACTNetwork
+from ...core._state_data._energy import NodeState, TurbofanState, TurbojetState
 from ...utils import update
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -47,7 +51,7 @@ def initialize_energy(state: State, system: System, settings: Settings):
     updated_system = system
 
     for network in updated_system.energy_networks:
-        network: GraphNetwork
+        network: PACTNetwork
         updated_network = network.assign_network_ids()
 
         for line in updated_network.lines:

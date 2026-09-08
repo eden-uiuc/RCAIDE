@@ -11,28 +11,44 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    pass
+
+from typing import TYPE_CHECKING
+
 # --- Framework Imports (Strictly for Type Hinting to avoid Circular Imports) ---
 if TYPE_CHECKING:
-    from flowtangent.library.components.energy.maps.classes import CompressorMap, TurbineMap
-    from flowtangent.library.components.energy.networks import TurbofanNetwork, TurbojetNetwork
+    from ... import Aircraft, Process, ProcessStep, Settings, State, System
+    from ...components.energy.maps._classes import CompressorMap, TurbineMap
+    from ...components.energy.networks import TurbofanNetwork, TurbojetNetwork
 
 from dataclasses import replace
 
 import jax.numpy as jnp
 
 from flowtangent.data import units
-from flowtangent.library.components.energy.jets.classes import TurbofanDesign, TurbojetEngine, TurbojetOpPoint
 from flowtangent.utils import TreePath, field
 
-from ... import Aircraft, Process, ProcessStep, Settings, State, System
-from ...analyses.implicit import Residual, Variable
-from ...core._settings import EnergyAnalysisSettings
+from ...components.energy.jets._classes import TurbofanDesign, TurbojetEngine, TurbojetOpPoint
 from ...sim.initialize import energy as initialize_energy
 from ...sim.update import update_freestream
 from ...utils import update
-from ..batched import BatchedAnalysis
-from ..implicit import ImplicitAnalysis
-from .graph_network import build_analysis_from_network
+from .._batched import BatchedAnalysis
+from .._implicit import ImplicitAnalysis, Residual, Variable
+from .._settings import EnergyAnalysisSettings
+from ._energy_network import build_PACT_analysis
+
+# ----------------------------------------------------------------------------------------------------------------------
+#  API Setup
+# ----------------------------------------------------------------------------------------------------------------------
+
+__all__ = [
+    "JetSettings",
+    "build_turbofan_design",
+    "build_turbojet_design",
+    "build_turbojet_performance",
+    "build_turbofan_performance"
+]
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Jet Analysis Settings
@@ -141,7 +157,7 @@ def _design_update(state: State, system: Aircraft, settings: Settings) -> tuple[
     )
 
     des_state, des_system, des_settings = update_freestream(des_state, des_system, des_settings)
-    base_analysis = build_analysis_from_network(des_system.energy)
+    base_analysis = build_PACT_analysis(des_system.energy)
 
     return des_state, des_system, des_settings, base_analysis
 
@@ -184,7 +200,7 @@ def build_turbojet_design(state: State, system: Aircraft, settings: Settings):
     return des_state, des_system, des_settings, design_analysis
 
 
-def turbofan_design(state: State, system: Aircraft, settings: Settings) -> ImplicitAnalysis:
+def build_turbofan_design(state: State, system: Aircraft, settings: Settings) -> ImplicitAnalysis:
 
     # Setup test state according to design parameters
     _, des_system, _, base_analysis = _design_update(state, system, settings)
@@ -343,13 +359,13 @@ def build_turbojet_performance(
 
     return ImplicitAnalysis(
         name="Turbojet Performance",
-        analyze=build_analysis_from_network(network),
+        analyze=build_PACT_analysis(network),
         controls=ctrls,
         residuals=res,
     )
 
 
-def turbofan_performance(network: TurbofanNetwork):
+def build_turbofan_performance(network: TurbofanNetwork):
 
     # Fan Map Bounds -----------------------------------------------------------
 
@@ -531,7 +547,7 @@ def turbofan_performance(network: TurbofanNetwork):
 
     return ImplicitAnalysis(
         name="Turbofan Performance",
-        analyze=build_analysis_from_network(network),
+        analyze=build_PACT_analysis(network),
         controls=ctrls,
         residuals=res,
     )
@@ -592,7 +608,7 @@ def _design_update_batched(
 
     OD_analysis = BatchedAnalysis(
         name="Off-Design Analysis",
-        analyze=turbofan_performance(des_system.energy),
+        analyze=build_turbofan_performance(des_system.energy),
         state_inputs=(
             alt,
             M0,
@@ -611,7 +627,7 @@ def design_turbofan_mp(state: State, system: Aircraft, settings: Settings) -> tu
     # Set up Inner Loop
 
     des_state, des_system, des_settings, OD_analysis = _design_update_batched(state, system, settings)
-    des_analysis = turbofan_design(des_state, des_system, des_settings)
+    des_analysis = build_turbofan_design(des_state, des_system, des_settings)
     des_state, des_system, des_settings = des_analysis.initialize(des_state, des_system, des_settings)
 
     engine = system.energy.line.engine
