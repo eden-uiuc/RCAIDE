@@ -1,8 +1,13 @@
-# src/eden_trace/utils/base.py
-from typing import Any, dataclass_transform
+# src/flowtangent/utils/base.py
+import inspect
+from typing import Any, dataclass_transform, get_args
 
 import equinox as eqx
 import jax.numpy as jnp
+from beartype import beartype
+from jaxtyping import jaxtyped
+
+from .typing import _Placeholder
 
 
 def null_step(*args):
@@ -37,7 +42,9 @@ def empty_array(shape: tuple | int = 0, dtype: Any = float, **kwargs):
     return field(lambda: jnp.empty(shape, dtype=dtype), **kwargs)
 
 
-# Instruct IDEs to treat our custom base class as a dataclass generator
+FLOWTANGENT_REGISTRY = {}
+
+
 @dataclass_transform(field_specifiers=(eqx.field, field, static_field, method_field))
 class Module(eqx.Module):
     """Base class for all FlowTangent modules to preserve IDE autocompletion."""
@@ -47,6 +54,23 @@ class Module(eqx.Module):
     def __init_subclass__(cls, **kwargs) -> None:
         if "name" not in cls.__dict__:
             cls.name = cls.__name__
+
+        if cls.__name__ in FLOWTANGENT_REGISTRY:
+            raise ValueError(
+                f"Class '{cls.__name__}' is already registered. "
+                "Ensure all FlowTangent module class names are unique."
+            )
+        FLOWTANGENT_REGISTRY[cls.__name__] = cls
+
+        # Auto-apply jaxtyped to all standard methods that have type annotations
+        for attr_name, attr_value in cls.__dict__.items():
+            # Skip dunder methods (__init__, __call__, etc.) to avoid breaking Equinox
+            if inspect.isfunction(attr_value) and not attr_name.startswith("__"):
+                annotations = getattr(attr_value, "__annotations__", {})
+                # If the method has any annotations (return or args), wrap it
+                if annotations:
+                    wrapped_method = jaxtyped(typechecker=beartype)(attr_value)
+                    setattr(cls, attr_name, wrapped_method)
 
         super().__init_subclass__(**kwargs)
 
@@ -58,7 +82,6 @@ class Module(eqx.Module):
         return self.name.replace(" ", "_").lower()
 
 
-# Metaclass logic from earlier
 class StateDataMeta(type(eqx.Module)):
     def __new__(mcs, name, bases, namespace):
         annotations = namespace.get("__annotations__", {})
@@ -66,12 +89,21 @@ class StateDataMeta(type(eqx.Module)):
             if key.startswith("__"):
                 continue
 
-            hint_str = str(hint)
-            if ("ndarray" in hint_str or "Array" in hint_str) and key not in namespace:
-                namespace[key] = empty_array()
+            args = get_args(hint)
+            hint_str = str(hint) + "".join(str(a) for a in args)
+
+            # Check if it has NO default OR if the user used the Ellipsis placeholder
+            val = namespace.get(key)
+            if key not in namespace or isinstance(val, _Placeholder):
+                if "ndarray" in hint_str or "Array" in hint_str:
+
+                    # Deduce the correct placeholder shape directly from the type hint!
+                    shape = (0,)
+                    if "time 1" in hint_str:
+                        shape = (0, 1)
+                    elif "time 3" in hint_str:
+                        shape = (0, 3)
+
+                    namespace[key] = empty_array(shape)
 
         return super().__new__(mcs, name, bases, namespace)
-
-
-class StateData(Module, metaclass=StateDataMeta):
-    pass

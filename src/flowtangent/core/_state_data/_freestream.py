@@ -8,21 +8,20 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
-import jax
 
 from flowtangent.core._state_data import StateData
 from flowtangent.data.atmospheres import Atmosphere, USStandard1976
 from flowtangent.data.planets import Earth, Planet
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register
+from ...utils import field
+from ...utils.typing import TimeScalar, _
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Freestream
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class Freestream(StateData):
     """
     Represents the freestream conditions in a flight environment.
@@ -82,25 +81,25 @@ class Freestream(StateData):
     atmosphere: Atmosphere = field(USStandard1976)
     planet: Planet = field(Earth)
 
-    speed: jax.Array = empty_array()
-    altitude: jax.Array = empty_array()
-    gravity: jax.Array = empty_array()
+    speed: TimeScalar = _
+    altitude: TimeScalar = _
+    gravity: TimeScalar = _
 
-    speed_of_sound: jax.Array = empty_array()
-    pressure: jax.Array = empty_array()
-    temperature: jax.Array = empty_array()
-    density: jax.Array = empty_array()
+    speed_of_sound: TimeScalar = _
+    pressure: TimeScalar = _
+    temperature: TimeScalar = _
+    density: TimeScalar = _
 
-    dynamic_viscosity: jax.Array = empty_array()
-    dynamic_pressure: jax.Array = empty_array()
+    dynamic_viscosity: TimeScalar = _
+    dynamic_pressure: TimeScalar = _
 
-    stagnation_pressure: jax.Array = empty_array()
-    stagnation_temperature: jax.Array = empty_array()
+    stagnation_pressure: TimeScalar = _
+    stagnation_temperature: TimeScalar = _
 
-    mach_number: jax.Array = empty_array()
-    reynolds_number: jax.Array = empty_array()
+    mach_number: TimeScalar = _
+    reynolds_number: TimeScalar = _
 
-    delta_ISA: jax.Array = empty_array()  # noqa: N815
-    gamma: jax.Array = empty_array()
-    Cp: jax.Array = empty_array()
-    R: jax.Array = empty_array()
+    delta_ISA: TimeScalar = _  # noqa: N815
+    gamma: TimeScalar = _
+    Cp: TimeScalar = _
+    R: TimeScalar = _

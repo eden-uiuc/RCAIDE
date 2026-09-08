@@ -26,7 +26,7 @@ import jax.numpy as jnp
 
 from flowtangent import Component
 from flowtangent.data.gases import Air, Gas
-from flowtangent.utils import field, register, update
+from flowtangent.utils import field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Graph Nodes
@@ -35,7 +35,6 @@ from flowtangent.utils import field, register, update
 # Inputs & Nodes ---------------------------------------------------------------
 
 
-@register
 class Efficiencies(eqx.Module):
     total: float | jax.Array = 1.0
 
@@ -51,7 +50,6 @@ class Efficiencies(eqx.Module):
 GraphDomain = Literal["flow", "mechanical", "electrical", "fuel", "force", "residual"]
 
 
-@register
 class GraphInput(eqx.Module):
     domain: GraphDomain = field("flow", static=True)
     network_id: str = field("network", static=True)
@@ -73,7 +71,6 @@ class GraphInput(eqx.Module):
         return reduce(getattr, (state.energy.nodes[self.network_id], self.domain, value))
 
 
-@register
 class GraphNode(Component):
     network_id: str = field("energy_node", static=True)
 
@@ -156,7 +153,6 @@ class GraphNode(Component):
 # Splitters --------------------------------------------------------------------
 
 
-@register
 class Splitter(GraphNode):
     values: str | tuple[str] = field(tuple, static=True)
     fractions: float | Callable | tuple[float | Callable] = field(tuple, static=True)
@@ -214,7 +210,6 @@ class Splitter(GraphNode):
 # ----------------------------------------------------------------------------------------------------------------------
 #  Flow Nodes
 # ----------------------------------------------------------------------------------------------------------------------
-@register
 class FlowOpPoint(eqx.Module):
     # fmt: off
     pressure_ratio:     float | jax.Array = 1.0
@@ -236,7 +231,6 @@ class FlowOpPoint(eqx.Module):
     # fmt: on
 
 
-@register
 class BleedFlow(GraphNode):
     name: str = field("Bleed Flow", static=True)
     fractions_dict: dict[str, float | Callable] = field(dict)
@@ -284,7 +278,6 @@ class BleedFlow(GraphNode):
         return updated_state, system, settings
 
 
-@register
 class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
     design_parameters: DesignType = field(FlowOpPoint)
     working_fluid: Gas = field(Air)
@@ -568,7 +561,6 @@ class FlowNode[DesignType: FlowOpPoint | tuple](GraphNode):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class EnergyStore(GraphNode):
     name: str = field("Energy Store", static=True)
 
@@ -583,7 +575,6 @@ class EnergyStore(GraphNode):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class FuelTank(EnergyStore):
     name: str = field("Fuel Tank", static=True)
 
@@ -604,7 +595,6 @@ class FuelTank(EnergyStore):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class RagoneParameters(eqx.Module):
     const_1: float = 0.0
     const_2: float = 0.0
@@ -612,7 +602,6 @@ class RagoneParameters(eqx.Module):
     i: float = 0.0
 
 
-@register
 class Battery(EnergyStore):
     name: str = field("Battery", static=True)
 

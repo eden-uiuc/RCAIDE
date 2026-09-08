@@ -11,6 +11,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from .base import FLOWTANGENT_REGISTRY
+
 # Import our tree utility for checking defaults during serialization
 from .tree import is_equivalent
 
@@ -106,24 +108,13 @@ def _ft_root() -> Path:
     return Path(os.path.dirname(os.path.abspath(__file__))).resolve().parent
 
 
-FlowTangent_REGISTRY = {}
-
-
-def register(cls):
-    """Decorator to safely register any class for standalone serialization."""
-    if cls.__name__ in FlowTangent_REGISTRY:
-        raise ValueError(f"Class '{cls.__name__}' is already registered.")
-    FlowTangent_REGISTRY[cls.__name__] = cls
-    return cls
-
-
 def serialize_node(obj):
     if isinstance(obj, (jax.Array, np.ndarray)):
         if obj.size == 1:
             return obj.item()
         return {"__type__": "ndarray", "data": obj.tolist()}
 
-    elif type(obj).__name__ in FlowTangent_REGISTRY:
+    elif type(obj).__name__ in FLOWTANGENT_REGISTRY:
         cls = type(obj)
         state = {}
 
@@ -169,10 +160,10 @@ def deserialize_node(data):
 
     if "__class__" in data:
         cls_name = data["__class__"]
-        if cls_name not in FlowTangent_REGISTRY:
+        if cls_name not in FLOWTANGENT_REGISTRY:
             raise ValueError(f"Class '{cls_name}' is not registered and cannot be loaded.")
 
-        cls = FlowTangent_REGISTRY[cls_name]
+        cls = FLOWTANGENT_REGISTRY[cls_name]
         try:
             instance = cls()
         except TypeError:

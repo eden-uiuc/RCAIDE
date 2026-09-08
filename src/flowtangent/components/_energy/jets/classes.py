@@ -29,7 +29,7 @@ import flowtangent.utils as tu
 from flowtangent.data import units
 
 # Flowtangent imports
-from flowtangent.utils import field, register, static_field, update
+from flowtangent.utils import field, static_field, update
 
 from ....data.gases import Air, BurnedJetA, Gas
 from ....data.propellants import JetA, Propellant
@@ -44,7 +44,6 @@ from ..nodes import BleedFlow, FlowNode, FlowOpPoint, GraphInput, GraphNode, Spl
 # Inlet ------------------------------------------------------------------------
 
 
-@register
 class Inlet(FlowNode):
     name: str = field("inlet", static=True)
 
@@ -141,7 +140,6 @@ def _alpha_c(Nc, Nc_design):
     return jnp.where(Nc_design > 0.0, jnp.maximum(0.0, 90.0 - (Nc / Nc_design) * 90.0), jnp.zeros_like(Nc))
 
 
-@register
 class Compressor(FlowNode):
     name: str = field("compressor", static=True)
 
@@ -402,7 +400,6 @@ def _burner_performance(
     return P_t_out, T_t_out, h_t_out, mdot_out
 
 
-@register
 class Burner(FlowNode):
     name: str = field("Burner", static=True)
 
@@ -517,7 +514,6 @@ class Burner(FlowNode):
 # Turbine ----------------------------------------------------------------------
 
 
-@register
 class Turbine(FlowNode):
     name: str = field("Turbine", static=True)
 
@@ -917,7 +913,6 @@ def _variable_nozzle_performance(
     return M_out, u_out, rho_out, P_out, P_t_out, T_out, T_t_out, h_out, h_t_out, A_throat, A_exit
 
 
-@register
 class Nozzle(FlowNode):
     name: str = field("Core Nozzle", static=True)
     variable_exit: bool = field(False, static=True)
@@ -1062,7 +1057,6 @@ class Nozzle(FlowNode):
 # Turboshaft -------------------------------------------------------------------
 
 
-@register
 class Turboshaft(GraphNode):
     name: str = field("Turboshaft", static=True)
 
@@ -1185,14 +1179,12 @@ def _ABTurbojetSetup():
     return base_components[:-1] + (ab, nozz)
 
 
-@register
 class JetGeometry(eqx.Module):
     xe: float = 1.0
     ye: float = 1.0
     Ce: float = 2.0
 
 
-@register
 class JetKinematics(eqx.Module):
     """
     Exit Mach numbers for turbojet components
@@ -1205,7 +1197,6 @@ class JetKinematics(eqx.Module):
     turbine: float = 0.4
 
 
-@register
 class TurbojetOpPoint[KinType: JetKinematics | FanKinematics](FlowOpPoint):
     name: str = field("TOC", static=True)  # Top-of-Climb design point by default
 
@@ -1264,7 +1255,6 @@ class TurbojetOpPoint[KinType: JetKinematics | FanKinematics](FlowOpPoint):
         return op_state
 
 
-@register
 class TurbojetEngine(FlowNode[TurbojetOpPoint]):
     name: str = field("Engine", static=True)
     subcomponents: tuple = field(_TurbojetSetup)
@@ -1566,7 +1556,6 @@ class TurbojetEngine(FlowNode[TurbojetOpPoint]):
 
 
 # Makes BPR split serializable for save/load
-@register
 class BPRSplit(eqx.Module):
     is_bypass: bool = field(True, static=True)
 
@@ -1741,7 +1730,6 @@ def _ABTurbofanSetup():
     return base_components + (ab,)
 
 
-@register
 class FanKinematics(eqx.Module):
     """
     Exit Mach Numbers for turbofan components
@@ -1767,7 +1755,6 @@ class FanKinematics(eqx.Module):
     core_nozzle_duct: float = 0.45
 
 
-@register
 class TurbofanDesign(TurbojetOpPoint[FanKinematics]):
     # Control Values
     bypass_ratio: float = 0.0

@@ -22,14 +22,13 @@ from flowtangent.core._state_data import (
     StateData,
     Time,
 )
-from flowtangent.utils import empty_array, field, register, update
+from flowtangent.utils import empty_array, field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  State
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class State[EnergyType: NetworkState](StateData):
     name: str = field("State", static=True)
 

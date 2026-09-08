@@ -27,7 +27,7 @@ import jax.numpy as jnp
 import flowtangent.utils as tu
 from flowtangent.data import units
 from flowtangent.data.atmospheres import USStandard1976
-from flowtangent.utils import field, register, update
+from flowtangent.utils import field, update
 
 from .lines import EnergyLine, TurbofanLine, TurbojetLine
 from .nodes import BleedFlow, GraphDomain, GraphInput, GraphNode
@@ -37,7 +37,6 @@ from .nodes import BleedFlow, GraphDomain, GraphInput, GraphNode
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class NetworkDesign(eqx.Module):
     altitude: float = 0.0
     mach_number: float = 0.01
@@ -106,7 +105,6 @@ def _resolve_namespaces(node, parent_prefix=""):
     return node
 
 
-@register
 class GraphNetwork[DesignType: NetworkDesign](GraphNode):
     name: str = field("Network", static=True)
     network_id: str = field("network", static=True)
@@ -294,12 +292,10 @@ def _TurbojetNetworkSetup():
     return (TurbojetLine(name="Line"),)
 
 
-@register
 class JetNetDesign(NetworkDesign):
     number_of_engines: int = field(1, static=True)
 
 
-@register
 class TurbojetNetwork(_JetNetwork[JetNetDesign]):
     subcomponents: tuple = field(_TurbojetNetworkSetup)
     design_parameters: JetNetDesign = field(JetNetDesign)
@@ -312,6 +308,5 @@ def _TurbofanNetworkSetup():
     return (TurbofanLine(),)
 
 
-@register
 class TurbofanNetwork(_JetNetwork[JetNetDesign]):
     subcomponents: tuple = field(_TurbofanNetworkSetup)

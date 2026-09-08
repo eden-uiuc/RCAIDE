@@ -10,13 +10,12 @@
 from dataclasses import fields
 from typing import Optional, Self, Sequence
 
-import equinox as eqx
-
 # package imports
 import jax
 import jax.numpy as jnp
 
-from flowtangent.utils import field, update
+from ...utils import Module, field, update
+from ...utils.base import StateDataMeta
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Conditions
@@ -24,12 +23,10 @@ from flowtangent.utils import field, update
 
 STATIC_DATA = ("AtmosphericBreakpoints",)
 
-
 def _is_static_node(node):
     return hasattr(node, "__class__") and node.__class__.__name__ in STATIC_DATA
 
-
-class StateData(eqx.Module):
+class StateData(Module, metaclass=StateDataMeta):
     name: str = field("Conditions", static=True)
 
     @property
@@ -63,6 +60,9 @@ class StateData(eqx.Module):
 
         def _expand(leaf):
             if isinstance(leaf, (jax.Array)):
+                if leaf.size == 0:
+                    trailing_dims = leaf.shape[1:] if leaf.ndim > 0 else ()
+                    return jnp.zeros((N,) + trailing_dims, dtype=leaf.dtype)
                 # Zero-copy expansion for actual data
                 if leaf.ndim == 1:
                     # e.g., Shape (X,) -> Shape (n, X)
@@ -82,9 +82,9 @@ class StateData(eqx.Module):
                 return leaf
             if isinstance(leaf, jax.Array):
                 # # Intercept the empty placeholders
-                # if leaf.size==0:
-                #     trailing_dims = (1,) if leaf.ndim==1 else leaf.shape[1:]
-                #     return jnp.zeros((batch_size,) + trailing_dims, dtype=leaf.dtype)
+                if leaf.size==0:
+                    trailing_dims = (1,) if leaf.ndim==1 else leaf.shape[1:]
+                    return jnp.zeros((batch_size,) + trailing_dims, dtype=leaf.dtype)
                 # # Zero-copy expansion prepending batch dim
                 return jnp.broadcast_to(leaf, (batch_size,) + leaf.shape)
             return leaf

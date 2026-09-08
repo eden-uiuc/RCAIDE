@@ -18,7 +18,7 @@ import numpy as np
 
 # Flowtangent imports
 from flowtangent.data import units
-from flowtangent.utils.io import _ft_root, register
+from flowtangent.utils.io import _ft_root
 
 jax.config.update("jax_enable_x64", True)
 
@@ -132,7 +132,6 @@ def _eval_s0(T):
     return jnp.where(jnp.expand_dims(T_arr, axis=-1) > NASA_MID, s_high, s_low)
 
 
-@register
 class Gas(eqx.Module):
     mass_fractions: jax.Array
 

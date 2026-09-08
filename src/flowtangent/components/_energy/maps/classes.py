@@ -6,7 +6,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 
-from flowtangent.utils import empty_array, field, register
+from flowtangent.utils import empty_array, field
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Helper Functions
@@ -68,7 +68,6 @@ def interp_2d_extrapolate(x, y, x_grid, y_grid, z_table):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class CompressorMap(eqx.Module):
     name: str = field("Compressor Map", static=True)
 
@@ -171,7 +170,6 @@ class CompressorMap(eqx.Module):
         )
 
 
-@register
 class TurbineMap(eqx.Module):
     name: str = field("Turbine Map", static=True)
 

@@ -9,19 +9,18 @@
 
 
 # package imports
-import jax
 
 from flowtangent.core._state_data import StateData
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register
+from ...utils import field
+from ...utils.typing import TimeScalar, _
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Stability
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class StaticCoeffs(StateData):
     """
     Static stability coefficients for an aircraft.
@@ -61,21 +60,20 @@ class StaticCoeffs(StateData):
     # Attribute     Type        Default Value
     name: str = field("Static Stability Coefficients", static=True)
 
-    lift: jax.Array = empty_array()
-    drag: jax.Array = empty_array()
+    lift: TimeScalar = _
+    drag: TimeScalar = _
 
-    X: jax.Array = empty_array()
-    Y: jax.Array = empty_array()
-    Z: jax.Array = empty_array()
+    X: TimeScalar = _
+    Y: TimeScalar = _
+    Z: TimeScalar = _
 
-    L: jax.Array = empty_array()
-    M: jax.Array = empty_array()
-    N: jax.Array = empty_array()
+    L: TimeScalar = _
+    M: TimeScalar = _
+    N: TimeScalar = _
 
-    e: jax.Array = empty_array()
+    e: TimeScalar = _
 
 
-@register
 class StaticForces(StateData):
     """
     Static forces acting on an aircraft.
@@ -107,15 +105,14 @@ class StaticForces(StateData):
     # Attribute     Type        Default Value
     name: str = field("Static Stability Forces", static=True)
 
-    lift: jax.Array = empty_array()
-    drag: jax.Array = empty_array()
+    lift: TimeScalar = _
+    drag: TimeScalar = _
 
-    X: jax.Array = empty_array()
-    Y: jax.Array = empty_array()
-    Z: jax.Array = empty_array()
+    X: TimeScalar = _
+    Y: TimeScalar = _
+    Z: TimeScalar = _
 
 
-@register
 class StaticMoments(StateData):
     """
     Represents the static moments acting on an aircraft.
@@ -143,12 +140,11 @@ class StaticMoments(StateData):
     # Attribute     Type        Default Value
     name: str = field("Static Stability Moments", static=True)
 
-    L: jax.Array = empty_array()
-    M: jax.Array = empty_array()
-    N: jax.Array = empty_array()
+    L: TimeScalar = _
+    M: TimeScalar = _
+    N: TimeScalar = _
 
 
-@register
 class Sensitivities(StateData):
     """
     Represents the coefficient derivatives for static stability analysis of an aircraft.
@@ -202,30 +198,29 @@ class Sensitivities(StateData):
     name: str = field("Coefficient Static Stability Derivatives", static=True)
 
     # Throttle Derivative
-    throttle: jax.Array = empty_array()
+    throttle: TimeScalar = _
 
     # Stability Axis Derivatives
-    beta: jax.Array = empty_array()
-    alpha: jax.Array = empty_array()
+    beta: TimeScalar = _
+    alpha: TimeScalar = _
 
-    delta_a: jax.Array = empty_array()
-    delta_e: jax.Array = empty_array()
-    delta_r: jax.Array = empty_array()
-    delta_f: jax.Array = empty_array()
-    delta_s: jax.Array = empty_array()
+    delta_a: TimeScalar = _
+    delta_e: TimeScalar = _
+    delta_r: TimeScalar = _
+    delta_f: TimeScalar = _
+    delta_s: TimeScalar = _
 
     # Body Axis Derivatives
 
-    u: jax.Array = empty_array()
-    v: jax.Array = empty_array()
-    w: jax.Array = empty_array()
+    u: TimeScalar = _
+    v: TimeScalar = _
+    w: TimeScalar = _
 
-    p: jax.Array = empty_array()
-    q: jax.Array = empty_array()
-    r: jax.Array = empty_array()
+    p: TimeScalar = _
+    q: TimeScalar = _
+    r: TimeScalar = _
 
 
-@register
 class StaticDerivatives(StateData):
     """
     Represents the static stability coefficient derivatives for an aircraft.
@@ -275,7 +270,6 @@ class StaticDerivatives(StateData):
     CN: Sensitivities = field(lambda: Sensitivities(name="N Coefficient Static Stability Derivatives"))
 
 
-@register
 class Static(StateData):
     name: str = field("Static Stability", static=True)
 
@@ -285,16 +279,15 @@ class Static(StateData):
     coefficients: StaticCoeffs = field(StaticCoeffs)
     derivatives: StaticDerivatives = field(StaticDerivatives)
 
-    static_margin: jax.Array = empty_array()
-    neutral_point: jax.Array = empty_array()
-    spiral_criteria: jax.Array = empty_array()
+    static_margin: TimeScalar = _
+    neutral_point: TimeScalar = _
+    spiral_criteria: TimeScalar = _
 
-    pitch_rate: jax.Array = empty_array()
-    roll_rate: jax.Array = empty_array()
-    yaw_rate: jax.Array = empty_array()
+    pitch_rate: TimeScalar = _
+    roll_rate: TimeScalar = _
+    yaw_rate: TimeScalar = _
 
 
-@register
 class Dynamic(StateData):
     # Attribute      Type        Default Value
     name: str = field("Dynamic Stability", static=True)
@@ -303,7 +296,6 @@ class Dynamic(StateData):
     LatModes: StateData = field(lambda: StateData(name="Lateral Modes"))
 
 
-@register
 class StabilityData(StateData):
     # Attribute     Type                Default Value
     name: str = field("Stability", static=True)

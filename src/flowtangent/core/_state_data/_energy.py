@@ -9,111 +9,104 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
-import jax
 
 from flowtangent.core._state_data import StateData
 from flowtangent.data.gases import Air, Gas
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register
+from ...utils import field
+from ...utils.typing import TimeScalar, TimeVector3, _
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Energy Interfaces
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class MechanicalOutputs(StateData):
     name: str = field("Mechanical Outputs", static=True)
 
-    work: jax.Array = empty_array()
-    power: jax.Array = empty_array()
+    work: TimeScalar = _
+    power: TimeScalar = _
 
 
-@register
 class ElectricalOutputs(StateData):
     name: str = field("Electrical Outputs", static=True)
 
-    power: jax.Array = empty_array()
-    voltage: jax.Array = empty_array()
-    current: jax.Array = empty_array()
+    power: TimeScalar = _
+    voltage: TimeScalar = _
+    current: TimeScalar = _
 
 
-@register
 class FuelOutputs(StateData):
     name: str = field("Fuel Outputs", static=True)
 
-    TSFC: jax.Array = empty_array()
-    flow_rate: jax.Array = empty_array()
+    TSFC: TimeScalar = _
+    flow_rate: TimeScalar = _
 
 
-@register
 class FlowOutputs(StateData):
     name: str = field("Flow Outputs", static=True)
     fluid: Gas = field(Air)
 
-    speed: jax.Array = empty_array()
-    speed_of_sound: jax.Array = empty_array()
-    mach_number: jax.Array = empty_array()
-    reynolds_number: jax.Array = empty_array()
+    speed: TimeScalar = _
+    speed_of_sound: TimeScalar = _
+    mach_number: TimeScalar = _
+    reynolds_number: TimeScalar = _
 
-    pressure: jax.Array = empty_array()
-    temperature: jax.Array = empty_array()
-    enthalpy: jax.Array = empty_array()
+    pressure: TimeScalar = _
+    temperature: TimeScalar = _
+    enthalpy: TimeScalar = _
 
-    stagnation_pressure: jax.Array = empty_array()
-    stagnation_temperature: jax.Array = empty_array()
-    stagnation_enthalpy: jax.Array = empty_array()
+    stagnation_pressure: TimeScalar = _
+    stagnation_temperature: TimeScalar = _
+    stagnation_enthalpy: TimeScalar = _
 
-    area: jax.Array = empty_array()
-    density: jax.Array = empty_array()
-    mass_flow_rate: jax.Array = empty_array()
-    fuel_air_ratio: jax.Array = empty_array()
+    area: TimeScalar = _
+    density: TimeScalar = _
+    mass_flow_rate: TimeScalar = _
+    fuel_air_ratio: TimeScalar = _
 
-    dynamic_viscosity: jax.Array = empty_array()
-    dynamic_pressure: jax.Array = empty_array()
+    dynamic_viscosity: TimeScalar = _
+    dynamic_pressure: TimeScalar = _
 
-    gamma: jax.Array = empty_array()
-    Cp: jax.Array = empty_array()
-    R: jax.Array = empty_array()
+    gamma: TimeScalar = _
+    Cp: TimeScalar = _
+    R: TimeScalar = _
 
 
-@register
 class ResidualOutputs(StateData):
     name: str = field("Residual Outputs", static=True)
 
-    mass: jax.Array = empty_array()
-    mass_flow_rate: jax.Array = empty_array()
+    mass: TimeScalar = _
+    mass_flow_rate: TimeScalar = _
 
-    work: jax.Array = empty_array()
-    power: jax.Array = empty_array()
+    work: TimeScalar = _
+    power: TimeScalar = _
 
-    thrust: jax.Array = empty_array()
-    area: jax.Array = empty_array()
+    thrust: TimeScalar = _
+    area: TimeScalar = _
 
     # Single Spool Turbojet Residuals
-    compressor_Wc: jax.Array = empty_array()
-    turbine_Wp: jax.Array = empty_array()
+    compressor_Wc: TimeScalar = _
+    turbine_Wp: TimeScalar = _
 
     # Dual Spool Turbofan Residuals
-    fan_Wc: jax.Array = empty_array()
-    lpc_Wc: jax.Array = empty_array()
-    hpc_Wc: jax.Array = empty_array()
+    fan_Wc: TimeScalar = _
+    lpc_Wc: TimeScalar = _
+    hpc_Wc: TimeScalar = _
 
-    lpt_Wp: jax.Array = empty_array()
-    hpt_Wp: jax.Array = empty_array()
+    lpt_Wp: TimeScalar = _
+    hpt_Wp: TimeScalar = _
 
 
-@register
 class ForceOutputs(StateData):
     name: str = field("Force Outputs", static=True)
 
-    thrust: jax.Array = empty_array()
-    nondimensional_thrust: jax.Array = empty_array()
-    specific_impulse: jax.Array = empty_array()
+    thrust: TimeScalar = _
+    nondimensional_thrust: TimeScalar = _
+    specific_impulse: TimeScalar = _
 
 
-@register
 class NodeState(StateData):
     name: str = field("Node Outputs", static=True)
 
@@ -124,7 +117,7 @@ class NodeState(StateData):
     force: ForceOutputs = field(ForceOutputs)
     residual: ResidualOutputs = field(ResidualOutputs)
 
-    mass: jax.Array = empty_array()
+    mass: TimeScalar = _
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -132,7 +125,6 @@ class NodeState(StateData):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class BatteryCellConditions(NodeState):
     # Attribute                 Type        Default Value
     name: str = field("Battery Cell", static=True)
@@ -141,12 +133,11 @@ class BatteryCellConditions(NodeState):
     resistance_growth_factor: float = field(0.0, static=True)
     capacity_fade_factor: float = field(0.0, static=True)
 
-    temperature: jax.Array = empty_array()
-    charge_throughput: jax.Array = empty_array()
-    state_of_charge: jax.Array = empty_array()
+    temperature: TimeScalar = _
+    charge_throughput: TimeScalar = _
+    state_of_charge: TimeScalar = _
 
 
-@register
 class BatteryPackConditions(NodeState):
     # Attribute             Type                    Default Value
     name: str = field("Battery Pack", static=True)
@@ -155,7 +146,7 @@ class BatteryPackConditions(NodeState):
 
     cell: BatteryCellConditions = field(BatteryCellConditions)
 
-    temperature: jax.Array = empty_array()
+    temperature: TimeScalar = _
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -163,55 +154,52 @@ class BatteryPackConditions(NodeState):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class NetworkState(NodeState):
     name: str = field("Energy Network", static=True)
 
     nodes: dict = field(dict)
 
-    total_energy: jax.Array = empty_array()
-    total_efficiency: jax.Array = empty_array()
+    total_energy: TimeScalar = _
+    total_efficiency: TimeScalar = _
 
-    throttle: jax.Array = empty_array()
-    total_power: jax.Array = empty_array()
+    throttle: TimeScalar = _
+    total_power: TimeScalar = _
 
-    total_force_vector: jax.Array = empty_array((0, 3))
-    total_moment_vector: jax.Array = empty_array((0, 3))
+    total_force_vector: TimeVector3 = _
+    total_moment_vector: TimeVector3 = _
 
 
-@register
 class TurbojetState(NetworkState):
     name: str = field("Turbojet Network", static=True)
 
     # Control hooks
-    fuel_air_ratio: jax.Array = empty_array()
-    mass_flow_rate: jax.Array = empty_array()
-    rotation_speed: jax.Array = empty_array()
-    compressor_Rline: jax.Array = empty_array()
-    turbine_PR: jax.Array = empty_array()
+    fuel_air_ratio: TimeScalar = _
+    mass_flow_rate: TimeScalar = _
+    rotation_speed: TimeScalar = _
+    compressor_Rline: TimeScalar = _
+    turbine_PR: TimeScalar = _
 
-    target_thrust: jax.Array = empty_array()
-    target_temperature: jax.Array = empty_array()
+    target_thrust: TimeScalar = _
+    target_temperature: TimeScalar = _
 
 
-@register
 class TurbofanState(NetworkState):
     name: str = field("Turbofan Network", static=True)
 
     # Control hooks
-    fuel_air_ratio: jax.Array = empty_array()
-    mass_flow_rate: jax.Array = empty_array()
+    fuel_air_ratio: TimeScalar = _
+    mass_flow_rate: TimeScalar = _
 
-    LP_speed: jax.Array = empty_array()
-    HP_speed: jax.Array = empty_array()
+    LP_speed: TimeScalar = _
+    HP_speed: TimeScalar = _
 
-    fan_Rline: jax.Array = empty_array()
-    lpc_Rline: jax.Array = empty_array()
-    hpc_Rline: jax.Array = empty_array()
+    fan_Rline: TimeScalar = _
+    lpc_Rline: TimeScalar = _
+    hpc_Rline: TimeScalar = _
 
-    lpt_PR: jax.Array = empty_array()
-    hpt_PR: jax.Array = empty_array()
+    lpt_PR: TimeScalar = _
+    hpt_PR: TimeScalar = _
 
-    bypass_ratio: jax.Array = empty_array()
-    target_thrust: jax.Array = empty_array()
-    target_temperature: jax.Array = empty_array()
+    bypass_ratio: TimeScalar = _
+    target_thrust: TimeScalar = _
+    target_temperature: TimeScalar = _

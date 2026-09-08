@@ -22,7 +22,7 @@ from flowtangent.components.wings import Wing
 from flowtangent import Component, MassProperties
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register
+from flowtangent.utils import empty_array, field
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Components
@@ -40,7 +40,6 @@ class VehicleEnvelope(eqx.Module):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class System(Component):
     name: str = field("System", static=True)
 
@@ -52,7 +51,6 @@ class System(Component):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class AircraftReferenceGeometry(eqx.Module):
     mean_aerodynamic_chord: jax.Array = empty_array()
     projected_span: jax.Array = empty_array()
@@ -60,7 +58,6 @@ class AircraftReferenceGeometry(eqx.Module):
     center_of_gravity: jax.Array = empty_array((0, 3))
 
 
-@register
 class AircraftMassProperties(MassProperties):
     max_takeoff: float = 0.0
     takeoff: float = 0.0
@@ -69,7 +66,6 @@ class AircraftMassProperties(MassProperties):
     cargo: float = 0.0
 
 
-@register
 class AircraftDesign(eqx.Module):
     ac_class: AircraftClass = field(MediumRange, static=True)
     envelope: VehicleEnvelope = field(VehicleEnvelope, static=True)
@@ -81,7 +77,6 @@ class AircraftDesign(eqx.Module):
     cruise_alt: float = field(0.0, static=True)
 
 
-@register
 class Aircraft[EnergyType: GraphNetwork](System):
     name: str = field("Aircraft", static=True)
 

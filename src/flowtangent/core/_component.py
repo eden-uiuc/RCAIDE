@@ -20,14 +20,13 @@ import jax.numpy as jnp
 from flowtangent.data.solids import Aluminum, Solid
 
 # Flowtangent imports
-from flowtangent.utils import field, register, update
+from flowtangent.utils import field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Component
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class Fineness(eqx.Module):
     # Attribute     Type    Default Value
     effective: float = 1.0
@@ -38,7 +37,6 @@ class Fineness(eqx.Module):
         return f"Eff.: {self.effective}"
 
 
-@register
 class Dimensions(eqx.Module):
     # Attribute         Type    Default Value
     ordinal_direction: bool = field(False, static=True)
@@ -57,7 +55,6 @@ class Dimensions(eqx.Module):
         return ""
 
 
-@register
 class Areas(eqx.Module):
     # Attribute         Type    Default Value
     reference: float = 0.0
@@ -83,7 +80,6 @@ class Areas(eqx.Module):
         return ""
 
 
-@register
 class MaterialProperties(eqx.Module):
     # Attribute                 Type        Default Value
     tensile_stress_carrier: Solid = field(Aluminum)
@@ -94,7 +90,6 @@ class MaterialProperties(eqx.Module):
         return ""
 
 
-@register
 class MassProperties(eqx.Module):
     # Attribute                         Type        Default Value
     total: float = 0.0
@@ -112,7 +107,6 @@ class MassProperties(eqx.Module):
         return ""
 
 
-@register
 class Component(eqx.Module):
     name: str = field("Component", static=True)
     is_control_component: bool = field(False, static=True)

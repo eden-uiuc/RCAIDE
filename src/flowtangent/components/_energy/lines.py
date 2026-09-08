@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
 import jax.numpy as jnp
 
-from flowtangent.utils import field, io, register, update
+from flowtangent.utils import field, io, update
 
 from .jets.classes import TurbofanEngine, TurbojetEngine
 from .nodes import EnergyStore, FuelTank, GraphInput, GraphNode, Splitter
@@ -17,7 +17,6 @@ from .nodes import EnergyStore, FuelTank, GraphInput, GraphNode, Splitter
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class EnergyLine(GraphNode):
     name: str = field("Line", static=True)
     _bookkeeping: dict = field(
@@ -40,7 +39,6 @@ def _TurbojetLineSetup():
     return TurbojetEngine(), FuelTank()
 
 
-@register
 class TurbojetLine(EnergyLine):
     subcomponents: tuple = field(_TurbojetLineSetup)
 

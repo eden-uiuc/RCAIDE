@@ -8,12 +8,12 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 # package imports
-import jax
 
 from flowtangent.core._state_data import StateData
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register
+from ...utils import field
+from ...utils.typing import TimeScalar, _
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Aerodynamics
@@ -26,27 +26,23 @@ from flowtangent.utils import empty_array, field, register
 # Component-Level Bookkeeping ------------------------------
 
 
-@register
 class ComponentCoeffs(StateData):
     name: str = field("Component Coefficients", static=True)
 
-    total: jax.Array = empty_array()
+    total: TimeScalar = _
 
-    # Component Arrays: (n_time, n_components)
-    wings: jax.Array = empty_array((0, 0))
-    fuselages: jax.Array = empty_array((0, 0))
-    nacelles: jax.Array = empty_array((0, 0))
+    wings: TimeScalar = _
+    fuselages: TimeScalar = _
+    nacelles: TimeScalar = _
 
 
 # Lift Coefficients ----------------------------------------
 
 
-@register
 class LiftCoeffs(StateData):
-    # Attribute     Type            Default Value
     name: str = field("Lift Coefficients", static=True)
 
-    total: jax.Array = empty_array((0,))
+    total: TimeScalar = _
 
     inviscid: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Inviscid Lift"))
     compressible: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Compressible Lift"))
@@ -55,12 +51,10 @@ class LiftCoeffs(StateData):
 # Drag Coefficients ----------------------------------------
 
 
-@register
 class InducedDrag(StateData):
-    # Attribute   Type            Default Value
     name: str = field("Induced Drag", static=True)
 
-    total: jax.Array = empty_array()
+    total: TimeScalar = _
 
     inviscid: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Inviscid Induced Drag"))
     viscous: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Viscous Induced Drag"))
@@ -68,12 +62,11 @@ class InducedDrag(StateData):
     far_field: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Far-Field Induced Drag"))
 
 
-@register
 class DragCoeffs(StateData):
     # Attribute     Type            Default Value
     name: str = field("Drag Coefficients", static=True)
 
-    total: jax.Array = empty_array()
+    total: TimeScalar = _
 
     parasite: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Parasite Drag"))
     compressible: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Compressible Drag"))
@@ -86,20 +79,18 @@ class DragCoeffs(StateData):
 # Moment Coefficients --------------------------------------
 
 
-@register
 class MomentCoeffs(StateData):
     # Attribute         Type            Default Value
     name: str = field("Moment Coefficients", static=True)
 
-    pitch: jax.Array = empty_array()
-    roll: jax.Array = empty_array()
-    yaw: jax.Array = empty_array()
+    pitch: TimeScalar = _
+    roll: TimeScalar = _
+    yaw: TimeScalar = _
 
 
 # All Coefficients -----------------------------------------
 
 
-@register
 class Coefficients(StateData):
     # Attribute         Type                Default Value
     name: str = field("Aerodynamic Coefficients", static=True)
@@ -109,9 +100,9 @@ class Coefficients(StateData):
 
     moments: MomentCoeffs = field(MomentCoeffs)
 
-    X: jax.Array = empty_array()
-    Y: jax.Array = empty_array()
-    Z: jax.Array = empty_array()
+    X: TimeScalar = _
+    Y: TimeScalar = _
+    Z: TimeScalar = _
 
 
 # ----------------------------------------------------------
@@ -119,14 +110,13 @@ class Coefficients(StateData):
 # ----------------------------------------------------------
 
 
-@register
 class Angles(StateData):
     # Attribute         Type        Default Value
     name: str = field("Aerodynamic Angles", static=True)
 
-    alpha: jax.Array = empty_array()  # Y-axis / angle of attack
-    beta: jax.Array = empty_array()  # Z-axis / sideslip angle
-    phi: jax.Array = empty_array()  # X-axis / roll angle
+    alpha: TimeScalar = _  # Y-axis / angle of attack
+    beta: TimeScalar = _  # Z-axis / sideslip angle
+    phi: TimeScalar = _  # X-axis / roll angle
 
 
 # ----------------------------------------------------------
@@ -134,11 +124,8 @@ class Angles(StateData):
 # ----------------------------------------------------------
 
 
-@register
 class Aerodynamics(StateData):
     # Attribute     Type                    Default Value
-    name: str = field("Aerodynamics", static=True)
 
     angles: Angles = field(Angles)
-
     coefficients: Coefficients = field(Coefficients)

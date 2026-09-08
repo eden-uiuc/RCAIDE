@@ -15,14 +15,13 @@ import jax.numpy as jnp
 from flowtangent.core._state_data import StateData
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, register, update
+from flowtangent.utils import empty_array, field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Time Conditions
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-@register
 class NumericalTime(StateData):
     control_points: jax.Array = empty_array()
     differentiate: jax.Array = empty_array()
@@ -32,7 +31,6 @@ class NumericalTime(StateData):
         return ""
 
 
-@register
 class Time(StateData):
     name: str = field("Time", static=True)
 
