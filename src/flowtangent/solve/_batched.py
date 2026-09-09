@@ -63,12 +63,12 @@ class BatchedAnalysis(Process):
         if not isinstance(self.analyze, ImplicitAnalysis):
             self.state_inputs = state_inputs
         else:
-            ctrls = self.analyze.variables
+            vars = self.analyze.variables
             # fmt: off
-            ctrl_inputs = tuple(TreePath(
-                path=c.state_path.path,
-                value=jnp.atleast_3d(c.initial_value)) for c in ctrls)
-            self.state_inputs = self.state_inputs + ctrl_inputs
+            var_inputs = tuple(TreePath(
+                path=v.state_path.path,
+                value=jnp.atleast_3d(v.initial_value)) for v in vars)
+            self.state_inputs = self.state_inputs + var_inputs
             # fmt: on
 
     def _batch_inputs(self, mode="mesh"):

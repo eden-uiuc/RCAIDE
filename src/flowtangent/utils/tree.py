@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
-
 from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, overload
 
 if TYPE_CHECKING:
@@ -14,6 +9,7 @@ import os
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
+from collections import deque
 
 import equinox as eqx
 import jax
@@ -37,7 +33,6 @@ from jax.tree_util import (
 # FLOWTANGENT WRAPPERS
 # -----------------------------------------------------------------------------
 
-
 @overload
 def update(obj: Any, where_or_updates: Callable, val: Any, **kwargs) -> Any: ...
 
@@ -51,35 +46,47 @@ def update(obj: Any, where_or_updates: str, val: Any, **kwargs) -> Any: ...
 
 
 def update(obj, where_or_updates, val=None, **kwargs):
-    """
-    FlowTangent wrapper for eqx.tree_at.
-    """
-    # Route 1: The Canonical Equinox Lambda
+    """FlowTangent wrapper for eqx.tree_at."""
     if callable(where_or_updates):
         return eqx.tree_at(where_or_updates, obj, val, **kwargs)
 
-    # Route 1.5: String path and value (Ergonomic API)
-    if isinstance(where_or_updates, str):
-        # We package it into a tuple so your existing cast logic handles it
-        paths = [TreePath.cast((where_or_updates, val))]
+    paths = []
 
-    # Route 2: Single Tuple or TreePath
-    elif isinstance(where_or_updates, TreePath) or (
-        isinstance(where_or_updates, tuple)
-        and len(where_or_updates) in (2, 3)
-        and isinstance(where_or_updates[0], (str, tuple))
-    ):
-        paths = [TreePath.cast(where_or_updates)]
+    # Route 1: Explicit Single Update
+    if val is not None:
+        # If val is provided, where_or_updates is strictly the path.
+        paths = [TreePath.cast(where_or_updates, default_val=val)]
 
-    # Route 3: A List/Sequence of Updates
-    elif isinstance(where_or_updates, (list, tuple, set)):
-        paths = [TreePath.cast(u) for u in where_or_updates]
-
+    # Route 2: Implicit Updates (where_or_updates contains both paths and values)
     else:
-        raise TypeError("update() requires a lambda, a string path, a TreePath, a tuple, or a sequence.")
+        if isinstance(where_or_updates, TreePath):
+            paths = [where_or_updates]
+            
+        elif isinstance(where_or_updates, str):
+            paths = [TreePath.cast(where_or_updates)]
+            
+        elif isinstance(where_or_updates, (list, set)):
+            paths = [TreePath.cast(u) for u in where_or_updates]
+            
+        elif isinstance(where_or_updates, tuple):
+            # The Ultimate Ambiguity: Is this ONE update spec `("path", val)`, 
+            # or a tuple of multiple update specs `(("path1", val1), ("path2", val2))`?
+            try:
+                # Try treating it as a single update spec first
+                paths = [TreePath.cast(where_or_updates)]
+            except TypeError:
+                # If that fails (e.g. the first element isn't a valid path), 
+                # it MUST be a tuple containing multiple update specs.
+                paths = [TreePath.cast(u) for u in where_or_updates]
+                
+        else:
+            raise TypeError("update() requires a lambda, a string path, a TreePath, a tuple, or a sequence.")
 
-    where_fn = partial(get_all_targets, input_map=paths)
+    # Canonicalize and apply
+    actual_paths = [get_actual_path(obj, p) for p in paths]
+    where_fn = partial(get_all_targets, input_map=actual_paths)
     vals = tuple(p.value for p in paths)
+    
     return eqx.tree_at(where_fn, obj, vals, **kwargs)
 
 
@@ -94,51 +101,77 @@ class TreePath:
     name: str
 
     @classmethod
-    def cast(cls, item: Any) -> "TreePath":
-        """Convenience method to intelligently cast strings and tuples into TreePaths."""
+    def cast(cls, item: Any, default_val: Any = None) -> "TreePath":
+        """Strictly casts strings, path tuples, or update tuples into a TreePath."""
         if isinstance(item, cls):
             return item
+            
         if isinstance(item, str):
-            return cls(path=item)
+            return cls(path=item, value=default_val)
+            
         if isinstance(item, tuple):
-            if len(item) == 2:
+            # Helper to check if something is strictly a path (str, or tuple of str/int)
+            def is_path(p):
+                return isinstance(p, str) or (isinstance(p, tuple) and all(isinstance(x, (str, int)) for x in p))
+
+            # Case A: Two-element update tuple -> (path, value)
+            if len(item) == 2 and is_path(item[0]):
                 return cls(path=item[0], value=item[1])
-            elif len(item) == 3:
+                
+            # Case B: Three-element update tuple -> (path, value, slice)
+            if len(item) == 3 and is_path(item[0]) and isinstance(item[2], slice):
                 return cls(path=item[0], value=item[1], path_slice=item[2])
-        raise TypeError(f"Cannot automatically cast {type(item)} into a TreePath.")
+                
+            # Case C: The tuple IS the path (e.g. ("subcomponents", 0))
+            if is_path(item):
+                return cls(path=item, value=default_val)
+
+        raise TypeError(f"Cannot automatically cast {item} into a TreePath.")
 
     def __init__(
         self,
         path: tuple | str | "TreePath" = ("state",),
         value: Optional[Any] = None,
-        path_slice: slice = slice(None),
+        path_slice: Optional[slice] = None,
         name: Optional[str] = None,
     ):
-
         if isinstance(path, TreePath):
             object.__setattr__(self, "path", path.path)
             object.__setattr__(self, "value", path.value)
             object.__setattr__(self, "path_slice", path.path_slice)
             object.__setattr__(self, "name", path.name)
+            return
 
+        # 1. Flatten the path (handles mixed formats like ("system.energy", 0))
+        parsed_path = []
+        if isinstance(path, str):
+            parsed_path = path.split(".")
+        elif isinstance(path, tuple):
+            for p in path:
+                if isinstance(p, str):
+                    parsed_path.extend(p.split("."))
+                elif isinstance(p, int):
+                    parsed_path.append(p)
+                else:
+                    raise ValueError(f"Path elements must be strings or ints, got {type(p)}")
         else:
-            if isinstance(path, tuple):
-                path_tuple = path
-            elif isinstance(path, str):
-                path_tuple = tuple(path.split("."))
-            else:
-                raise ValueError("TreePath path must be a tuple or string.")
+            raise ValueError("TreePath path must be a tuple or string.")
 
-            object.__setattr__(self, "path", path_tuple)
-            object.__setattr__(self, "value", value)
-            object.__setattr__(self, "path_slice", path_slice)
+        object.__setattr__(self, "path", tuple(parsed_path))
+        object.__setattr__(self, "value", value)
+        object.__setattr__(self, "path_slice", path_slice if path_slice is not None else slice(None))
 
-            if name is None:
-                path_name = ".".join(self.path)
-            else:
-                path_name = name
-
-            object.__setattr__(self, "name", path_name)
+        # 2. Build a readable name for aliases and debugging (e.g., "subcomponents[0].energy")
+        if name is None:
+            name_parts = []
+            for p in parsed_path:
+                if isinstance(p, int):
+                    name_parts[-1] = f"{name_parts[-1]}[{p}]" if name_parts else f"[{p}]"
+                else:
+                    name_parts.append(p)
+            object.__setattr__(self, "name", ".".join(name_parts))
+        else:
+            object.__setattr__(self, "name", name)
 
     def __len__(self):
         return len(self.path)
@@ -146,12 +179,100 @@ class TreePath:
     def _snip_lead(self):
         return update(self, lambda p: p.path, self.path[1:])
 
+def get_actual_path(obj: Any, path: str | tuple | TreePath) -> TreePath:
+    "Walks object to convert virtual aliases to canonical paths."
+    path_obj = TreePath.cast(path)
+    actual_keys = []
+    current = obj
+
+    for i, key in enumerate(path_obj.path):
+        if isinstance(current, dict):
+            actual_keys.append(key)
+            current = current[key]
+            continue
+
+        is_real = hasattr(current.__class__, key) or (
+            hasattr(current, "__dataclass_fields__") and key in current.__dataclass_fields__
+        )
+
+        if is_real:
+            actual_keys.append(key)
+            current = getattr(current, key)
+        else:
+            if isinstance(current, jax.core.Tracer):
+                raise RuntimeError(
+                    f"Cannot resolve virtual attribute '{key}' on a JAX tracer. "
+                    "Virtual paths (via bookkeeping or subcomponent aliases) are "
+                    "illegal inside jit/vmap. Use canonical PyTree structure instead."
+                )
+
+            is_virtual = (hasattr(current, "_bookkeeping") and key in current._bookkeeping) or \
+                         any(getattr(sc, "field_name", None) == key for sc in getattr(current, "subcomponents", []))
+
+            if not is_virtual:
+                raise AttributeError(f"'{current.__class__.__name__}' has no real or virtual attribute '{key}'")
+
+            target = current
+            anchor_obj = current
+            suffix = []
+
+            for remaining_key in path_obj.path[i:]:
+                if isinstance(remaining_key, int) or isinstance(target, dict):
+                    target = target[remaining_key] #type: ignore
+                else:
+                    target = getattr(target, remaining_key)
+                if isinstance(target, eqx.Module):
+                    anchor_obj = target
+                    suffix = []
+                else:
+                    suffix.append(remaining_key)
+
+            target_id = id(anchor_obj)
+            
+            # BFS to find where this target physically lives in the canonical tree
+            def bfs(start_node):
+                # Queue stores tuples of (current_object, path_to_object)
+                queue = deque([(start_node, [])])
+                
+                while queue:
+                    curr, current_path = queue.popleft()
+                    
+                    if id(curr) == target_id:
+                        return current_path
+                        
+                    if isinstance(curr, type) or callable(curr):
+                        continue
+                        
+                    if hasattr(curr, "__dataclass_fields__"):
+                        for f in curr.__dataclass_fields__:
+                            try:
+                                queue.append((getattr(curr, f), current_path + [f]))
+                            except AttributeError:
+                                pass
+                    elif isinstance(curr, (tuple, list)):
+                        for idx, val in enumerate(curr):
+                            queue.append((val, current_path + [idx]))
+                    elif isinstance(curr, dict):
+                        for k, val in curr.items():
+                            queue.append((val, current_path + [k]))
+                return None
+
+            found_path = bfs(current)
+            if found_path is None:
+                raise ValueError(f"Target object from virtual path '{key}' not found in canonical PyTree.")
+
+            actual_keys.extend(found_path)
+            actual_keys.extend(suffix)
+
+            break
+        
+    return TreePath(path=tuple(actual_keys), path_slice=path_obj.path_slice)
 
 def get_parent_target(obj: Any, path: str | tuple | TreePath) -> Any:
     """Gets the full PyTree leaf, ignoring the slice."""
     path_obj = TreePath.cast(path)
     for key in path_obj.path:
-        if isinstance(obj, dict):
+        if isinstance(obj, dict) or isinstance(key, int):
             obj = obj[key]
         else:
             obj = getattr(obj, key)
@@ -240,7 +361,7 @@ def apply_tree_delta(base_tree, delta_indices, delta_leaves):
     return tree_unflatten(treedef, new_leaves)
 
 
-def io_partition(tree, active_ids: set[int]):
+def id_partition(tree, active_ids: set[int]):
     """
     Partitions a PyTree in dynamic and static halves based on an IO whitelist.
     Only JAX arrays whose paths are in the whitelist are kept dynamic.
@@ -373,7 +494,7 @@ __all__ = [
     "is_equivalent",
     "compute_tree_delta",
     "apply_tree_delta",
-    "io_partition",
+    "id_partition",
     "inspect_leaves",
     "scan_for_invalid_JAX_types",
 ]

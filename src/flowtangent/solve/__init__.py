@@ -25,7 +25,7 @@ from ._settings import (
 )
 
 
-from .aero._vorjax import BatchedVORJAX, VORJAX, VORJAXSettings
+from .aero._vorjax import VORJAX, VORJAXSettings
 
 __all__ = [
     # Analysis Types
@@ -34,7 +34,6 @@ __all__ = [
     "PACTAnalysis",
     # Specific Analyses
     "VORJAX",
-    "BatchedVORJAX",
     # Settings
     "NumericalSettings",
     "JacobianMap",

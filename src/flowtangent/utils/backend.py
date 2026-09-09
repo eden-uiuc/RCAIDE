@@ -1,4 +1,4 @@
-# src/eden_trace/utils/backend.py
+# src/flowtangent/utils/backend.py
 ## NO 3RD PARTY PACKAGE IMPORTS - SETS UP JAX/EQUINOX FLAGS AND MUST RUN FIRST
 
 import os
@@ -26,12 +26,12 @@ def numerical_environment():
             except Exception as e:
                 print(f"Hardware Config Warning: Could not set CPU affinity: {e}")
 
-    cache_path = os.path.expanduser("~/.eden_trace/jax_cache")
+    cache_path = os.path.expanduser("~/.flowtangent/jax_cache")
     os.makedirs(cache_path, exist_ok=True)
     os.environ["JAX_COMPILATION_CACHE_DIR"] = cache_path
 
 
-def initialize_jax_cache(cache_dir="~/.eden_trace/jax_cache", max_size_gb=2.0, max_age_days=30):
+def initialize_jax_cache(cache_dir="~/.flowtangent/jax_cache", max_size_gb=2.0, max_age_days=30):
     import jax  # Lazy import safe here
 
     cache_path = os.path.expanduser(cache_dir)
@@ -60,7 +60,7 @@ def configure_environment(settings):
     if settings.DEBUG_MODE:
         jax.config.update("jax_disable_jit", True)
         jax.config.update("jax_debug_nans", True)
-        print("TRACE WARNING: Debug mode is active. JIT disabled and NaN debugging enabled.")
+        print("FLOWTANGENT WARNING: Debug mode is active. JIT disabled and NaN debugging enabled.")
     else:
         jax.config.update("jax_disable_jit", False)
         jax.config.update("jax_debug_nans", False)

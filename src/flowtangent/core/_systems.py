@@ -19,10 +19,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..components.energy import PACTNetwork
 
-import equinox as eqx
 import jax
 
-from ..components import Fuselage, LandingGear, Nacelle, Wing
+from ..components import Fuselage, LandingGear, Nacelle, PACTNetwork, Wing
 from ..core._component import Component, MassProperties
 from ..data.ac_classes import AircraftClass, MediumRange
 
@@ -55,7 +54,7 @@ class System(Component):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class AircraftReferenceGeometry(eqx.Module):
+class AircraftReferenceGeometry(Module):
     mean_aerodynamic_chord: jax.Array = empty_array()
     projected_span: jax.Array = empty_array()
     aerodynamic_center: jax.Array = empty_array((0, 3))
@@ -70,7 +69,7 @@ class AircraftMassProperties(MassProperties):
     cargo: float = 0.0
 
 
-class AircraftDesign(eqx.Module):
+class AircraftDesign(Module):
     ac_class: AircraftClass = field(MediumRange, static=True)
     envelope: VehicleEnvelope = field(VehicleEnvelope, static=True)
 
@@ -106,5 +105,5 @@ class Aircraft[EnergyType: PACTNetwork](System):
     analysis_data: dict = field(dict)
 
     def update_network_topology(self) -> Aircraft:
-        sorted_network = self.energy.update_node_topology()
+        sorted_network = self.energy._update_node_topology()
         return self.replace_subcomponent(sorted_network)

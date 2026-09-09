@@ -31,7 +31,8 @@ import jax.numpy as jnp
 
 from ...core._component import Component
 from ...data.gases import Air, Gas
-from ...utils import field, update
+from ...utils import Module, NameType, field, static_field, update
+from ...utils.typing import ScalarFloat, _
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Graph Nodes
@@ -40,26 +41,45 @@ from ...utils import field, update
 # Inputs & Nodes ---------------------------------------------------------------
 
 
-class Efficiencies(eqx.Module):
+class Efficiencies(Module):
     total: float | jax.Array = 1.0
 
     # fmt: off
-    mechanical: float | jax.Array = 1.0
-    electrical: float | jax.Array = 1.0
-    fuel:       float | jax.Array = 1.0
-    flow:       float | jax.Array = 1.0
-    force:      float | jax.Array = 1.0
+    mechanical: ScalarFloat = 1.0
+    electrical: ScalarFloat = 1.0
+    fuel:       ScalarFloat = 1.0
+    flow:       ScalarFloat = 1.0
+    force:      ScalarFloat = 1.0
     # fmt: on
 
 
 GraphDomain = Literal["flow", "mechanical", "electrical", "fuel", "force", "residual"]
 
 
-class GraphInput(eqx.Module):
-    domain: GraphDomain = field("flow", static=True)
-    network_id: str = field("network", static=True)
-    primary: bool = field(False, static=True)
-    _assigned: bool = field(False)
+class PACTInput(Module):
+    domain: GraphDomain = static_field("flow")
+    network_id: str = static_field("")
+    primary: bool = static_field(False)
+    _assigned: bool = static_field(False)
+    name: str = static_field("Input")
+
+    # Custom init to reorder arguments
+    def __init__(
+            self,
+            domain: GraphDomain = "flow",
+            network_id: str = "",
+            primary: bool = False,
+            name: NameType = "",
+            _assigned: bool = False,
+        ) -> None:
+
+            self.domain = domain
+            self.network_id = network_id
+            self.name = ' '.join(self.network_id.split('.')).title() + f" {domain}".title() + " Outputs"
+            self.primary = primary
+            self._assigned = _assigned
+
+
 
     # Define iter to make castable to tuple as (self,)
     def __iter__(self):
@@ -79,10 +99,10 @@ class GraphInput(eqx.Module):
 class PACTNode(Component):
     network_id: str = field("energy_node", static=True)
 
-    inputs: tuple[GraphInput, ...] | GraphInput = field(tuple, static=True)
+    inputs: tuple[PACTInput, ...] | PACTInput = field(tuple, static=True)
 
     def __post_init__(self):
-        if isinstance(self.inputs, GraphInput):
+        if isinstance(self.inputs, PACTInput):
             object.__setattr__(self, "inputs", (self.inputs,))
 
         for domain in get_args(GraphDomain):
@@ -115,11 +135,11 @@ class PACTNode(Component):
         return tuple(filter(lambda i: i.domain == domain, cast(tuple, self.inputs)))
 
     @eqx.filter_jit
-    def get_input_state(self, state: State, input: GraphInput, input_field: str):
+    def get_input_state(self, state: State, input: PACTInput, input_field: str):
         return getattr(getattr(state.energy.nodes[input.network_id], input.domain), input_field)
 
     @eqx.filter_jit
-    def get_input_states(self, state: State, inputs: Iterable[GraphInput]):
+    def get_input_states(self, state: State, inputs: Iterable[PACTInput]):
         return [getattr(state.energy.nodes[i.network_id], i.domain) for i in inputs]
 
     @eqx.filter_jit
@@ -134,14 +154,14 @@ class PACTNode(Component):
         return self.get_input_state(state, p_input, input_field)
 
     @eqx.filter_jit
-    def _get_input_array(self, state: State, inputs: Iterable[GraphInput], input_field: str):
+    def _get_input_array(self, state: State, inputs: Iterable[PACTInput], input_field: str):
         input_conditions = self.get_input_states(state, inputs)
         input_values = [jnp.asarray(getattr(inp, input_field)) for inp in input_conditions]
         return jnp.concatenate([jnp.atleast_2d(v) for v in input_values if v.size > 0], axis=-1)
 
     # Input Operations
     @eqx.filter_jit
-    def apply_input_op(self, arr_func: Callable, state: State, inputs: Iterable[GraphInput], input_field: str):
+    def apply_input_op(self, arr_func: Callable, state: State, inputs: Iterable[PACTInput], input_field: str):
         input_arr = self._get_input_array(state, inputs, input_field)
         return jnp.atleast_2d(arr_func(input_arr, axis=-1)).T
 
@@ -163,7 +183,6 @@ class Splitter(PACTNode):
     fractions: float | Callable | tuple[float | Callable] = field(tuple, static=True)
 
     def __post_init__(self):
-
         # Set inputs
         super(Splitter, self).__post_init__()
         assert isinstance(self.inputs, tuple)
@@ -215,22 +234,22 @@ class Splitter(PACTNode):
 # ----------------------------------------------------------------------------------------------------------------------
 #  Flow Nodes
 # ----------------------------------------------------------------------------------------------------------------------
-class FlowOpPoint(eqx.Module):
+class FlowOpPoint(Module):
     # fmt: off
-    pressure_ratio:     float | jax.Array = 1.0
-    pressure_recovery:  float | jax.Array = 1.0
+    pressure_ratio:     ScalarFloat = 1.0
+    pressure_recovery:  ScalarFloat = 1.0
 
-    intake_temperature: float | jax.Array = 298.15
-    output_temperature: float | jax.Array = 298.15
+    intake_temperature: ScalarFloat = 298.15
+    output_temperature: ScalarFloat = 298.15
 
-    A_intake:   float | jax.Array = 1.0
-    A_throat:   float | jax.Array = 1.0
-    A_exit:     float | jax.Array = 1.0
+    A_intake:   ScalarFloat = 1.0
+    A_throat:   ScalarFloat = 1.0
+    A_exit:     ScalarFloat = 1.0
 
-    exit_mach_number: float | jax.Array = 1e-6
+    exit_mach_number: ScalarFloat = 1e-6
 
-    rotation_speed: float | jax.Array = 0.0
-    noise_speed:    float | jax.Array = 0.0
+    rotation_speed: ScalarFloat = 0.0
+    noise_speed:    ScalarFloat = 0.0
 
     eff: Efficiencies = field(Efficiencies)
     # fmt: on
@@ -297,8 +316,8 @@ class FlowNode[DesignType: FlowOpPoint | tuple](PACTNode):
 
         if len(self.output_bleeds) > 0:
             add_mixer = not hasattr(self, "mixer")
-            self_bleeds = tuple(replace(b, inputs=GraphInput("flow", "parent")) for b in self.output_bleeds)
-            # BleedFlow Parent ID and Grandparent ID set in GraphNetwork.assign_network_ids
+            self_bleeds = tuple(replace(b, inputs=PACTInput("flow", "parent")) for b in self.output_bleeds)
+            # BleedFlow Parent ID and Grandparent ID set in PACTNetwork.compute_topology
             object.__setattr__(self, "subcomponents", self.subcomponents + self_bleeds)
             object.__setattr__(self, "output_bleeds", tuple())
         else:
@@ -315,7 +334,7 @@ class FlowNode[DesignType: FlowOpPoint | tuple](PACTNode):
 
             other_inputs = tuple(i for i in self.inputs if i not in self.flow_inputs)
             object.__setattr__(
-                self, "inputs", other_inputs + (GraphInput(domain="flow", network_id="self.mixer", primary=True),)
+                self, "inputs", other_inputs + (PACTInput(domain="flow", network_id="self.mixer", primary=True),)
             )
             object.__setattr__(self, "subcomponents", self.subcomponents + (mixer,))
 
@@ -600,7 +619,7 @@ class FuelTank(EnergyStore):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class RagoneParameters(eqx.Module):
+class RagoneParameters(Module):
     const_1: float = 0.0
     const_2: float = 0.0
     lower_bound: float = 0.0

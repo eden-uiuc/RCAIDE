@@ -1,7 +1,6 @@
-from ._vorjax import BatchedVORJAX, VORJAX, VORJAXSettings
+from ._vorjax import VORJAX, VORJAXSettings
 
 __all__ = [
-    "BatchedVORJAX",
     "VORJAX",
     "VORJAXSettings"
 ]

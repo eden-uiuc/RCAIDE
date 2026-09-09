@@ -12,7 +12,7 @@
 from flowtangent.core._state_data import StateData
 
 # Flowtangent imports
-from ...utils import field, static_field
+from ...utils import field
 from ...utils.typing import TimeScalar, _
 
 # ----------------------------------------------------------------------------------------------------------------------

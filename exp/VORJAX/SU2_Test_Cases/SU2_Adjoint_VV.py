@@ -27,7 +27,7 @@ def run_su2_primal_raw(alpha_val):
     cache = load_cache()
     key = f"primal_alpha_{float(alpha_val):.4f}"
 
-    # If we already ran this, return the cached value immediately!
+    # If we already ran this, return the cached value immediately
     if key in cache:
         print(f"Loading Primal from cache for Alpha = {alpha_val}")
         return np.float64(cache[key])

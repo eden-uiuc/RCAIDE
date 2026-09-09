@@ -69,7 +69,6 @@ class WingSegment(Component):
 
 
 class ControlSurface(Component):
-    name: str = field("Wing Control Surface", static=True)
 
     span_fraction_start: float = 0.0
     span_fraction_end: float = 0.0
@@ -96,7 +95,6 @@ class ControlSurface(Component):
 
 
 class Wing(Component):
-    name: str = field("Wing", static=True)
     airfoil: Airfoil | None = None
 
     _bookkeeping: dict = field(lambda: {"control_surfaces": ControlSurface}, static=True)
@@ -128,7 +126,7 @@ class Wing(Component):
 
     spans: WingDimensions = field(lambda: WingDimensions(ordinal_direction=True))
     twists: WingDimensions = field(WingDimensions)
-    chords: WingChords = field(WingDimensions)
+    chords: WingChords = field(WingChords)
     sweeps: WingSweeps = field(WingSweeps)
 
     def __post_init__(self):

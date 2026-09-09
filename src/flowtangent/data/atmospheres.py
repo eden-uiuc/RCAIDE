@@ -7,9 +7,8 @@
 #  IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
 
-from typing import Literal
+from typing import Literal, Optional
 
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 
@@ -20,7 +19,8 @@ from flowtangent.data.gases import Air, Gas
 from flowtangent.data.planets import Earth, Planet
 
 # Flowtangent imports
-from flowtangent.utils import field
+from ..utils import Module, field, static_field
+from ..utils.typing import NameType, ScalarFloat, _
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Atmospheres
@@ -29,15 +29,15 @@ from flowtangent.utils import field
 # TODO: Convert Atmospheres to Standardized Tables Like Gases
 
 
-class AtmosphericBreakpoints(eqx.Module):
-    altitude: jax.Array
-    temperature: jax.Array
-    pressure: jax.Array
-    density: jax.Array
+class AtmosphericBreakpoints(Module):
+    altitude: ScalarFloat = _
+    temperature: ScalarFloat = _
+    pressure: ScalarFloat = _
+    density: ScalarFloat = _
 
 
-class Atmosphere(eqx.Module):
-    name: str = field("Atmosphere", static=True)
+class Atmosphere(Module):
+    name: Optional[str] = static_field("Atmosphere")
 
     fluid: Gas = field(Air)
 
@@ -46,7 +46,7 @@ class Atmosphere(eqx.Module):
     breaks: AtmosphericBreakpoints = field(AtmosphericBreakpoints)
 
     def __repr__(self):
-        return self.name
+        return str(self.name)
 
     def _compute_property(self, altitude, property: Literal["temperature", "pressure", "density"]):
         return jnp.interp(altitude, self.breaks.altitude, getattr(self.breaks, property))
@@ -141,7 +141,7 @@ def generate_us_standard_atmosphere(max_alt=84852.0, step=10.0):
 
 
 class USStandard1976(Atmosphere):
-    name: str = field("US Standard Atmosphere, 1976", static=True)
+    name: NameType = static_field("US Standard Atmosphere, 1976")
     breaks: AtmosphericBreakpoints = field(generate_us_standard_atmosphere)
 
 
@@ -157,5 +157,5 @@ def _ConstantTempBreaks(self):
 
 
 class ConstantTemperature(Atmosphere):
-    name: str = field("Constant Temprerature Atmosphere", static=True)
+    name: NameType = static_field("Constant Temprerature Atmosphere")
     breaks: AtmosphericBreakpoints = field(_ConstantTempBreaks)

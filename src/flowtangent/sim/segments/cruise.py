@@ -117,8 +117,6 @@ class TestCSACruise(Cruise):
 
     def __post_init__(self):
 
-        super().__post_init__()
-
         # 2. Build the pure, detached physics function
         initialize_dynamics = _build_dynamics(self.altitude, self.distance, self.air_speed, self.sideslip_angle)
 

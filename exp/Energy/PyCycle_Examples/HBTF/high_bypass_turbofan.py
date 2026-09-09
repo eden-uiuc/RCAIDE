@@ -68,7 +68,6 @@ class HBTF(pyc.Cycle):
         self.add_subsystem('duct15', pyc.Duct())
         self.add_subsystem('byp_nozz', pyc.Nozzle(nozzType='CV', lossCoef='Cv'))
 
-        #Create shaft instances. Note that LP shaft has 3 ports! => no gearbox
         self.add_subsystem('lp_shaft', pyc.Shaft(num_ports=3),promotes_inputs=[('Nmech','LP_Nmech')])
         self.add_subsystem('hp_shaft', pyc.Shaft(num_ports=2),promotes_inputs=[('Nmech','HP_Nmech')])
         self.add_subsystem('perf', pyc.Performance(num_nozzles=2, num_burners=1))
@@ -373,7 +372,7 @@ class MPhbtf(pyc.MPCycle):
 
         self.pyc_use_default_des_od_conns()
 
-        #Set up the RHS of the balances!
+        #Set up the RHS of the balances
         self.pyc_connect_des_od('core_nozz.Throat:stat:area','balance.rhs:W')
         self.pyc_connect_des_od('byp_nozz.Throat:stat:area','balance.rhs:BPR')
 

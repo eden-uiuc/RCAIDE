@@ -24,7 +24,7 @@ numerical_environment()
 from .core._state import State
 from .core._systems import System, Aircraft
 from .core._component import Component
-from .core._processes import Process, ProcessStep
+from .core._processes import Process, ProcessStep, array_barrier
 
 # Utility Hoists
 from .utils import (
@@ -74,6 +74,7 @@ __all__ = [
     "method_field",
     "null_step",
     "units",
+    "array_barrier",
     #Analyses
     "BatchedAnalysis",
     "ImplicitAnalysis",

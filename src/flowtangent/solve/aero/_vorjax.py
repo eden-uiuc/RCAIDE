@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 
 import dataclasses
 import warnings
-from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
 # package imports
@@ -31,14 +30,13 @@ import jax.numpy as jnp
 # package imports
 import sklearn
 
-from ... import TreePath, field, method_field
+from ...utils import TreePath, field, method_field, Module, io, update, static_field
 from ...components._wings import Wing, WingSegment, WingSweeps
 from ...core._processes import Process, ProcessStep
 from ...data import units as U  # noqa: N812
 from ...functional.aero.shocks import oblique_shock, theta_beta_mach
 from ...functional.aero.transonic import ensemble_CL_spline, peaked_CL_spline
-from ...sim.initialize import aero as initialize_aero
-from ...utils import io, update
+from ...sim.initialize import initialize_aerodynamics
 
 # FT imports
 from .._batched import BatchedAnalysis
@@ -49,7 +47,6 @@ from .._batched import BatchedAnalysis
 
 __all__ =[
     "VORJAX",
-    "BatchedVORJAX",
     "VORJAXSettings",
 ]
 
@@ -152,7 +149,7 @@ def initialize_VORJAX_data(state: State, system: Aircraft, settings: Settings):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class VortexDistribution(eqx.Module):
+class VortexDistribution(Module):
     """
     A globally unstructured VLM mesh.
     N = total number of panels across the entire aircraft.
@@ -163,7 +160,7 @@ class VortexDistribution(eqx.Module):
     camber_slopes: jax.Array  # (N,) Camber slope at each panel
     wedge_angles: jax.Array  # (N_s,) Leading edge wedge angle for supersonic correction
 
-    # --- Identity & Topology (Calculated before flattening!) ---
+    # --- Identity & Topology (Calculated before flattening) ---
     surface_id: jax.Array  # (N,) ID of the originating wing/fuselage
     control_surface_id: jax.Array  # (N,) ID of the control surface (-1 for solid wing)
     is_leading_edge: jax.Array  # (N,) Boolean mask
@@ -1367,7 +1364,7 @@ def compute_C_ij(VD, Mach):
             axis=-1,
         )
 
-        # Return the tuple!
+        # Return the tuple
         return C_ij_row, EW_row
 
     C_ij, _ = jax.vmap(compute_row, out_axes=(1, 0))(colloc, costheta, sintheta, jnp.arange(VD.total_panels))
@@ -1619,15 +1616,15 @@ def compute_panel_pressures(state: State, system: Aircraft, settings: Settings):
 # Trefftz Plane Induced Drag
 # ---------------------------------------------------------
 @jax.jit
-def _compute_trefftz_drag(tp_y_ctrl, tp_z_ctrl, tp_y_L, tp_y_R, tp_z_L, tp_z_R, gamma_segments, rho):
+def _compute_trefftz_drag(tp_y_var, tp_z_var, tp_y_L, tp_y_R, tp_z_L, tp_z_R, gamma_segments, rho):
 
     # 1. Distance Matrices
-    dy_L = tp_y_ctrl[:, :, None] - tp_y_L[:, None, :]
-    dz_L = tp_z_ctrl[:, :, None] - tp_z_L[:, None, :]
+    dy_L = tp_y_var[:, :, None] - tp_y_L[:, None, :]
+    dz_L = tp_z_var[:, :, None] - tp_z_L[:, None, :]
     r2_L = jnp.maximum(dy_L**2 + dz_L**2, 1e-12)
 
-    dy_R = tp_y_ctrl[:, :, None] - tp_y_R[:, None, :]
-    dz_R = tp_z_ctrl[:, :, None] - tp_z_R[:, None, :]
+    dy_R = tp_y_var[:, :, None] - tp_y_R[:, None, :]
+    dz_R = tp_z_var[:, :, None] - tp_z_R[:, None, :]
     r2_R = jnp.maximum(dy_R**2 + dz_R**2, 1e-12)
 
     # 2. Induced Velocity
@@ -1865,14 +1862,14 @@ def _compute_aerodynamic_coefficients(VD, dCp, Gamma, state, system, settings):
     )
     TE_mid = (TE_corner_L + TE_corner_R) / 2.0
 
-    tp_z_ctrl = TE_mid[:, 2] * cos_alpha - TE_mid[:, 0] * sin_alpha
+    tp_z_var = TE_mid[:, 2] * cos_alpha - TE_mid[:, 0] * sin_alpha
     tp_z_L = TE_corner_L[:, 2] * cos_alpha - TE_corner_L[:, 0] * sin_alpha
     tp_z_R = TE_corner_R[:, 2] * cos_alpha - TE_corner_R[:, 0] * sin_alpha
 
     # Dimensionalized drag computation
     D_trefftz, _ = _compute_trefftz_drag(
         TE_mid[:, 1][None, :],
-        tp_z_ctrl,
+        tp_z_var,
         TE_corner_L[:, 1][None, :],
         TE_corner_R[:, 1][None, :],
         tp_z_L,
@@ -1971,7 +1968,7 @@ def compute_coefficients(state: State, system: Aircraft, settings: Settings):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class SupersonicSettings(eqx.Module):
+class SupersonicSettings(Module):
     begin_blend_mach: float = 0.5
     end_blend_mach: float = 2.0
 
@@ -2004,7 +2001,7 @@ class SupersonicSettings(eqx.Module):
         )
 
 
-class CorrectionFactors(eqx.Module):
+class CorrectionFactors(Module):
     suction: bool = field(True, static=True)
     shock: bool = field(True, static=True)
 
@@ -2016,7 +2013,7 @@ class CorrectionFactors(eqx.Module):
     CL_max: float = 1.0
 
 
-class FormFactors(eqx.Module):
+class FormFactors(Module):
     span_efficiency: float = 1.0
     oswald: float = 1.0
 
@@ -2025,7 +2022,7 @@ class FormFactors(eqx.Module):
     pylon: float = 0.2
 
 
-class Surrogate(eqx.Module):
+class Surrogate(Module):
     surrogate: Optional[Any] = field(sklearn.gaussian_process.GaussianProcessRegressor, static=True)
 
     blend_transonic: bool = True
@@ -2055,7 +2052,7 @@ class Surrogate(eqx.Module):
         return self.surrogate.predict(*args, **kwargs)
 
 
-class Vortices(eqx.Module):
+class Vortices(Module):
     model_fuselage: bool = field(False, static=True)
     verbose: bool = field(False, static=True)
 
@@ -2120,7 +2117,7 @@ class Vortices(eqx.Module):
             object.__setattr__(self, "bodies_n_chordwise", self.n_chordwise)
 
 
-class VORJAXSettings(eqx.Module):
+class VORJAXSettings(Module):
     model_fuselage: bool = field(False, static=True)
     trim_aircraft: bool = field(False, static=True)
 
@@ -2149,7 +2146,7 @@ class VORJAXSettings(eqx.Module):
 
 def _default_VORJAX_init_steps():
     return (
-        ProcessStep(function=initialize_aero, name="Initialize Component Bookkeeping"),
+        ProcessStep(function=initialize_aerodynamics, name="Initialize Component Bookkeeping"),
         ProcessStep(function=initialize_VORJAX_data, name="Initialize Data Structures"),
         ProcessStep(function=discretize_surfaces, name="Discretize Surfaces"),
     )
@@ -2194,7 +2191,7 @@ class ComputeVORJAX(Process):
 
 
 class VORJAX(Process):
-    name: str = field("Aerodynamics", static=True)
+    name: str = static_field("Aerodynamics")
     steps: tuple = field(lambda: (InitializeVORJAX(), ComputeVORJAX()))
 
     def __init__(
@@ -2251,19 +2248,6 @@ VORJAX_Outputs = {
     "C_m": TreePath(("aerodynamics", "coefficients", "moments", "pitch")),
     "C_n": TreePath(("aerodynamics", "coefficients", "moments", "yaw")),
 }
-
-
-class BatchedVORJAX(BatchedAnalysis):
-    def __init__(
-        self,
-        name: str = "Batched VORJAX",
-        initialize: Process = InitializeVORJAX(),
-        compute: Process = ComputeVORJAX(),
-        inputs: dict = VORJAX_Inputs,
-        outputs: dict = VORJAX_Outputs,
-        db_path: str | Path | None = None,
-    ):
-        super().__init__(name, initialize, compute, inputs, outputs, db_path)
 
 
 if __name__ == "__main__":

@@ -16,37 +16,31 @@ if TYPE_CHECKING:
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from flowtangent.core._state_data._controls import Control, Residual
     from flowtangent.data.atmospheres import Atmosphere
 
-    from ... import Settings, State, System
 
 from dataclasses import replace
 from graphlib import CycleError, TopologicalSorter
 
-import equinox as eqx
 import jax
-import jax.numpy as jnp
 
 # Flowtangent imports
-import flowtangent.utils as tu
-from flowtangent.data import units
-from flowtangent.data.atmospheres import USStandard1976
-from flowtangent.utils import field, update
-
-from .lines import PACTLine, TurbofanLine, TurbojetLine
-from .nodes import BleedFlow, GraphDomain, GraphInput, PACTNode
+from ...data import units
+from ...data.atmospheres import USStandard1976
+from ...utils import Module, field, static_field, update
+from .lines import PACTLine
+from .nodes import BleedFlow, GraphDomain, PACTNode
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Design Conditions
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class NetworkParameters(eqx.Module):
+class NetworkParameters(Module):
     altitude: float = 0.0
     mach_number: float = 0.01
     thrust: float = 1.0 * units.N
-    atmosphere_model: Atmosphere = field(USStandard1976)
+    atmosphere: Atmosphere = field(USStandard1976)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -59,14 +53,14 @@ def _resolve_namespaces(node, parent_prefix=""):
     Recursively generates absolute paths for nodes and resolves local connections.
     """
     # Define this node's absolute ID
-    absolute_id = f"{parent_prefix}.{node.get_field_name()}" if parent_prefix else node.get_field_name()
+    absolute_id = f"{parent_prefix}.{node.field_name}" if parent_prefix else node.field_name
 
     def parse_input(input: str):
         if input == "freestream":
             return "freestream"
         flat_input_parts = input.replace(" ", "_").lower().split(".")
         if len(flat_input_parts) > 1:
-            if flat_input_parts[0] == "self" or node.get_field_name() in flat_input_parts:
+            if flat_input_parts[0] == "self" or node.field_name in flat_input_parts:
                 return absolute_id + "." + flat_input_parts[-1]
             elif flat_input_parts[0] == "parent":
                 grandparent_prefix = ".".join(parent_prefix.split(".")[:-1])
@@ -111,18 +105,17 @@ def _resolve_namespaces(node, parent_prefix=""):
 
 
 class PACTNetwork[DesignType: NetworkParameters](PACTNode):
-    name: str = field("Network", static=True)
-    network_id: str = field("network", static=True)
+
+    name: str = static_field("Network")
+    network_id: str = static_field("network")
 
     nodes: dict[str, "PACTNode"] = field(dict)
-    domains: tuple[GraphDomain, ...] = field(tuple, static=True)
-    design_parameters: DesignType = field(NetworkParameters)
+    domains: tuple[GraphDomain, ...] = static_field(tuple)
+    design_parameters: DesignType = field(NetworkParameters) #type: ignore
 
-    _bookkeeping: dict = field(lambda: {"lines": PACTLine}, static=True)
-    _execution_order: tuple[str, ...] = field(tuple, static=True)
 
-    controls: tuple[Control, ...] = field(tuple, static=True)
-    residuals: tuple[Residual, ...] = field(tuple, static=True)
+    _bookkeeping: dict = static_field(lambda: {"lines": PACTLine})
+    _execution_order: tuple[str, ...] = static_field(tuple)
 
     def _rebalance_flow_splitters(self) -> PACTNetwork:
         """Rebalances fractions directly within the subcomponents tree."""
@@ -139,7 +132,7 @@ class PACTNetwork[DesignType: NetworkParameters](PACTNode):
         _temp_recurse(self.subcomponents)
 
         source_to_splitters = {}
-        for ID, node in temp_dict.items():
+        for node in temp_dict.values():
             if hasattr(node, "extraction_fraction") and node.inputs:
                 upstream_source = node.inputs[0]
                 source_to_splitters.setdefault(upstream_source, []).append(node)
@@ -161,17 +154,17 @@ class PACTNetwork[DesignType: NetworkParameters](PACTNode):
 
         return jax.tree_util.tree_map(_apply, self, is_leaf=lambda x: isinstance(x, PACTNode))
 
-    def assign_network_ids(self):
+    def compute_topology(self):
 
-        updated_network = replace(self, network_id=self.get_field_name())
+        updated_network = replace(self, network_id=self.field_name)
         resolved_lines = []
 
         for line in updated_network.lines:
             # Resolve the namespace for this entire line and all its nested children
-            resolved_line = _resolve_namespaces(line, parent_prefix=f"{updated_network.get_field_name()}")
+            resolved_line = _resolve_namespaces(line, parent_prefix=f"{updated_network.field_name}")
             resolved_lines.append(resolved_line)
 
-        updated_network = update(updated_network, "subcomponents", tuple(resolved_lines)).update_node_topology()
+        updated_network = update(updated_network, "subcomponents", tuple(resolved_lines))._update_node_topology()
 
         return updated_network
 
@@ -188,7 +181,7 @@ class PACTNetwork[DesignType: NetworkParameters](PACTNode):
         _recurse(self.subcomponents)
         return update(self, "nodes", nodes_dict)
 
-    def update_node_topology(self) -> PACTNetwork:
+    def _update_node_topology(self) -> PACTNetwork:
         """The single entry point to finalize the network for execution.
         Use after running initialize_energy so parts are properly ID'd."""
 
@@ -236,82 +229,3 @@ class PACTNetwork[DesignType: NetworkParameters](PACTNode):
             _execution_order=(),
         )
 
-
-# ----------------------------------------------------------------------------------------------------------------------
-#  Turbojet Energy Networks
-# ----------------------------------------------------------------------------------------------------------------------
-
-
-class _JetNetwork[DesignType: JetNetParameters](PACTNetwork[DesignType]):
-    """
-    Jet network shell without design parameters.
-    """
-
-    inputs: tuple | GraphInput = field(
-        (
-            GraphInput("force", "network.line"),
-            GraphInput("residual", "network.line"),
-        )
-    )
-
-    @tu.inputs(
-        "state.energy.nodes['{force_inputs.network_id}'].force.thrust",
-        "state.energy.nodes['{residual_inputs.network_id}'].residual.power",
-        "state.energy.target_thrust",
-    )
-    @tu.outputs(
-        "state.energy.total_force_vector",
-        "state.energy.residual.thrust",
-        "state.energy.residual.power",
-    )
-    def transmit(self, state: State, system: System, settings: Settings):
-
-        updated_state = state
-
-        # Total Thrust----------------------------------------------------------
-
-        total_thrust = jnp.atleast_2d(self.apply_domain_op(jnp.sum, state, "force", "thrust"))
-        total_force_vector = jnp.hstack((total_thrust, jnp.zeros((total_thrust.shape[0], 2))))
-
-        updated_state = update(
-            updated_state,
-            (
-                ("energy.total_force_vector", total_force_vector),
-                ("energy.residual.thrust", (total_thrust - state.energy.target_thrust) / state.energy.target_thrust),
-            ),
-        )
-
-        # Power Imbalance (Single Spool Only) ----------------------------------
-
-        total_d_power = self.apply_domain_op(jnp.sum, updated_state, "residual", "power")
-
-        updated_state = update(updated_state, "energy.residual.power", total_d_power)
-
-        return updated_state, system, settings
-
-
-# Turbojet ---------------------------------------------------------------------
-
-
-def _TurbojetNetworkSetup():
-    return (TurbojetLine(name="Line"),)
-
-
-class JetNetParameters(NetworkParameters):
-    number_of_engines: int = field(1, static=True)
-
-
-class TurbojetNetwork(_JetNetwork[JetNetParameters]):
-    subcomponents: tuple = field(_TurbojetNetworkSetup)
-    design_parameters: JetNetParameters = field(JetNetParameters)
-
-
-# Turbofan ---------------------------------------------------------------------
-
-
-def _TurbofanNetworkSetup():
-    return (TurbofanLine(),)
-
-
-class TurbofanNetwork(_JetNetwork[JetNetParameters]):
-    subcomponents: tuple = field(_TurbofanNetworkSetup)

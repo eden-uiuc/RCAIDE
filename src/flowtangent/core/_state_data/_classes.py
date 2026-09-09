@@ -14,7 +14,7 @@ from typing import Optional, Self, Sequence
 import jax
 import jax.numpy as jnp
 
-from ...utils import Module, field, update
+from ...utils import Module, update
 from ...utils.base import StateDataMeta
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -31,16 +31,16 @@ def _is_static_node(node):
 class StateData(Module, metaclass=StateDataMeta):
 
     @property
-    def subconditions(self) -> tuple:
+    def substates(self) -> tuple:
         return tuple(
             getattr(self, f.name)
             for f in fields(self)
-            if f.name != "subconditions" and isinstance(getattr(self, f.name), StateData)
+            if f.name != "substates" and isinstance(getattr(self, f.name), StateData)
         )
 
     def __getitem__(self, item):
         if isinstance(item, (int, slice)):
-            return self.subconditions[item]
+            return self.substates[item]
         elif isinstance(item, str):
             attr_name = item.replace(" ", "_").lower()
             return getattr(self, attr_name)
@@ -48,7 +48,7 @@ class StateData(Module, metaclass=StateDataMeta):
             raise TypeError(f"Conditions indices must be slices, integers or strings, not {type(item).__name__}")
 
     def __iter__(self):
-        return iter(self.subconditions)
+        return iter(self.substates)
 
     def expand_time(self, N: Optional[int] = None):
 
@@ -130,23 +130,23 @@ class StateData(Module, metaclass=StateDataMeta):
 
         return jax.tree_util.tree_map(_get_axis, self, is_leaf=_is_static_node)
 
-    def add_subcondition(self, subcondition: "StateData"):
+    # def add_substate(self, substate: "StateData"):
 
-        new_subconditions = self.subconditions + (subcondition,)
-        new_self = update(self, "subconditions", new_subconditions)
+    #     new_substates = self.substates + (substate,)
+    #     new_self = update(self, "substates", new_substates)
 
-        return new_self
+    #     return new_self
 
-    def insert_subcondition(self, subcondition: "StateData", index: int):
-        new_subconditions = self.subconditions[:index] + (subcondition,) + self.subconditions[index:]
+    # def insert_substate(self, substate: "StateData", index: int):
+    #     new_substates = self.substates[:index] + (substate,) + self.substates[index:]
 
-        return update(self, "subconditions", new_subconditions)
+    #     return update(self, "substates", new_substates)
 
-    def replace_subcondition(self, subcondition: "StateData", index: int):
-        new_subconditions = self.subconditions[:index] + (subcondition,) + self.subconditions[index + 1 :]
+    # def replace_substate(self, substate: "StateData", index: int):
+    #     new_substates = self.substates[:index] + (substate,) + self.substates[index + 1 :]
 
-        return update(self, "subconditions", new_subconditions)
+    #     return update(self, "substates", new_substates)
 
     def __repr__(self):
-        repr_str = self.name + " - Subconditions: [" + ", ".join([sc.name for sc in self.subconditions]) + "]"
+        repr_str = str(self.name) + " - Substates: [" + ", ".join([sc.name for sc in self.substates]) + "]"
         return repr_str

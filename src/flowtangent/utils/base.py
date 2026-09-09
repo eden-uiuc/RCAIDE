@@ -1,14 +1,14 @@
 # src/flowtangent/utils/base.py
 import inspect
-from typing import Any, Optional, dataclass_transform, get_args
+import typing
+from typing import Any, dataclass_transform, get_args
 
 import equinox as eqx
 import jax.numpy as jnp
-import typing
 from beartype import beartype
 from jaxtyping import jaxtyped
 
-from .typing import _Placeholder
+from .typing import NameType, _Placeholder
 
 
 def null_step(*args):
@@ -18,16 +18,16 @@ def null_step(*args):
 
 if typing.TYPE_CHECKING:
     T = typing.TypeVar("T")
-    
+
     # Overload 1: If passed a class/callable, Pylance binds it to 'default_factory'
     @typing.overload
     def field(default_factory: typing.Callable[[], T], as_value: bool = False, **kwargs) -> T: ...
-    
+
     # Overload 2: If passed a standard value, Pylance binds it to 'default'
     @typing.overload
     def field(default: T, as_value: bool = False, **kwargs) -> T: ...
 
-# The actual runtime function remains exactly what you wrote!
+
 def field(initializer: typing.Any = None, as_value: bool = False, **kwargs):
     """Smart wrapper for eqx.field that auto-routes default vs default_factory."""
     if as_value:
@@ -39,6 +39,8 @@ def field(initializer: typing.Any = None, as_value: bool = False, **kwargs):
             f"Mutable instance {initializer} passed to init_field. "
             "Pass the uninstantiated class (e.g., list) or a lambda instead."
         )
+    if isinstance(initializer, jnp.ndarray):
+        return eqx.field(default_factory=lambda: initializer, **kwargs)
     return eqx.field(default=initializer, **kwargs)
 
 
@@ -62,11 +64,16 @@ FLOWTANGENT_REGISTRY = {}
 class Module(eqx.Module):
     """Base class for all FlowTangent modules."""
 
-    name: Optional[str] = None
+    name: NameType = static_field(None)
+
+    def __check_init__(self):
+        if self.name is None:
+            object.__setattr__(self, "name", self.__class__.__name__)
 
     def __init_subclass__(cls, **kwargs) -> None:
-        if "name" not in cls.__dict__:
-            cls.name = cls.__name__
+        # Prevent kw_only being passed to object.__init_subclass__
+        # It's used in eqx._ModuleMeta.__new__ only
+        kwargs.pop("kw_only", None)
 
         if cls.__name__ in FLOWTANGENT_REGISTRY:
             existing_cls = FLOWTANGENT_REGISTRY[cls.__name__]
@@ -95,7 +102,14 @@ class Module(eqx.Module):
 
     @property
     def field_name(self):
-        return self.name.replace(" ", "_").lower()
+        actual_name = self.name
+        if actual_name and not isinstance(actual_name, str):
+            if hasattr(actual_name, "value"):
+                actual_name = actual_name.value
+            else:
+                raise AttributeError(f"Unable to resolve field name for {self}.")
+
+        return str(actual_name).replace(" ", "_").lower()
 
 
 class StateDataMeta(type(Module)):
@@ -112,7 +126,7 @@ class StateDataMeta(type(Module)):
             val = namespace.get(key)
             if key not in namespace or isinstance(val, _Placeholder):
                 if "ndarray" in hint_str or "Array" in hint_str:
-                    # Deduce the correct placeholder shape directly from the type hint!
+                    # Deduce the correct placeholder shape directly from the type hint
                     shape = (0,)
                     if "time 1" in hint_str:
                         shape = (0, 1)

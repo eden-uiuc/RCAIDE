@@ -141,7 +141,7 @@ def ensemble_CL_spline(M, M_sub, M_sup, val_sub, val_sup, peak_multiplier=1.15):
 
     base_peak_val = (val_sub * h00_w) + (val_sup * h01_w) + (g0 * h10_w) + (g1 * h11_w)
 
-    # 5. Apply the User's Empirical Boost!
+    # 5. Apply the User's Empirical Boost
     val_peak = base_peak_val * peak_multiplier
 
     return peaked_CL_spline(

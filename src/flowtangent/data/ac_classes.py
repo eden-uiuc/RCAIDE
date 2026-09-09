@@ -11,12 +11,10 @@
 from typing import Literal
 
 # package imports
-import equinox as eqx
-
 from flowtangent.data import units
 
 # Flowtangent imports
-from flowtangent.utils import field
+from flowtangent.utils import Module, field
 
 # -------------------------------------------------------------------------------
 # Aircraft Classes
@@ -25,7 +23,7 @@ from flowtangent.utils import field
 ControlType = Literal["full_powered", "partially_powered", "full_aerodynamic"]
 
 
-class FixedMasses(eqx.Module):
+class FixedMasses(Module):
     flight_crew_mass: float = field(0.0, static=True)
     flight_attendants_mass: float = field(0.0, static=True)
     instruments_mass: float = field(0.0, static=True)
@@ -35,14 +33,14 @@ class FixedMasses(eqx.Module):
     hyd_pnu_mass: float = field(0.0, static=True)
 
 
-class PerSeatMasses(eqx.Module):
+class PerSeatMasses(Module):
     operating_items_mass: float = field(0.0, static=True)
     electrical_equipment_mass: float = field(0.0, static=True)
     environmental_mass: float = field(0.0, static=True)
     furnishings_mass: float = field(0.0, static=True)
 
 
-class AircraftClass(eqx.Module):
+class AircraftClass(Module):
     name: str = field("Aircraft Class", static=True)
 
     control_type: ControlType = field("full_powered", static=True)

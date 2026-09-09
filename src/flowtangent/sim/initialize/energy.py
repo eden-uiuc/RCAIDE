@@ -52,7 +52,7 @@ def initialize_energy(state: State, system: System, settings: Settings):
 
     for network in updated_system.energy_networks:
         network: PACTNetwork
-        updated_network = network.assign_network_ids()
+        updated_network = network.compute_topology()
 
         for line in updated_network.lines:
             _extract_to_flat_state(line)

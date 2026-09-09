@@ -33,4 +33,4 @@ if __name__ == "__main__":
 
     vehicles = {k: convert_to_Flowtangent(data) for k, data in avl_data.items()}
 
-    print("Done!")
+    print("Done.")

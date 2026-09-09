@@ -26,22 +26,22 @@ from dataclasses import replace
 from pathlib import Path
 
 # package imports
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 
-import flowtangent.utils as tu
 from flowtangent.data import units
 
 from ....data.gases import Air, BurnedJetA, Gas
 from ....data.propellants import JetA, Propellant
 
 # Flowtangent imports
-from ....utils import field, static_field, update
-from ....utils.typing import ScalarFloat
+from ....utils import Module, field, io, static_field, update
+from ....utils.typing import NameType, ScalarFloat
+from ..lines import PACTLine
 from ..maps import _data as map_data
 from ..maps._classes import CompressorMap, TurbineMap
-from ..nodes import BleedFlow, FlowNode, FlowOpPoint, GraphInput, PACTNode, Splitter
+from ..networks import NetworkParameters, PACTNetwork
+from ..nodes import BleedFlow, FlowNode, FlowOpPoint, FuelTank, PACTInput, PACTNode, Splitter
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Turbojet Components
@@ -51,9 +51,8 @@ from ..nodes import BleedFlow, FlowNode, FlowOpPoint, GraphInput, PACTNode, Spli
 
 
 class Inlet(FlowNode):
-    name: str = field("inlet", static=True)
 
-    @tu.inputs(
+    @io.inputs(
         "state.freestream",
         "state.energy.mass_flow_rate",
         "system.energy.nodes['{network_id}'].design_parameters.pressure_ratio",
@@ -61,7 +60,7 @@ class Inlet(FlowNode):
         "system.energy.nodes['{network_id}'].design_parameters.eff.flow",
         "system.energy.nodes['{network_id}'].design_parameters.exit_mach_number: Optional",
     )
-    @tu.outputs(
+    @io.outputs(
         "system.energy.nodes['{network_id}'].design_parameters.A_exit: Optional",
         "state.energy.nodes['{network_id}'].flow",
     )
@@ -147,9 +146,8 @@ def _alpha_c(Nc, Nc_design):
 
 
 class Compressor(FlowNode):
-    name: str = field("compressor", static=True)
 
-    inputs: tuple | GraphInput = field(GraphInput("flow", "inlet"), static=True)
+    inputs: tuple | PACTInput = field(PACTInput("flow", "inlet"), static=True)
 
     map: CompressorMap = field(map_data.AXI5)
 
@@ -164,7 +162,7 @@ class Compressor(FlowNode):
             object.__setattr__(self, "design_parameters", map_params)
         super(Compressor, self).__post_init__()
 
-    @tu.inputs(
+    @io.inputs(
         "state.energy.rotation_speed",
         "state.energy.{name.lower()}_Rline",
         "state.energy.nodes['{flow_inputs.network_id}'].flow",
@@ -173,7 +171,7 @@ class Compressor(FlowNode):
         "system.energy.nodes['{network_id}'].design_parameters.rotation_speed",
         "system.energy.nodes['{network_id}'].design_parameters.exit_mach_number: Optional",
     )
-    @tu.outputs(
+    @io.outputs(
         "state.energy.residual.{name.lower()}_Wc",
         "state.energy.nodes['{network_id}'].flow",
         "state.energy.nodes['{network_id}'].mechanical.power",
@@ -407,12 +405,11 @@ def _burner_performance(
 
 
 class Burner(FlowNode):
-    name: str = field("Burner", static=True)
 
-    inputs: tuple | GraphInput = field(GraphInput("flow", "Compressor"), static=True)
+    inputs: tuple | PACTInput = field(PACTInput("flow", "compressor"), static=True)
     fuel: Propellant = field(JetA)
 
-    @tu.inputs(
+    @io.inputs(
         "state.energy.target_temperature",
         "state.energy.fuel_air_ratio",
         "state.energy.nodes['{flow_inputs.network_id}'].flow",
@@ -421,7 +418,7 @@ class Burner(FlowNode):
         "system.energy.nodes['{network_id}'].design_parameters.eff.flow",
         "system.energy.nodes['{network_id}'].design_parameters.exit_mach_number: Optional",
     )
-    @tu.outputs(
+    @io.outputs(
         "state.energy.nodes['{network_id}'].flow",
         "system.energy.nodes['{network_id}'].design_parameters.A_exit: Optional",
     )
@@ -521,14 +518,13 @@ class Burner(FlowNode):
 
 
 class Turbine(FlowNode):
-    name: str = field("Turbine", static=True)
 
     map: TurbineMap = field(map_data.LPT2269)
 
     alpha_schedule: Callable = field(lambda Np, Np_des: jnp.full_like(Np, 1.0), as_value=True, static=True)
 
-    inputs: tuple | GraphInput = static_field(
-        (GraphInput("flow", "Burner"),),
+    inputs: tuple | PACTInput = static_field(
+        (PACTInput("flow", "Burner"),),
     )
 
     def __post_init__(self):
@@ -540,7 +536,7 @@ class Turbine(FlowNode):
             object.__setattr__(self, "design_parameters", map_params)
         super(Turbine, self).__post_init__()
 
-    @tu.inputs(
+    @io.inputs(
         "state.energy.{name.lower()}_PR",
         "state.energy.nodes['{flow_inputs.network_id}'].flow",
         "system.energy.nodes['{network_id}'].map",
@@ -549,7 +545,7 @@ class Turbine(FlowNode):
         "system.energy.nodes['{network_id}'].design_parameters.rotation_speed",
         "system.energy.nodes['{network_id}'].design_parameters.exit_mach_number: Optional",
     )
-    @tu.outputs(
+    @io.outputs(
         "state.energy.residual.{name.lower()}_Wp",
         "state.energy.nodes['{network_id}'].flow",
         "state.energy.nodes['{network_id}'].mechanical.power",
@@ -920,11 +916,11 @@ def _variable_nozzle_performance(
 
 
 class Nozzle(FlowNode):
-    name: str = field("Core Nozzle", static=True)
+    name: NameType = field("Core Nozzle", static=True)
     variable_exit: bool = field(False, static=True)
     diverging_section: bool = field(False, static=True)
 
-    inputs: tuple | GraphInput = static_field((GraphInput("flow", "Turbine"),))
+    inputs: tuple | PACTInput = static_field((PACTInput("flow", "Turbine"),))
 
     def __post_init__(self):
         super(Nozzle, self).__post_init__()
@@ -936,14 +932,14 @@ class Nozzle(FlowNode):
                 )
                 object.__setattr__(self, "diverging_section", True)
 
-    @tu.inputs(
+    @io.inputs(
         "state.freestream",
         "system.energy.nodes['{network_id}'].design_parameters.pressure_ratio",
         "system.energy.nodes['{network_id}'].design_parameters.eff.flow",
         "system.energy.nodes['{network_id}'].design_parameters.A_throat",
         "system.energy.nodes['{network_id}'].design_parameters.A_exit",
     )
-    @tu.outputs(
+    @io.outputs(
         "state.energy.nodes['{network_id}'].flow",
         "state.energy.residual.area",
     )
@@ -1064,18 +1060,17 @@ class Nozzle(FlowNode):
 
 
 class Turboshaft(PACTNode):
-    name: str = field("Turboshaft", static=True)
 
-    inputs: tuple | GraphInput = (
-        GraphInput("mechanical", "compressor"),
-        GraphInput("mechanical", "turbine"),
+    inputs: tuple | PACTInput = (
+        PACTInput("mechanical", "compressor"),
+        PACTInput("mechanical", "turbine"),
     )
 
-    @tu.inputs(
+    @io.inputs(
         "state.energy.nodes['{mechanical_inputs.network_id}'].mechanical.power",
         "system.energy.nodes['network.line.engine'].design_parameters",
     )
-    @tu.outputs("state.energy.nodes['{network_id}'].residual.power")
+    @io.outputs("state.energy.nodes['{network_id}'].residual.power")
     def transmit(self, state: State, system: System, settings: Settings):
 
         if settings.analysis.energy.design_mode:
@@ -1173,25 +1168,25 @@ def _ABTurbojetSetup():
     base_components = _TurbojetSetup()
     ab = Burner(
         name="Afterburner",
-        inputs=(GraphInput("flow", "turbine"),),
+        inputs=(PACTInput("flow", "turbine"),),
     )
     nozz = replace(
         base_components[-1],
         inputs=(
-            GraphInput("flow", "afterburner"),
-            GraphInput("fuel", "afterburner"),
+            PACTInput("flow", "afterburner"),
+            PACTInput("fuel", "afterburner"),
         ),
     )
     return base_components[:-1] + (ab, nozz)
 
 
-class JetGeometry(eqx.Module):
+class JetGeometry(Module):
     xe: ScalarFloat = 1.0
     ye: ScalarFloat = 1.0
     Ce: ScalarFloat = 2.0
 
 
-class JetKinematics(eqx.Module):
+class JetKinematics(Module):
     """
     Exit Mach numbers for turbojet components
     """
@@ -1229,13 +1224,13 @@ class TurbojetOpPoint[KinType: JetKinematics | FanKinematics](FlowOpPoint):
     turbine_intake_temperature: ScalarFloat = 0.0
     afterburner_exit_temperature: ScalarFloat = 0.0
 
-    # Control/Residual Values
+    # Variable/Residual Values
     FAR: ScalarFloat = 1e-2
     TSFC: ScalarFloat = 0.0
     compressor_Rline: ScalarFloat = 2.0  # noqa: N815
     mass_flow_rate: ScalarFloat = 100 * units.kg / units.s
 
-    # Single Spool Controls
+    # Single Spool Variables
     rotation_speed: ScalarFloat = 8_000 * units.rpm
     turbine_PR: ScalarFloat = 5.0  # noqa: N815
     power: ScalarFloat = 2e7 * units.W
@@ -1270,11 +1265,11 @@ class TurbojetEngine(FlowNode[TurbojetOpPoint]):
     working_fluid: Gas = field(Air)
     design_parameters: TurbojetOpPoint = field(TurbojetOpPoint)
 
-    inputs: tuple | GraphInput = field(
+    inputs: tuple | PACTInput = field(
         (
-            GraphInput("flow", "self.core_nozzle"),
-            GraphInput("fuel", "self.burner"),
-            GraphInput("residual", "self.turboshaft"),
+            PACTInput("flow", "self.core_nozzle"),
+            PACTInput("fuel", "self.burner"),
+            PACTInput("residual", "self.turboshaft"),
         ),
         static=True,
     )
@@ -1398,19 +1393,19 @@ class TurbojetEngine(FlowNode[TurbojetOpPoint]):
             return TurbojetEngine(
                 subcomponents=_ABTurbofanSetup() if engine_ab else _TurbofanSetup(),
                 inputs=(
-                    GraphInput("flow", "self.afterburner"),
-                    GraphInput("fuel", "self.afterburner"),
-                    GraphInput("fuel", "self.burner"),
-                    GraphInput("residual", "self.lp_shaft"),
-                    GraphInput("residual", "self.hp_shaft"),
+                    PACTInput("flow", "self.afterburner"),
+                    PACTInput("fuel", "self.afterburner"),
+                    PACTInput("fuel", "self.burner"),
+                    PACTInput("residual", "self.lp_shaft"),
+                    PACTInput("residual", "self.hp_shaft"),
                 )
                 if engine_ab
                 else (
-                    GraphInput("flow", "self.core_nozzle"),
-                    GraphInput("flow", "self.fan_nozzle"),
-                    GraphInput("fuel", "self.burner"),
-                    GraphInput("residual", "self.lp_shaft"),
-                    GraphInput("residual", "self.hp_shaft"),
+                    PACTInput("flow", "self.core_nozzle"),
+                    PACTInput("flow", "self.fan_nozzle"),
+                    PACTInput("fuel", "self.burner"),
+                    PACTInput("residual", "self.lp_shaft"),
+                    PACTInput("residual", "self.hp_shaft"),
                 ),
                 design_parameters=des_params,
             )
@@ -1419,17 +1414,17 @@ class TurbojetEngine(FlowNode[TurbojetOpPoint]):
             return TurbojetEngine(
                 subcomponents=_ABTurbojetSetup() if engine_ab else _TurbojetSetup(),
                 inputs=(
-                    GraphInput("flow", "self.afterburner"),
-                    GraphInput("fuel", "self.afterburner"),
-                    GraphInput("fuel", "self.burner"),
-                    GraphInput("residual", "self.turboshaft"),
+                    PACTInput("flow", "self.afterburner"),
+                    PACTInput("fuel", "self.afterburner"),
+                    PACTInput("fuel", "self.burner"),
+                    PACTInput("residual", "self.turboshaft"),
                 )
                 if engine_ab
                 else (
-                    GraphInput("flow", "self.core_nozzle"),
-                    GraphInput("flow", "self.fan_nozzle"),
-                    GraphInput("fuel", "self.burner"),
-                    GraphInput("residual", "self.turboshaft"),
+                    PACTInput("flow", "self.core_nozzle"),
+                    PACTInput("flow", "self.fan_nozzle"),
+                    PACTInput("fuel", "self.burner"),
+                    PACTInput("residual", "self.turboshaft"),
                 ),
                 design_parameters=TurbojetOpPoint(
                     mach_number=1e-6,
@@ -1484,13 +1479,13 @@ class TurbojetEngine(FlowNode[TurbojetOpPoint]):
 
         return des_engine
 
-    @tu.inputs(
+    @io.inputs(
         "state.freestream",
         "state.energy.throttle",
         "state.energy.nodes['{flow_inputs.network_id}'].flow",
         "system.energy.nodes['{network_id}'].design_parameters",
     )
-    @tu.outputs(
+    @io.outputs(
         "state.energy.nodes['{network_id}'].force.thrust",
         "state.energy.nodes['{network_id}'].force.nondimensional_thrust",
         "state.energy.nodes['{network_id}'].force.specific_impulse",
@@ -1562,7 +1557,7 @@ class TurbojetEngine(FlowNode[TurbojetOpPoint]):
 
 
 # Makes BPR split serializable for save/load
-class BPRSplit(eqx.Module):
+class BPRSplit(Module):
     is_bypass: bool = field(True, static=True)
 
     def __call__(self, state):
@@ -1585,21 +1580,21 @@ def _TurbofanSetup():
 
     core_flow = Splitter(
         name="Core Flow",
-        inputs=GraphInput("flow", "fan"),
+        inputs=PACTInput("flow", "fan"),
         values=("mass_flow_rate",),
         fractions=BPRSplit(is_bypass=False),
     )
-    core_duct = FlowNode(name="Core Duct", inputs=GraphInput("flow", "core flow"))
+    core_duct = FlowNode(name="Core Duct", inputs=PACTInput("flow", "core flow"))
 
     # Compressors
-    lpc = Compressor(name="LPC", map=map_data.LPC, inputs=GraphInput("flow", "core duct"))
+    lpc = Compressor(name="LPC", map=map_data.LPC, inputs=PACTInput("flow", "core duct"))
 
-    c_stat = FlowNode(name="Compressor Stator", inputs=GraphInput("flow", "lpc"))
+    c_stat = FlowNode(name="Compressor Stator", inputs=PACTInput("flow", "lpc"))
 
     hpc = Compressor(
         name="HPC",
         map=map_data.HPC,
-        inputs=GraphInput("flow", "compressor stator"),
+        inputs=PACTInput("flow", "compressor stator"),
         output_bleeds=(
             BleedFlow(
                 name="outlet",
@@ -1618,7 +1613,7 @@ def _TurbofanSetup():
 
     cooling = FlowNode(
         name="Cooling Duct",
-        inputs=GraphInput("flow", "hpc"),
+        inputs=PACTInput("flow", "hpc"),
         output_bleeds=(
             BleedFlow(
                 name="HPT cooling",
@@ -1632,44 +1627,44 @@ def _TurbofanSetup():
     )
 
     # burner
-    comb = Burner(inputs=GraphInput("flow", "cooling_duct"))
+    comb = Burner(inputs=PACTInput("flow", "cooling_duct"))
 
     # Turbines
     hpt = Turbine(
         name="HPT",
         map=map_data.HPT,
         inputs=(
-            GraphInput("flow", "burner", primary=True),
-            GraphInput("flow", "cooling_duct.hpt_cooling"),
+            PACTInput("flow", "burner", primary=True),
+            PACTInput("flow", "cooling_duct.hpt_cooling"),
         ),
     )
 
     t_stat = FlowNode(
         name="Turbine Stator",
         inputs=(
-            GraphInput("flow", "hpt", primary=True),
-            GraphInput("flow", "hpc.lpt_cooling"),
-            GraphInput("flow", "cooling_duct.lpt_cooling"),
+            PACTInput("flow", "hpt", primary=True),
+            PACTInput("flow", "hpc.lpt_cooling"),
+            PACTInput("flow", "cooling_duct.lpt_cooling"),
         ),
     )
 
-    lpt = Turbine(name="LPT", map=map_data.LPT, inputs=GraphInput("flow", "turbine_stator"))
+    lpt = Turbine(name="LPT", map=map_data.LPT, inputs=PACTInput("flow", "turbine_stator"))
 
     # Turboshafts
     lp_shaft = Turboshaft(
         name="LP Shaft",
         inputs=(
-            GraphInput("mechanical", "lpc"),
-            GraphInput("mechanical", "fan"),
-            GraphInput("mechanical", "lpt"),
+            PACTInput("mechanical", "lpc"),
+            PACTInput("mechanical", "fan"),
+            PACTInput("mechanical", "lpt"),
         ),
     )
 
     hp_shaft = Turboshaft(
         name="HP Shaft",
         inputs=(
-            GraphInput("mechanical", "hpc"),
-            GraphInput("mechanical", "hpt"),
+            PACTInput("mechanical", "hpc"),
+            PACTInput("mechanical", "hpt"),
         ),
     )
 
@@ -1677,27 +1672,27 @@ def _TurbofanSetup():
     cn_duct = FlowNode(
         name="Core Nozzle Duct",
         inputs=(
-            GraphInput("flow", "lpt", primary=True),
-            GraphInput("flow", "hpc.nozzle_cooling"),
+            PACTInput("flow", "lpt", primary=True),
+            PACTInput("flow", "hpc.nozzle_cooling"),
         ),
     )
-    c_nozz = Nozzle(inputs=GraphInput("flow", "core_nozzle_duct"))
+    c_nozz = Nozzle(inputs=PACTInput("flow", "core_nozzle_duct"))
 
     # Bypass Flow --------------------------------------------------------------
     fan_flow = Splitter(
         name="Fan Flow",
-        inputs=GraphInput("flow", "fan"),
+        inputs=PACTInput("flow", "fan"),
         values=("mass_flow_rate",),
         fractions=BPRSplit(is_bypass=True),
     )
 
     fn_duct = FlowNode(
         name="Fan Duct",
-        inputs=GraphInput("flow", "fan flow"),
+        inputs=PACTInput("flow", "fan flow"),
         output_bleeds=(BleedFlow(name="outlet", fractions_dict={"mass_flow_rate": 0.005}),),
     )
 
-    f_nozz = Nozzle(name="Fan Nozzle", inputs=(GraphInput("flow", "fan duct")))
+    f_nozz = Nozzle(name="Fan Nozzle", inputs=(PACTInput("flow", "fan duct")))
 
     return (
         inlet,
@@ -1728,15 +1723,15 @@ def _ABTurbofanSetup():
     ab = Burner(
         name="Afterburner",
         inputs=(
-            GraphInput("flow", "fan_nozzle"),
-            GraphInput("flow", "core_nozzle"),
+            PACTInput("flow", "fan_nozzle"),
+            PACTInput("flow", "core_nozzle"),
         ),
         add_mixer=True,
     )
     return base_components + (ab,)
 
 
-class FanKinematics(eqx.Module):
+class FanKinematics(Module):
     """
     Exit Mach Numbers for turbofan components
     """
@@ -1762,7 +1757,7 @@ class FanKinematics(eqx.Module):
 
 
 class TurbofanDesign(TurbojetOpPoint[FanKinematics]):
-    # Control Values
+    # Variable Values
     bypass_ratio: ScalarFloat = 0.0
     fan_pressure_ratio: ScalarFloat = 0.0
 
@@ -1780,12 +1775,206 @@ def TurbofanEngine(**kwargs):
     return TurbojetEngine(
         subcomponents=_TurbofanSetup(),
         inputs=(
-            GraphInput("flow", "self.core_nozzle"),
-            GraphInput("flow", "self.fan_nozzle"),
-            GraphInput("fuel", "self.burner"),
-            GraphInput("residual", "self.lp_shaft"),
-            GraphInput("residual", "self.hp_shaft"),
+            PACTInput("flow", "self.core_nozzle"),
+            PACTInput("flow", "self.fan_nozzle"),
+            PACTInput("fuel", "self.burner"),
+            PACTInput("residual", "self.lp_shaft"),
+            PACTInput("residual", "self.hp_shaft"),
         ),
         design_parameters=TurbofanDesign(),
         **kwargs,
     )
+
+# ----------------------------------------------------------------------------------------------------------------------
+#  Lines
+# ----------------------------------------------------------------------------------------------------------------------
+
+# Turbojet ---------------------------------------------------------------------
+
+
+def _TurbojetLineSetup():
+    return TurbojetEngine(), FuelTank()
+
+
+class TurbojetLine(PACTLine):
+    subcomponents: tuple = field(_TurbojetLineSetup)
+
+    inputs: tuple | PACTInput = field(
+        (
+            PACTInput("fuel", "self.engine"),
+            PACTInput("force", "self.engine"),
+            PACTInput("residual", "self.engine"),
+        ),
+        static=True,
+    )
+
+    tank_draw_ratios: tuple[float, ...] = field((1.0,))
+
+    _bookkeeping: dict = field(
+        lambda: {
+            "engines": TurbojetEngine,
+            "stores": FuelTank,
+            "fuel_tanks": FuelTank,
+        },
+        static=True,
+    )
+
+    @io.inputs(
+        # "state.energy.nodes['{fuel_tanks.network_id}'].mass",
+        "state.energy.nodes['{fuel_inputs.network_id}'].fuel.flow_rate",
+        # "system.energy.nodes['{fuel_tanks.network_id}'].selector_ratio",
+        # "system.energy.nodes['{fuel_tanks.network_id}'].mass_properties.total",
+        "system.energy.nodes['{network_id}'].tank_draw_ratios",
+    )
+    @io.outputs(
+        # "state.energy.nodes['{fuel_tanks}'].fuel.flow_rate",
+        "state.mass.rate_of_change",
+        "state.energy.nodes['{network_id}'].force.thrust",
+        "state.energy.nodes['{network_id}'].residual.thrust",
+        "state.energy.nodes['{network_id}'].residual.power",
+    )
+    def transmit(self, state: State, system: System, settings: Settings):
+
+        # Fuel Burn ------------------------------------------------------------
+        total_fuel_burn = self.apply_domain_op(jnp.sum, state, "fuel", "flow_rate")
+
+        #  Compute fuel fraction
+        total_fuel_mass = jnp.sum(jnp.asarray([t.mass_properties.total for t in self.fuel_tanks]))
+        current_fuel_mass = jnp.sum(jnp.asarray([state.energy.nodes[t.network_id].mass for t in self.fuel_tanks]))
+        fuel_fraction = current_fuel_mass / jnp.where(total_fuel_mass > 1e-6, total_fuel_mass, 1e-6)
+
+        # Extract configuration as pure JAX arrays
+        selector_ratios = jnp.asarray([t.selector_ratio for t in self.fuel_tanks])
+        baseline_draws = jnp.asarray([self.tank_draw_ratios[i] for i in range(len(self.fuel_tanks))])
+
+        # Create the active mask (1.0 if active, 0.0 if inactive)
+        active_mask = jnp.where(selector_ratios[None, :] >= fuel_fraction, 1.0, 0.0)
+
+        # Mask the baseline draws
+        masked_draws = baseline_draws * active_mask
+
+        # Normalize the draws (with a safeguard against division-by-zero if all tanks are inactive)
+        sum_draws = jnp.sum(masked_draws)
+        safe_sum = jnp.where(sum_draws == 0.0, 1.0, sum_draws)
+        balanced_draws = masked_draws / safe_sum
+
+        # Distribute the burn across ALL tanks (inactive ones get multiplied by 0.0)
+        tank_burns = tuple(-balanced_draws[i] * total_fuel_burn for i in range(len(self.fuel_tanks)))
+
+        # Apply updates sequentially
+        updated_state = update(
+            state,
+            lambda s: tuple(s.energy.nodes[t.network_id].fuel.flow_rate for t in self.fuel_tanks),
+            tank_burns,
+        )
+
+        updated_state = update(
+            updated_state,
+            ("mass.rate_of_change", updated_state.mass.rate_of_change - total_fuel_burn),
+        )
+
+        outputs = state.energy.nodes[self.network_id]
+
+        # Total Thrust ---------------------------------------------------------
+
+        outputs = update(outputs, "force.thrust", self.apply_domain_op(jnp.sum, updated_state, "force", "thrust"))
+        outputs = update(outputs, "residual.thrust", self.apply_domain_op(jnp.sum, updated_state, "residual", "thrust"))
+        outputs = update(outputs, "residual.power", self.apply_domain_op(jnp.sum, updated_state, "residual", "power"))
+
+        updated_state = update(state, lambda s: s.energy.nodes[self.network_id], outputs)
+
+        return updated_state, system, settings
+
+
+# Turbofan ---------------------------------------------------------------------
+
+
+def _TurbofanLineSetup():
+    return TurbofanEngine(), FuelTank()
+
+
+def TurbofanLine(**kwargs):
+
+    if "subcomponents" not in kwargs:
+        kwargs["subcomponents"] = _TurbofanLineSetup()
+
+    return TurbojetLine(**kwargs)
+
+# ----------------------------------------------------------------------------------------------------------------------
+#  Turbojet Energy Networks
+# ----------------------------------------------------------------------------------------------------------------------
+
+
+class _JetNetwork[DesignType: JetNetParameters](PACTNetwork[DesignType]):
+    """
+    Jet network shell without design parameters.
+    """
+
+    inputs: tuple | PACTInput = field(
+        (
+            PACTInput("force", "network.line"),
+            PACTInput("residual", "network.line"),
+        )
+    )
+
+    @io.inputs(
+        "state.energy.nodes['{force_inputs.network_id}'].force.thrust",
+        "state.energy.nodes['{residual_inputs.network_id}'].residual.power",
+        "state.energy.target_thrust",
+    )
+    @io.outputs(
+        "state.energy.total_force_vector",
+        "state.energy.residual.thrust",
+        "state.energy.residual.power",
+    )
+    def transmit(self, state: State, system: System, settings: Settings):
+
+        updated_state = state
+
+        # Total Thrust----------------------------------------------------------
+
+        total_thrust = jnp.atleast_2d(self.apply_domain_op(jnp.sum, state, "force", "thrust"))
+        total_force_vector = jnp.hstack((total_thrust, jnp.zeros((total_thrust.shape[0], 2))))
+
+        updated_state = update(
+            updated_state,
+            (
+                ("energy.total_force_vector", total_force_vector),
+                ("energy.residual.thrust", (total_thrust - state.energy.target_thrust) / state.energy.target_thrust),
+            ),
+        )
+
+        # Power Imbalance (Single Spool Only) ----------------------------------
+
+        total_d_power = self.apply_domain_op(jnp.sum, updated_state, "residual", "power")
+
+        updated_state = update(updated_state, "energy.residual.power", total_d_power)
+
+        return updated_state, system, settings
+
+
+# Turbojet ---------------------------------------------------------------------
+
+
+def _TurbojetNetworkSetup():
+    return (TurbojetLine(name="Line"),)
+
+
+class JetNetParameters(NetworkParameters):
+    number_of_engines: int = field(1, static=True)
+
+
+class TurbojetNetwork(_JetNetwork[JetNetParameters]):
+    subcomponents: tuple = field(_TurbojetNetworkSetup)
+    design_parameters: JetNetParameters = field(JetNetParameters)
+
+
+# Turbofan ---------------------------------------------------------------------
+
+
+def _TurbofanNetworkSetup():
+    return (TurbofanLine(),)
+
+
+class TurbofanNetwork(_JetNetwork[JetNetParameters]):
+    subcomponents: tuple = field(_TurbofanNetworkSetup)

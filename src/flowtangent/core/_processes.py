@@ -21,7 +21,6 @@ from typing import (
     Generator,
     Literal,
     Optional,
-    Self,
     Sequence,
     Tuple,
     TypeAlias,
@@ -31,7 +30,7 @@ from typing import (
 if TYPE_CHECKING:
     from .. import Settings, State, System
     from ..solve import JacobianMap
-    FlowtangentFunction: TypeAlias = Callable[[State, System, Settings], Tuple[State, System, Settings]]
+    ProcessFunc: TypeAlias = Callable[[State, System, Settings], Tuple[State, System, Settings]]
 
 import inspect
 import os
@@ -42,26 +41,34 @@ from collections import Counter
 from dataclasses import replace
 from datetime import datetime
 
-import equinox as eqx
-
 # package imports
 import jax
 import jax.numpy as jnp
 import networkx as nx
 import numpy as np  # Used only for OptimizerInterface class w/ legacy optimizers
 
-from ..utils import MERMAID_STYLES, TreePath, compute_tree_delta, field, get_target, null_step, update
+from ..utils import (
+    MERMAID_STYLES,
+    Module,
+    NameType,
+    TreePath,
+    compute_tree_delta,
+    field,
+    get_target,
+    method_field,
+    null_step,
+    static_field,
+    update,
+)
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  ProcessStep
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-
-
-class ProcessStep(eqx.Module):
-    function: FlowtangentFunction = field(null_step, static=True, as_value=True)
-    name: str = field("Process Step", static=True)
+class ProcessStep(Module):
+    name: str = static_field("Process Step")
+    function: ProcessFunc = method_field(null_step)
 
     _state_delta: Optional[State] = field(None)
     _system_delta: Optional[System] = field(None)
@@ -69,8 +76,8 @@ class ProcessStep(eqx.Module):
 
     def __init__(
         self,
-        name: str = "Process Step",
-        function: FlowtangentFunction | ProcessStep = null_step,
+        name: NameType = "Process Step",
+        function: ProcessFunc | ProcessStep = null_step,
         _state_delta: Optional[State] = None,
         _system_delta: Optional[System] = None,
         _settings_delta: Optional[Settings] = None,
@@ -87,7 +94,7 @@ class ProcessStep(eqx.Module):
         if isinstance(step, ProcessStep):
             return step
         elif callable(step):
-            step_name = getattr(step, "__name__", "Unnamed FlowtangentFunction")
+            step_name = getattr(step, "__name__", "Unnamed Function")
             sig = inspect.signature(step)
             if len(sig.parameters) != 3:
                 raise ValueError(
@@ -165,7 +172,7 @@ class ProcessStep(eqx.Module):
         return *self(state, system, settings), None
 
     def __repr__(self):
-        return self.name
+        return str(self.name)
 
     @property
     def inputs(self) -> set:
@@ -180,7 +187,6 @@ class ProcessStep(eqx.Module):
 #  Process Class
 # ----------------------------------------------------------------------------------------------------------------------
 
-
 def array_barrier(state: State, system: System, settings: Settings):
     """
     Forces every numerical leaf of state (at least 2d) and system (at least 1d) to become JAX arrays.
@@ -190,13 +196,13 @@ def array_barrier(state: State, system: System, settings: Settings):
     """
 
     def _to_array(leaf, ndim: int = 1):
-        # 1. Check if it's a raw scalar, a list/tuple of scalars, OR already an array
+        # Check if it's a raw scalar, a list/tuple of scalars, OR already an array
         is_scalar = isinstance(leaf, (float, int, complex))
         is_iterable = isinstance(leaf, (list, tuple)) and all(isinstance(i, (float, int, complex)) for i in leaf)
         is_array = isinstance(leaf, (jax.Array, np.ndarray))
 
         if is_scalar or is_iterable or is_array:
-            # 2. Convert to JAX array (jnp.asarray is a no-op if it's already a JAX array)
+            # Convert to JAX array (jnp.asarray is a no-op if it's already a JAX array)
             # Using standard float allows JAX to respect its 32/64-bit config settings naturally
             leaf_arr = jnp.asarray(leaf, dtype=float)
 
@@ -220,25 +226,25 @@ def array_barrier(state: State, system: System, settings: Settings):
 
 
 class Process(ProcessStep):
-    name: str = field("Process", static=True)
+    name: str = static_field("Process")
     steps: tuple[ProcessStep, ...] = ()
 
-    initialize: FlowtangentFunction = field(null_step, static=True)
+    initialize: ProcessFunc = method_field(null_step)
     initial_step: int = field(0, static=True)
 
     _initial_state: Optional[State] = field(None)
     _initial_system: Optional[System] = field(None)
     _initial_settings: Optional[Settings] = field(None)
 
-    _val_and_jac_fn: Optional[Callable] = field(None, static=True)
-    _cached_grad_map: Optional[JacobianMap] = field(None, static=True)
+    _val_and_jac_fn: Optional[Callable] = method_field(None)
+    _cached_grad_map: Optional[JacobianMap] = static_field(None)
     _filter_map: dict = field(lambda _: {"energy": r"state\.energy\.nodes\.\[*\]."}, static=True)
 
     def __init__(
         self,
-        steps: Sequence[ProcessStep | FlowtangentFunction] = (),
-        name: str = "Process",
-        initialize: FlowtangentFunction = null_step,
+        steps: Sequence[ProcessStep | ProcessFunc] = (),
+        name: NameType = "Process",
+        initialize: ProcessFunc = null_step,
         initial_step: int = 0,
         _initial_state: Optional[State] = None,
         _initial_system: Optional[System] = None,
@@ -310,7 +316,7 @@ class Process(ProcessStep):
             start_time = datetime.fromtimestamp(time.time()).strftime(settings.logging.date_format)
             print(f"Beginning Process: '{self.name}' | {start_time}")
 
-        if settings.numerical.jacobian.calculate_jacobian:
+        if settings.numerical.jacobian.calculate:
             jac_map = settings.numerical.jacobian.mapping
 
             if jac_map is not None:
@@ -511,7 +517,7 @@ class Process(ProcessStep):
 
         return f_st, f_sys, f_setts, logged_process
 
-    def append(self, step: ProcessStep | Self):
+    def append(self, step: ProcessStep | Process):
         new_steps = self.steps + (step,)
         return update(self, "steps", new_steps)
 
@@ -534,7 +540,7 @@ class Process(ProcessStep):
 
         return index
 
-    def index(self, value: str | Callable | ProcessStep | Self):
+    def index(self, value: str | Callable | ProcessStep | Process):
         if isinstance(value, str):
             return self._index_tag(value)
         elif isinstance(value, Callable):
@@ -559,7 +565,7 @@ class Process(ProcessStep):
     def _remove_function(self, function: Callable):
         return self.pop(self._index_function(function))
 
-    def remove(self, value: str | Callable | ProcessStep | Self):
+    def remove(self, value: str | Callable | ProcessStep | Process):
         idx_to_remove = self.index(value)
         return self.pop(idx_to_remove)
 

@@ -70,7 +70,7 @@ class Spinner:
             self.running = False
             if self.thread is not None:
                 self.thread.join()
-            sys.stdout.write(f"\r{self.message} Done!    \n")
+            sys.stdout.write(f"\r{self.message} Done.    \n")
             sys.stdout.flush()
 
 
@@ -86,19 +86,19 @@ def _activate_control(control: str | Control, state):
 
         if control_name not in state.controls.__dataclass_fields__:
             # It's a custom control:
-            new_ctrl = Variable(name=control, _active=True)
-            new_controls = state.controls.add_control_variable(new_ctrl)
+            new_var = Variable(name=control, _active=True)
+            new_controls = state.controls.add_control_variable(new_var)
         else:
             # It's a pre-existing control: grab the existing one, activate it, and replace it
-            existing_ctrl = getattr(state.controls, control_name)
-            active_ctrl = update(existing_ctrl, "active", True)
+            existing_var = getattr(state.controls, control_name)
+            active_var = update(existing_var, "active", True)
 
             # Use getattr to map the path
-            new_controls = update(state.controls, lambda p: getattr(p, control_name), active_ctrl)
+            new_controls = update(state.controls, lambda p: getattr(p, control_name), active_var)
 
     elif isinstance(control, Control):
-        active_ctrl = update(control, "active", True)
-        new_controls = state.controls.add_control_variable(active_ctrl)
+        active_var = update(control, "active", True)
+        new_controls = state.controls.add_control_variable(active_var)
 
     return update(state, "controls", new_controls)
 
@@ -113,7 +113,7 @@ def _activate_residual(res: str | Residual, state):
         new_dynamics = update(state.dynamics, lambda d: getattr(d, res), active_residual)
     elif isinstance(res, Residual):
         active_res = replace(res, active=True)
-        new_dynamics = state.dynamics.add_subcondition(active_res)
+        new_dynamics = state.dynamics.add_substate(active_res)
 
     return update(state, "dynamics", new_dynamics).expand_rows(state.numerics.number_of_control_points)
 
@@ -153,15 +153,15 @@ class InitializeSegment(Process):
 
         current_state = state
 
-        for ctrl in self.active_controls:
-            current_state = _activate_control(ctrl, current_state)
+        for var in self.active_controls:
+            current_state = _activate_control(var, current_state)
 
         # Set up static routing for active controls
         active_controls = current_state.controls.get_active_controls()
         if settings.analysis.energy.use_network_controls:
             for network in system.energy_networks:
                 active_controls += network.controls  # type: ignore
-        routing_table = tuple((ctrl.path, ctrl.path_indices) for ctrl in active_controls)
+        routing_table = tuple((var.path, var.path_indices) for var in active_controls)
         new_controls = replace(current_state.controls, active_routing_table=routing_table)
         current_state = update(current_state, "controls", new_controls)
 

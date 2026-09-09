@@ -63,7 +63,7 @@ class PACTAnalysis(Process):
 
 def build_PACT_analysis(network: PACTAnalysis):
 
-    analysis_network = network.assign_network_ids()
+    analysis_network = network.compute_topology()
 
     def make_node_function(network_id: str):
         node = analysis_network.nodes[network_id]

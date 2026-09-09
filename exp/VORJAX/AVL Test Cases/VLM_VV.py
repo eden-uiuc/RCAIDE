@@ -18,7 +18,7 @@ import numpy as np
 from tqdm import trange
 from plotly.subplots import make_subplots
 
-import flowtangent.utils as tu
+import flowtangent.utils as ftu
 
 from flowtangent.data import units
 from flowtangent.library.components import Areas
@@ -121,7 +121,7 @@ quit
 
     # Optional: Check if AVL crashed or threw a Fortran error
     if "Stop" in result.stdout or result.returncode != 0:
-        print("AVL encountered an error!")
+        print("AVL encountered an error.")
         print(result.stdout)
 
     print(f"Done. Saved stability data to {file_name}")
@@ -236,7 +236,7 @@ def VORJAX_elliptical_wing(AR=10., n_segments=1):
             name=f"{i}", 
             percent_span_location=eta_start, 
             root_chord_percent=chord_frac_start,
-            sweeps=Sweeps(quarter_chord=sweep_c4)  # Inject sweep here!
+            sweeps=Sweeps(quarter_chord=sweep_c4)  # Inject sweep here
         ),)
 
     # Tip segment doesn't need a sweep since there's no geometry after it
@@ -1053,4 +1053,4 @@ if __name__ == "__main__":
             # m20.show()
 
 
-    print("Done!")
+    print("Done.")

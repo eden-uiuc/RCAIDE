@@ -9,7 +9,6 @@
 
 
 # package imports
-import jax
 import jax.numpy as jnp
 
 from flowtangent.core._state_data import StateData
@@ -63,12 +62,12 @@ class Wind(Frame):
     moment_vector: TimeVector3 = _
 
 
-class Planet(Frame):
+class Planetary(Frame):
     start_time: TimeScalar = _
 
     # Default to takeoff at JFK
-    latitude: jax.Array = field(jnp.array([40.6446]))
-    longitude: jax.Array = field(jnp.array([73.7797]))
+    latitude: TimeScalar = field(jnp.array([40.6446]))
+    longitude: TimeScalar = field(jnp.array([73.7797]))
 
     true_course: TimeScalar = _
 
@@ -77,4 +76,4 @@ class FrameData(StateData):
     inertial: Inertial = field(Inertial)
     body: Body = field(Body)
     wind: Wind = field(Wind)
-    planet: Planet = field(Planet)
+    planet: Planetary = field(Planetary)

@@ -28,7 +28,7 @@ def numerical_environment():
             except Exception as e:
                 print(f"Hardware Config Warning: Could not set CPU affinity: {e}")
 
-    cache_path = os.path.expanduser("~/.eden_trace/jax_cache")
+    cache_path = os.path.expanduser("~/.flowtangent/jax_cache")
     os.makedirs(cache_path, exist_ok=True)
     os.environ["JAX_COMPILATION_CACHE_DIR"] = cache_path
 
@@ -418,7 +418,7 @@ def od_primal_np(inputs, update_count=True):
     prob_od.set_val('fc.MN', float(mn))
     prob_od.set_val('balance.Fn_target', float(fn_target), units='lbf')
     
-    # Force the solver to start from a safe place every time!
+    # Force the solver to start from a safe place every time
     prob_od.set_val('balance.W', 166.073)
     prob_od.set_val('balance.FAR', 0.01680)
     prob_od.set_val('balance.Nmech', 8197.38)
@@ -513,7 +513,7 @@ def run_pact_hybrid_benchmark(N_points):
     total_grad = compiled_grad_fn(comp_pr_init)
     
     # block_until_ready() is strictly required here; otherwise, JAX will 
-    # return the timer immediately while the GPU/CPU works asynchronously!
+    # return the timer immediately while the GPU/CPU works asynchronously
     total_grad.block_until_ready()
     
     t_exec_end = time.perf_counter()
@@ -817,7 +817,6 @@ class OpaqueOffDesignFD(om.ExplicitComponent):
         self.add_input('fn_target', val=8000.0)
         self.add_output('tsfc', val=1.0)
         
-        # The FD tax: OpenMDAO must perturb ALL inputs individually!
         self.declare_partials('*', '*', method='fd')
 
     def compute(self, inputs, outputs):

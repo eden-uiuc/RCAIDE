@@ -172,7 +172,7 @@ class NetworkState(NodeState):
 class TurbojetState(NetworkState):
     name: str = field("Turbojet Network", static=True)
 
-    # Control hooks
+    # Variable hooks
     fuel_air_ratio: TimeScalar = _
     mass_flow_rate: TimeScalar = _
     rotation_speed: TimeScalar = _
@@ -186,7 +186,7 @@ class TurbojetState(NetworkState):
 class TurbofanState(NetworkState):
     name: str = field("Turbofan Network", static=True)
 
-    # Control hooks
+    # Variable hooks
     fuel_air_ratio: TimeScalar = _
     mass_flow_rate: TimeScalar = _
 

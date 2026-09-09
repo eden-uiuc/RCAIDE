@@ -17,7 +17,7 @@ from ._energy import (
     TurbojetState,
 )
 
-from ._frames import Body, Frame, FrameData, Inertial, Planet, Wind
+from ._frames import Body, Frame, FrameData, Inertial, Planetary, Wind
 from ._freestream import Freestream
 from ._mass import Mass
 from ._time import NumericalTime, Time

@@ -15,7 +15,7 @@ import jax.numpy as jnp
 from flowtangent.core._state_data import StateData
 
 # Flowtangent imports
-from flowtangent.utils import empty_array, field, update
+from flowtangent.utils import empty_array, field, static_field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Time Conditions

@@ -13,7 +13,7 @@ import jax
 import jax.numpy as jnp
 
 # Flowtangent Imports
-import flowtangent.utils as tu
+import flowtangent.utils as ftu
 
 from flowtangent.framework import Process, State, Settings
 from flowtangent.core._state_data import Time

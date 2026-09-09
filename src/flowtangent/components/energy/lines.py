@@ -8,14 +8,12 @@ if TYPE_CHECKING:
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from flowtangent.framework import Settings, State, System
+    pass
 
-import jax.numpy as jnp
 
-from flowtangent.utils import field, io, update
+from flowtangent.utils import field
 
-from .jets._classes import TurbofanEngine, TurbojetEngine
-from .nodes import EnergyStore, FuelTank, GraphInput, PACTNode, Splitter
+from .nodes import EnergyStore, PACTNode, Splitter
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Energy Line
@@ -31,133 +29,3 @@ class PACTLine(PACTNode):
         },
         static=True,
     )
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-#  Jets
-# ----------------------------------------------------------------------------------------------------------------------
-
-# Turbojet ---------------------------------------------------------------------
-
-
-def _TurbojetLineSetup():
-    return TurbojetEngine(), FuelTank()
-
-
-class TurbojetLine(PACTLine):
-    subcomponents: tuple = field(_TurbojetLineSetup)
-
-    inputs: tuple | GraphInput = field(
-        (
-            GraphInput("fuel", "self.engine"),
-            GraphInput("force", "self.engine"),
-            GraphInput("residual", "self.engine"),
-        ),
-        static=True,
-    )
-
-    tank_draw_ratios: tuple[float, ...] = field((1.0,))
-
-    _bookkeeping: dict = field(
-        lambda: {
-            "engines": TurbojetEngine,
-            "stores": FuelTank,
-            "fuel_tanks": FuelTank,
-        },
-        static=True,
-    )
-
-    @io.inputs(
-        # "state.energy.nodes['{fuel_tanks.network_id}'].mass",
-        "state.energy.nodes['{fuel_inputs.network_id}'].fuel.flow_rate",
-        # "system.energy.nodes['{fuel_tanks.network_id}'].selector_ratio",
-        # "system.energy.nodes['{fuel_tanks.network_id}'].mass_properties.total",
-        "system.energy.nodes['{network_id}'].tank_draw_ratios",
-    )
-    @io.outputs(
-        # "state.energy.nodes['{fuel_tanks}'].fuel.flow_rate",
-        "state.mass.rate_of_change",
-        "state.energy.nodes['{network_id}'].force.thrust",
-        "state.energy.nodes['{network_id}'].residual.thrust",
-        "state.energy.nodes['{network_id}'].residual.power",
-    )
-    def transmit(self, state: State, system: System, settings: Settings):
-
-        # Fuel Burn ------------------------------------------------------------
-        total_fuel_burn = self.apply_domain_op(jnp.sum, state, "fuel", "flow_rate")
-
-        #  Compute fuel fraction
-        total_fuel_mass = jnp.sum(jnp.asarray([t.mass_properties.total for t in self.fuel_tanks]))
-        current_fuel_mass = jnp.sum(jnp.asarray([state.energy.nodes[t.network_id].mass for t in self.fuel_tanks]))
-        fuel_fraction = current_fuel_mass / jnp.where(total_fuel_mass > 1e-6, total_fuel_mass, 1e-6)
-
-        # Extract configuration as pure JAX arrays
-        selector_ratios = jnp.asarray([t.selector_ratio for t in self.fuel_tanks])
-        baseline_draws = jnp.asarray([self.tank_draw_ratios[i] for i in range(len(self.fuel_tanks))])
-
-        # Create the active mask (1.0 if active, 0.0 if inactive)
-        active_mask = jnp.where(selector_ratios[None, :] >= fuel_fraction, 1.0, 0.0)
-
-        # Mask the baseline draws
-        masked_draws = baseline_draws * active_mask
-
-        # Normalize the draws (with a safeguard against division-by-zero if all tanks are inactive)
-        sum_draws = jnp.sum(masked_draws)
-        safe_sum = jnp.where(sum_draws == 0.0, 1.0, sum_draws)
-        balanced_draws = masked_draws / safe_sum
-
-        # Distribute the burn across ALL tanks (inactive ones get multiplied by 0.0)
-        tank_burns = tuple(-balanced_draws[i] * total_fuel_burn for i in range(len(self.fuel_tanks)))
-
-        # Apply updates sequentially
-        updated_state = update(
-            lambda s: tuple(s.energy.nodes[t.network_id].fuel.flow_rate for t in self.fuel_tanks),
-            state,
-            tank_burns,
-        )
-
-        updated_state = update(
-            updated_state,
-            ("mass.rate_of_change", updated_state.mass.rate_of_change - total_fuel_burn),
-        )
-
-        # Total Thrust ---------------------------------------------------------
-
-        updated_state = update(
-            updated_state,
-            (
-                (
-                    "energy.nodes[self.network_id].force.thrust",
-                    self.apply_domain_op(jnp.sum, updated_state, "force", "thrust"),
-                ),
-                (
-                    "energy.nodes[self.network_id].residual.thrust",
-                    self.apply_domain_op(jnp.sum, updated_state, "residual", "thrust"),
-                ),
-            ),
-        )
-
-        # Power Imbalance ------------------------------------------------------
-
-        updated_state = update(
-            updated_state,
-            lambda s: s.energy.nodes[self.network_id].residual.power,
-            self.apply_domain_op(jnp.sum, updated_state, "residual", "power"),
-        )
-
-        return updated_state, system, settings
-
-
-# Turbofan ---------------------------------------------------------------------
-
-
-def _TurbofanLineSetup():
-    return TurbofanEngine(), FuelTank()
-
-
-def TurbofanLine(**kwargs):
-
-    if "subcomponents" not in kwargs:
-        kwargs["subcomponents"] = _TurbofanLineSetup()
-
-    return TurbojetLine(**kwargs)

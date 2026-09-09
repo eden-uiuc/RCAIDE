@@ -2,11 +2,10 @@
 import json
 from pathlib import Path
 
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 
-from ....utils import empty_array, field
+from ....utils import Module, empty_array, field
 from ....utils.typing import ScalarFloat
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -69,7 +68,7 @@ def interp_2d_extrapolate(x, y, x_grid, y_grid, z_table):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class CompressorMap(eqx.Module):
+class CompressorMap(Module):
     name: str = field("Compressor Map", static=True)
 
     # 1D Grid Axes
@@ -171,7 +170,7 @@ class CompressorMap(eqx.Module):
         )
 
 
-class TurbineMap(eqx.Module):
+class TurbineMap(Module):
     name: str = field("Turbine Map", static=True)
 
     # 1D Grid Axes

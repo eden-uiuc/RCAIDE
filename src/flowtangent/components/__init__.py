@@ -21,18 +21,12 @@ from .energy.networks import (
 )
 
 __all__ = [
-    # Airfoils
     "Airfoil",
-    # Fuselages
     "Fuselage",
-    # Wings
     "Wing",
     "ControlSurface",
-    # Nacelles
     "Nacelle",
-    # LandingGear,
     "LandingGear",
-    # Energy
     "PACTNode",
     "PACTLine",
     "PACTNetwork",

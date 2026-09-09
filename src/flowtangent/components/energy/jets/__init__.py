@@ -1,3 +1,5 @@
+import sys
+
 from ._classes import (
     Inlet,
     Compressor,
@@ -12,10 +14,12 @@ from ._classes import (
     JetGeometry,
     JetKinematics,
     FanKinematics,
+    TurbojetLine,
+    TurbojetNetwork,
+    TurbofanLine,
+    TurbofanNetwork,
+    JetNetParameters
 )
-
-from ...energy.networks import TurbojetNetwork, TurbofanNetwork, JetNetParameters
-from ...energy.lines import TurbojetLine
 
 from . import _data as data
 __all__ = [
@@ -35,5 +39,6 @@ __all__ = [
     "TurbojetNetwork",
     "TurbofanNetwork",
     "JetNetParameters",
-    "TurbojetLine"
+    "TurbojetLine",
+    "TurbofanLine",
 ]

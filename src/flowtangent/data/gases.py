@@ -1,4 +1,4 @@
-# flowtangent/Library/Gases.py
+# flowtangent/data/gases.py
 # (c) Copyright 2025 Aerospace Research Community LLC
 #
 # Created: Apr 2025, Flowtangent Team
@@ -11,14 +11,14 @@ from functools import lru_cache
 from typing import Optional
 
 # package imports
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
 
+from ..utils import Module, io
+
 # Flowtangent imports
-from flowtangent.data import units
-from flowtangent.utils.io import _ft_root
+from . import units
 
 jax.config.update("jax_enable_x64", True)
 
@@ -26,7 +26,7 @@ jax.config.update("jax_enable_x64", True)
 #  Thermo Database
 # ----------------------------------------------------------------------------------------------------------------------
 
-_DB_PATH = _ft_root() / "data/thermo_database.json"
+_DB_PATH = io._ft_root() / "data/thermo_database.json"
 
 
 @lru_cache(maxsize=1)
@@ -132,7 +132,7 @@ def _eval_s0(T):
     return jnp.where(jnp.expand_dims(T_arr, axis=-1) > NASA_MID, s_high, s_low)
 
 
-class Gas(eqx.Module):
+class Gas(Module):
     mass_fractions: jax.Array
 
     def __init__(self, mass_fractions: Optional[jax.Array] = None, fractions_dict: Optional[dict] = None):
@@ -310,7 +310,7 @@ def BurnedJetA(FAR: float | jax.Array) -> Gas:
     target_shape = FAR_arr.shape + (len(SPECIES_LIST),)
     fractions = jnp.zeros(target_shape, dtype=jnp.float64)
 
-    # 4. Populate using Ellipsis (...) to handle ANY number of batch dimensions!
+    # 4. Populate using Ellipsis (...) to handle batch dimensions
     fractions = fractions.at[..., SPECIES_INDEX["O2"]].set(
         jnp.maximum(m_O2_air - (O2_consumed * FAR_arr), 0.0) / m_total
     )

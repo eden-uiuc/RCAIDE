@@ -93,16 +93,11 @@ def func_flat_plate_friction(Re_w, M, T, x_t=0.0):
     guaranteeing NaN-free evaluation across all branches.
     """
 
-    # 1. Pure turbulent calculation (always safe)
     cf_turb, k_comp_turb, k_reyn_turb = func_compressible_turbulent_flat_plate(Re_w, M, T)
 
-    # 2. Protect the mixed calculation from seeing dangerous 0.0 values!
-    # If x_t is < 0.01, we artificially feed the mixed function 0.01
-    # so it calculates safely and avoids NaN singularities.
     safe_x_t = jnp.maximum(x_t, 0.01)
     cf_mixed, k_comp_mixed, k_reyn_mixed = func_compressible_mixed_flat_plate(Re_w, M, T, safe_x_t)
 
-    # 3. Select the correct outputs based on the true x_t
     is_fully_turbulent = x_t < 0.01
 
     cf_final = jnp.where(is_fully_turbulent, cf_turb, cf_mixed)

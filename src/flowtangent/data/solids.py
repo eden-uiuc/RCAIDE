@@ -5,25 +5,22 @@
 # Imports
 # -------------------------------------------------------------------------------
 
-# package imports
-import equinox as eqx
-
-from flowtangent.utils import field
+from ..utils import Module, static_field
 
 # -------------------------------------------------------------------------------
 # Solid Data Class
 # -------------------------------------------------------------------------------
 
 
-class Solid(eqx.Module):
-    ultimate_tensile_strength: float | None = field(None, static=True)
-    ultimate_shear_strength: float | None = field(None, static=True)
-    ultimate_bearing_strength: float | None = field(None, static=True)
-    yield_tensile_strength: float | None = field(None, static=True)
-    yield_shear_strength: float | None = field(None, static=True)
-    yield_bearing_strength: float | None = field(None, static=True)
-    minimum_gage_thickness: float | None = field(None, static=True)
-    density: float | None = field(None, static=True)
+class Solid(Module):
+    ultimate_tensile_strength: float | None =   static_field(None)
+    ultimate_shear_strength: float | None =     static_field(None)
+    ultimate_bearing_strength: float | None =   static_field(None)
+    yield_tensile_strength: float | None =      static_field(None)
+    yield_shear_strength: float | None =        static_field(None)
+    yield_bearing_strength: float | None =      static_field(None)
+    minimum_gage_thickness: float | None =      static_field(None)
+    density: float | None =                     static_field(None)
 
 
 class Aluminum(Solid):
@@ -35,6 +32,6 @@ class Aluminum(Solid):
             by channeled liquid flow[J]. International journal of heat and mass transfer, 2019, 138: 1178-1187.
     """
 
-    density: float | None = field(2719, static=True)
-    thermal_conductivity: float | None = field(202.4, static=True)
-    specific_heat_capacity: float | None = field(871, static=True)
+    density: float | None =                 static_field(2719)
+    thermal_conductivity: float | None =    static_field(202.4)
+    specific_heat_capacity: float | None =  static_field(871)

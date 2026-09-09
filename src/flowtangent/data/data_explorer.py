@@ -173,7 +173,7 @@ def load_mock_data():
         "QC_Sweep": rng.uniform(0, 60, n_points),
     }
 
-    # Force mock data to align with our discrete grid!
+    # Force mock data to align with discrete grid
     raw_alpha = rng.uniform(-5, 15, n_points)
     data["alpha"] = np.round(raw_alpha / 0.25) * 0.25
 
@@ -247,7 +247,7 @@ def load_exploration_sample(sample_size=5000):
     data = {}
     for key, dask_arr in root.items():
         # .compute() pulls it into RAM
-        # .ravel() squashes it from (N, 1) to (N,) so Pandas doesn't freak out!
+        # .ravel() squashes it from (N, 1) to (N,) for Pandas
         data[key] = dask_arr[sample_idx].compute().ravel()
 
     df = pd.DataFrame(data)
@@ -710,20 +710,20 @@ st.markdown("---")
 # st.subheader("🎛️ Control Dashboard")
 
 # Removed the st.form! Just standard columns now.
-ctrl_col1, c_div1, ctrl_col2, c_div2, ctrl_col3 = st.columns([0.24, 0.02, 0.24, 0.02, 0.48])
+var_col1, c_div1, var_col2, c_div2, var_col3 = st.columns([0.24, 0.02, 0.24, 0.02, 0.48])
 
-with ctrl_col1:
+with var_col1:
     st.markdown("##### 📐 Geometric Bounds")
     ar_bounds = filter_widget("Aspect Ratio", 5.0, 30.0, 15.0, "ar", allow_exact_toggle=False)
     sweep_bounds = filter_widget("QC Sweep (deg)", 0.0, 60.0, 20.0, "sweep", allow_exact_toggle=False)
     taper_bounds = filter_widget("Taper Ratio", 0.1, 1.0, 0.5, "taper", allow_exact_toggle=False)
 
-with ctrl_col2:
+with var_col2:
     st.markdown("##### 💨 Flow Constraints")
     alpha_bounds = filter_widget("Alpha (deg)", -5.0, 15.0, 3.0, "alpha", step=0.25, allow_exact_toggle=True)
     mach_bounds = filter_widget("mach Number", 0.1, 2.0, 0.5, "mach", step=0.05, allow_exact_toggle=True)
 
-with ctrl_col3:
+with var_col3:
     st.markdown("### 🚀 Execute Calculations")
     user_expr = st.text_input("Objective Expression", value="CL / CD")
     top_n = st.number_input("Top N Results", min_value=1, max_value=50, value=5, step=1)

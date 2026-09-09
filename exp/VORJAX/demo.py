@@ -110,12 +110,12 @@ if __name__ == "__main__":
     lift_path   = TreePath(("aerodynamics", "coefficients", "lift", "total"), name="CL")
     
     jac_map = JacobianMap(state_inputs=(alpha_path,), state_outputs=(lift_path,))
-    num_sets = NumericalSettings(jacobian_map=jac_map)
+    num_sets = update(NumericalSettings(), "jacobian.mapping", jac_map)
 
     settings = update(
         Settings(DEBUG_MODE=True),
         (
-            ("analysis.aerodynamics", VORJAXSettings(vortices=panelization),
+            ("analysis.aerodynamics", VORJAXSettings(vortices=panelization)),
             ("numerical", num_sets),
         ),
     )
@@ -126,4 +126,4 @@ if __name__ == "__main__":
     fig = plot_vlm_panels(vd)
     fig.show()
 
-    print("Done!")
+    print("Done.")

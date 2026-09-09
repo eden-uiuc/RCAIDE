@@ -29,7 +29,7 @@ from jax import Array
 from tqdm import trange
 from plotly.subplots import make_subplots
 
-import flowtangent.utils as tu
+import flowtangent.utils as ftu
 
 from flowtangent.data import units
 from flowtangent.library.components import Areas
@@ -140,7 +140,7 @@ def run_AVL_alpha_sweep(avl_file, alpha, run_name, oper_mode="st"):
         return []
 
     if "Stop" in result.stdout or result.returncode != 0:
-        print("AVL encountered an error!")
+        print("AVL encountered an error.")
         print(result.stdout)
 
     print(f"Done. Saved stability data to {len(output_files)} individual files.")
@@ -302,7 +302,7 @@ def VORJAX_elliptical_wing(AR=10., n_segments=1):
             name=f"{i}", 
             percent_span_location=eta_start, 
             root_chord_percent=chord_frac_start,
-            sweeps=Sweeps(quarter_chord=sweep_c4)  # Inject sweep here!
+            sweeps=Sweeps(quarter_chord=sweep_c4)
         ),)
 
     # Tip segment doesn't need a sweep since there's no geometry after it
@@ -1479,7 +1479,7 @@ def plot_transonic_tuning(mach, cl_su2, cl_vorjax, M_sub, M_sup):
     fig.add_trace(go.Scatter(
         x=mach_su2_masked, y=cl_su2_masked, # Align with SU2 points
         mode='markers', name='Spline Error',
-        marker=dict(opacity=0), # Invisible!
+        marker=dict(opacity=0),
         showlegend=False,
         customdata=error_pct,
         hovertemplate='%{customdata:+.2f}%' # Shows like "+5.23%" or "-2.10%"
@@ -1595,22 +1595,22 @@ def plot_transonic_tuning_mpl(mach, cl_su2, cl_vorjax, M_sub, M_sup):
 
 if __name__ == "__main__":
 
-    os.chdir(tu.get_Flowtangent_root())
+    os.chdir(ftu.get_Flowtangent_root())
 
-    mach_path   = tu.TreePath(("freestream", "mach_number"), name="M")
-    alpha_path  = tu.TreePath(("aerodynamics", "angles", "alpha"), name="a")
-    beta_path   = tu.TreePath(("aerodynamics", "angles", "beta"), name="b")
+    mach_path   = ftu.TreePath(("freestream", "mach_number"), name="M")
+    alpha_path  = ftu.TreePath(("aerodynamics", "angles", "alpha"), name="a")
+    beta_path   = ftu.TreePath(("aerodynamics", "angles", "beta"), name="b")
 
-    p_path      = tu.TreePath(("stability", "static", "roll_rate"), name="p")
-    q_path      = tu.TreePath(("stability", "static", "pitch_rate"), name="q")
-    r_path      = tu.TreePath(("stability", "static", "yaw_rate"), name="r")
+    p_path      = ftu.TreePath(("stability", "static", "roll_rate"), name="p")
+    q_path      = ftu.TreePath(("stability", "static", "pitch_rate"), name="q")
+    r_path      = ftu.TreePath(("stability", "static", "yaw_rate"), name="r")
     
-    lift_path   = tu.TreePath(("aerodynamics", "coefficients", "lift", "total"), name="CL")
-    drag_path   = tu.TreePath(("aerodynamics", "coefficients", "drag", "total"), name="CD")
+    lift_path   = ftu.TreePath(("aerodynamics", "coefficients", "lift", "total"), name="CL")
+    drag_path   = ftu.TreePath(("aerodynamics", "coefficients", "drag", "total"), name="CD")
     
-    i_drag_path = tu.TreePath(("aerodynamics", "coefficients", "drag", "induced", "total"))
-    nf_drag_path = tu.TreePath(("aerodynamics", "coefficients", "drag", "induced", "near_field"))
-    ff_drag_path = tu.TreePath(("aerodynamics", "coefficients", "drag", "induced", "far_field"))
+    i_drag_path = ftu.TreePath(("aerodynamics", "coefficients", "drag", "induced", "total"))
+    nf_drag_path = ftu.TreePath(("aerodynamics", "coefficients", "drag", "induced", "near_field"))
+    ff_drag_path = ftu.TreePath(("aerodynamics", "coefficients", "drag", "induced", "far_field"))
 
     GRAD_MAP = JacobianMap(
         state_inputs=(
@@ -1662,9 +1662,9 @@ if __name__ == "__main__":
 
             f_st, f_sys, f_setts = results
 
-            CL = tu.get_target(f_st, lift_path)
-            CD = tu.get_target(f_st, tu.TreePath(("aerodynamics", "coefficients", "drag", "total")))
-            C_m = tu.get_target(f_st, tu.TreePath(("aerodynamics", "coefficients", "moments", "pitch")))
+            CL = ftu.get_target(f_st, lift_path)
+            CD = ftu.get_target(f_st, ftu.TreePath(("aerodynamics", "coefficients", "drag", "total")))
+            C_m = ftu.get_target(f_st, ftu.TreePath(("aerodynamics", "coefficients", "moments", "pitch")))
 
             data = f_sys.analysis_data
             # VORJAX_dCp = np.round(np.asarray(data["dCp"]), 5)
@@ -1721,7 +1721,7 @@ if __name__ == "__main__":
                 )
                 f_st, f_sys, f_setts, jac = results
 
-                CL.append(tu.get_target(f_st, lift_path).item(0))
+                CL.append(ftu.get_target(f_st, lift_path).item(0))
                 grad_AD.append(jac.item(0))
                 error_AD.append(abs(jac.item(0) - grad_truth)/grad_truth)
 
@@ -1766,7 +1766,7 @@ if __name__ == "__main__":
                         vehicle,
                         alpha=(2.0 * units.deg) + h, Mach=0.00,
                         debug_mode=DEBUG)
-                    CL_fwd = tu.get_target(res_fwd[0], lift_path).item(0)
+                    CL_fwd = ftu.get_target(res_fwd[0], lift_path).item(0)
                     
                     # Backward Step
                     res_bwd = VORJAX_test_run(
@@ -1774,7 +1774,7 @@ if __name__ == "__main__":
                         alpha=(2.0 * units.deg) - h,
                         Mach=0.00,
                         debug_mode=DEBUG)
-                    CL_bwd = tu.get_target(res_bwd[0], lift_path).item(0)
+                    CL_bwd = ftu.get_target(res_bwd[0], lift_path).item(0)
                     
                     # Central Difference
                     g_FD = (CL_fwd - CL_bwd) / (2 * h)
@@ -1827,10 +1827,10 @@ if __name__ == "__main__":
                 
                 f_st, f_sys, f_setts, jac = results
 
-                CDnf.append(tu.get_target(f_st, nf_drag_path).item(0))
+                CDnf.append(ftu.get_target(f_st, nf_drag_path).item(0))
                 grad_nf.append(jac.item(0))
                 
-                CDff.append(tu.get_target(f_st, ff_drag_path).item(0))
+                CDff.append(ftu.get_target(f_st, ff_drag_path).item(0))
                 grad_ff.append(jac.item(1))
             
             save_plot_cache(
@@ -1889,7 +1889,7 @@ if __name__ == "__main__":
                 peak_vram = info.used / (1024 ** 3)
                 vram_gb.append(peak_vram)
 
-                CL.append(tu.get_target(f_st, lift_path).item(0))
+                CL.append(ftu.get_target(f_st, lift_path).item(0))
                 grad_AD.append(jac.item(0))
                 error_AD.append(abs(jac.item(0) - grad_jones)/grad_jones)
 
@@ -1926,7 +1926,7 @@ if __name__ == "__main__":
                     debug_mode=DEBUG
                 )
 
-                CL.append(tu.get_target(f_st, lift_path).item(0))
+                CL.append(ftu.get_target(f_st, lift_path).item(0))
                 grad_AD.append(jac.item(0))
 
                 if PLOT_WINGS:
@@ -1966,8 +1966,8 @@ if __name__ == "__main__":
             )
             f_st, f_sys, f_setts, jac = results
 
-            CL  = tu.get_target(f_st, lift_path)
-            CDi = tu.get_target(f_st, i_drag_path)
+            CL  = ftu.get_target(f_st, lift_path)
+            CDi = ftu.get_target(f_st, i_drag_path)
             dCL_dMach = jnp.array([jac[i, 0, i] for i in range(len(alpha))]).reshape(CL.shape)
 
             cache_path = Path(os.path.join(os.path.dirname(__file__), 'SU2_Test_Cases/su2_run_cache.json'))

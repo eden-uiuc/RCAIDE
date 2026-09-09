@@ -10,6 +10,7 @@
 from typing import Optional
 
 import jax
+
 from ..utils import Module, empty_array, field, update
 
 # package imports

@@ -1,4 +1,4 @@
-# flowtangent/Library/Planets.py
+# flowtangent/data/planets.py
 # (c) Copyright 2025 Aerospace Research Community LLC
 #
 # Created: May 2025, Flowtangent Team
@@ -7,21 +7,18 @@
 #  IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
 
-# package imports
-import equinox as eqx
-
-from flowtangent.data import units
-from flowtangent.utils import field
+from ..utils import Module, static_field
+from . import units
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Planets
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class Planet(eqx.Module):
-    mass: float = field(0.0, static=True)
-    mean_radius: float = field(0.0, static=True)
-    sea_level_gravity: float = field(0.0, static=True)
+class Planet(Module):
+    mass: float = static_field(0.0)
+    mean_radius: float = static_field(0.0)
+    sea_level_gravity: float = static_field(0.0)
 
     def compute_gravity(self, altitude: float = 0.0) -> float:
 
@@ -29,7 +26,7 @@ class Planet(eqx.Module):
 
 
 class Earth(Planet):
-    mass: float = field(5.972e24 * units.kg, static=True)
-    mean_radius: float = field(6371e3 * units.m, static=True)
-    sea_level_gravity: float = field(9.80665 * units.parse("m / s**2"), static=True)
-    HitchHikersGuide: str = field("MostlyHarmless", static=True)
+    mass: float = static_field(5.972e24 * units.kg)
+    mean_radius: float = static_field(6371e3 * units.m)
+    sea_level_gravity: float = static_field(9.80665 * units.parse("m / s**2"))
+    HitchHikersGuide: str = static_field("MostlyHarmless")

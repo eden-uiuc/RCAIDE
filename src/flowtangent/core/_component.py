@@ -9,30 +9,28 @@
 
 
 from __future__ import annotations
-
 from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
     pass
 
+from dataclasses import fields
 from typing import Any, Optional
 
 # package imports
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 
-from flowtangent.data.solids import Aluminum, Solid
+from ..data.solids import Aluminum, Solid
 
 # Flowtangent imports
-from flowtangent.utils import field, update
+from ..utils import Module, TreePathLike, field, update
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Component
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class Fineness(eqx.Module):
+class Fineness(Module):
     # Attribute     Type    Default Value
     effective: float = 1.0
     nose: float = 0.0
@@ -42,7 +40,7 @@ class Fineness(eqx.Module):
         return f"Eff.: {self.effective}"
 
 
-class Dimensions(eqx.Module):
+class Dimensions(Module):
     # Attribute         Type    Default Value
     ordinal_direction: bool = field(False, static=True)
 
@@ -60,7 +58,7 @@ class Dimensions(eqx.Module):
         return ""
 
 
-class Areas(eqx.Module):
+class Areas(Module):
     # Attribute         Type    Default Value
     reference: float = 0.0
     total: float = 0.0
@@ -85,7 +83,7 @@ class Areas(eqx.Module):
         return ""
 
 
-class MaterialProperties(eqx.Module):
+class MaterialProperties(Module):
     # Attribute                 Type        Default Value
     tensile_stress_carrier: Solid = field(Aluminum)
     torsional_stress_carrier: Solid = field(Aluminum)
@@ -95,7 +93,7 @@ class MaterialProperties(eqx.Module):
         return ""
 
 
-class MassProperties(eqx.Module):
+class MassProperties(Module):
     # Attribute                         Type        Default Value
     total: float = 0.0
     empty: float = 0.0
@@ -112,9 +110,8 @@ class MassProperties(eqx.Module):
         return ""
 
 
-class Component(eqx.Module):
-    name: str = field("Component", static=True)
-    is_control_component: bool = field(False, static=True)
+class Component(Module):
+    is_variable_component: bool = field(False, static=True)
 
     segments: tuple[Component, ...] = field(tuple)
     subcomponents: tuple[Component, ...] = field(tuple)
@@ -135,8 +132,16 @@ class Component(eqx.Module):
 
     _bookkeeping: dict[str, Any] = field(dict, static=True)
 
+    # @property
+    # def subcomponents(self):
+    #     return tuple(
+    #         getattr(self, f.name)
+    #         for f in fields(self)
+    #         if f.name != "subcomponents" and isinstance(getattr(self, f.name), Component)
+    #     )
+
     def __repr__(self):
-        repr_str = self.name + " - Subcomponents: (" + ", ".join([sc.name for sc in self.subcomponents]) + ")"
+        repr_str = getattr(self, "name", self.__class__.__name__) + " - Subcomponents: (" + ", ".join([getattr(sc, "name", "Unknown Subcomponent") for sc in self.subcomponents]) + ")"
         return repr_str
 
     def __getitem__(self, item):
@@ -156,7 +161,7 @@ class Component(eqx.Module):
             filtered_subs = tuple(c for c in self.subcomponents if isinstance(c, target_class))
             return Component(name=item.replace("_", " ").title(), subcomponents=filtered_subs)
         for sc in self.subcomponents:
-            if hasattr(sc, "get_field_name") and sc.get_field_name() == item:
+            if hasattr(sc, "field_name") and sc.field_name == item:
                 return sc
         raise AttributeError(f"'{self.__class__.__name__}' has no attribute '{item}'")
 
@@ -171,20 +176,9 @@ class Component(eqx.Module):
 
     def __contains__(self, item):
         if isinstance(item, str):
-            return any(sc.get_field_name() == item for sc in self.subcomponents)
+            return any(sc.field_name == item for sc in self.subcomponents)
 
         return item in self.subcomponents
-
-    def get_field_name(self):
-        actual_tag = self.name
-
-        if not isinstance(actual_tag, str):
-            if hasattr(actual_tag, "value"):
-                actual_tag = actual_tag.value
-            else:
-                raise AttributeError(f"Unable to resolve field name for {self}.")
-
-        return actual_tag.replace(" ", "_").lower()
 
     def add_segment(self, segment: "Component", index: int | None = None):
         if index is None:
@@ -239,7 +233,6 @@ class Component(eqx.Module):
         return update(self, "subcomponents", new_subcomponents)
 
 
-class ControlComponent(Component):
-    is_control_component: bool = field(True, static=True)
-    control_path: tuple[str, ...] | None = field(tuple, static=True)
-    control_path_indices: tuple | None = field(lambda: (slice(None), 0), static=True)
+class VariableComponent(Component):
+    is_variable_component: bool = field(True, static=True)
+    state_path: TreePathLike = field(tuple, static=True)

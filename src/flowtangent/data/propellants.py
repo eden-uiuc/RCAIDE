@@ -7,40 +7,36 @@
 #  IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
 
-# package imports
-import equinox as eqx
-
 # Flowtangent imports
-from flowtangent.data import units
-from flowtangent.data.gases import O2, BurnedJetA, Gas
-from flowtangent.utils import field
+from ..utils import Module, field, static_field
+from . import units
+from .gases import O2, BurnedJetA, Gas
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Propellants
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class MaxPropellantMassFractions(eqx.Module):
-    Air: float = field(0.0, static=True)
-    O2: float = field(0.0, static=True)
+class MaxPropellantMassFractions(Module):
+    Air: float = static_field(0.0)
+    O2: float = static_field(0.0)
 
 
-class PropellantTemperatures(eqx.Module):
-    flash: float = field(0.0, static=True)
-    autoignition: float = field(0.0, static=True)
-    freeze: float = field(0.0, static=True)
-    boiling: float = field(0.0, static=True)
+class PropellantTemperatures(Module):
+    flash: float = static_field(0.0)
+    autoignition: float = static_field(0.0)
+    freeze: float = static_field(0.0)
+    boiling: float = static_field(0.0)
 
 
-class Propellant(eqx.Module):
-    name: str = field("Propellant", static=True)
+class Propellant(Module):
 
     oxidizer: Gas = field(Gas)
 
-    density: float = field(0.0, static=True)
-    specific_energy: float = field(0.0, static=True)
-    energy_density: float = field(0.0, static=True)
-    enthalpy_of_formation: float = field(0.0, static=True)
+    density: float = static_field(0.0)
+    specific_energy: float =        static_field(0.0)
+    energy_density: float =         static_field(0.0)
+    enthalpy_of_formation: float =  static_field(0.0)
 
     max_mass_fraction: MaxPropellantMassFractions = field(MaxPropellantMassFractions)
     temperatures: PropellantTemperatures = field(PropellantTemperatures)
@@ -65,15 +61,15 @@ def _JetATemperatures():
 class JetA(Propellant):
     oxidizer: Gas = field(O2)
 
-    density: float = field(820.0, static=True)
+    density: float = static_field(820.0)
 
     # Specific energy is higher than reference value (43.15 MJ/kg) due to stoichiometric burn assumption
-    specific_energy: float = field(42.7984e6 * units.parse("J/kg"), static=True)
-    energy_density: float = field(35.3e6 * units.parse("J/m**3"), static=True)
+    specific_energy: float = static_field(42.7984e6 * units.parse("J/kg"))
+    energy_density: float =  static_field(35.3e6 * units.parse("J/m**3"))
 
-    max_mass_fraction: MaxPropellantMassFractions = field(_JetAFractions, static=True)
+    max_mass_fraction: MaxPropellantMassFractions = static_field(_JetAFractions)
 
-    temperatures: PropellantTemperatures = field(_JetATemperatures, static=True)
+    temperatures: PropellantTemperatures = static_field(_JetATemperatures)
 
     def oxidized_form(self, FAR):
         return BurnedJetA(FAR)

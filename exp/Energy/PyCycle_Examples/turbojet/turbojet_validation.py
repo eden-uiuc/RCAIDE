@@ -1,35 +1,3 @@
-import os
-import sys
-
-def numerical_environment():
-    # 1. JAX Memory/Precision Config (Safe everywhere)
-    os.environ["JAX_ENABLE_X64"] = "True"
-    
-    # 2. NUMA / Hardware Auto-Detection
-    if sys.platform == "linux":
-        # A simple heuristic: if you have a massive amount of cores, 
-        # it's likely the Threadripper workstation.
-        cpu_count = os.cpu_count() or 1
-        if cpu_count > 16:  # Adjust threshold based on your hardware
-            try:
-                # Bind to the first 16 cores (Node 0) to prevent cross-NUMA memory latency
-                node_0_cores = set(range(16))
-                os.sched_setaffinity(0, node_0_cores)
-                
-                # Tell OpenMP to respect this boundary
-                os.environ["OMP_PROC_BIND"] = "true"
-                os.environ["OMP_PLACES"] = "cores"
-                print(f"Hardware Config: NUMA affinity set to Node 0 (16 cores).")
-            except Exception as e:
-                print(f"Hardware Config Warning: Could not set CPU affinity: {e}")
-
-    cache_path = os.path.expanduser("~/.eden_trace/jax_cache")
-    os.makedirs(cache_path, exist_ok=True)
-    os.environ["JAX_COMPILATION_CACHE_DIR"] = cache_path
-
-
-numerical_environment()
-
 import flowtangent as ft
 
 import json
@@ -159,7 +127,7 @@ def off_design_point(
     M0 = op_point.mach_number
     thrust = op_point.thrust
 
-    atmo = des.atmosphere_model
+    atmo = des.atmosphere
     a0 = atmo.compute_speed_of_sound(alt)
 
     od_state = eqx.tree_at(
@@ -337,12 +305,12 @@ if __name__ == "__main__":
     
     # Control Board
     DEV = False
-    DEBUG = False
+    DEBUG = True
     VERBOSE = True
 
     STATICS = False
 
-    DESIGN_POINT = False
+    DESIGN_POINT = True
     OFF_DESIGN_0 = True
     OFF_DESIGN_1 = True
 
@@ -358,6 +326,7 @@ if __name__ == "__main__":
                  logging=LoggingSettings(log_dir=test_dir/"ft_logs")),
         JetSettings(design_mode=DESIGN_POINT, statics=STATICS)
     )
+
     configure_environment(settings)
     
 
