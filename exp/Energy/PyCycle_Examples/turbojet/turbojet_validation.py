@@ -34,7 +34,6 @@ import flowtangent as ft
 
 import json
 
-import jax
 import jax.numpy as jnp
 import equinox as eqx
 import numpy as np
@@ -44,12 +43,10 @@ from pathlib import Path
 from dataclasses import replace
 
 
-from flowtangent.utils import save_data, load_data, format_array, configure_environment, LoggingSettings
+from flowtangent.utils import save_data, load_data, format_array, configure_environment, LoggingSettings, update
 
 from flowtangent.data import units
 from flowtangent.components.energy.jets import TurbojetEngine, TurbojetOpPoint, TurbojetLine, TurbojetNetwork, JetNetParameters
-
-from flowtangent import State, Aircraft, Settings
 from flowtangent.solve.energy.jets import build_turbojet_design, build_turbojet_performance, JetSettings
 from flowtangent.sim.initialize import initialize_energy
 from flowtangent.sim.update import update_freestream
@@ -145,25 +142,22 @@ def system_setup():
     
     net = TurbojetNetwork(subcomponents=(line,), design_parameters=net_design)
     
-    sys = Aircraft(name="Simple Turbojet System", subcomponents=(net,))
+    sys = ft.Aircraft(name="Simple Turbojet System", subcomponents=(net,))
 
     return sys
 
 def off_design_point(
-    M0: float,
-    alt: float,
-    thrust: float,
-    system: Aircraft,
-    settings: Settings,
-    initial_Rline: float | jax.Array = 2.0,
-    initial_turb_PR: float | jax.Array = 5.0,
-    initial_RPM: float | jax.Array = 1000 * units.rpm,
-    initial_MFR: float | jax.Array = 100 * units.kg / units.s,
-    initial_FAR: float | jax.Array = 1e-4,
+    system: ft.Aircraft,
+    settings: ft.Settings,
+    op_point: TurbojetOpPoint
 ):
 
     network: TurbojetNetwork = system.energy
     des: JetNetParameters = network.design_parameters
+
+    alt = op_point.altitude
+    M0 = op_point.mach_number
+    thrust = op_point.thrust
 
     atmo = des.atmosphere_model
     a0 = atmo.compute_speed_of_sound(alt)
@@ -182,14 +176,7 @@ def off_design_point(
         ),
     )
 
-    od_analysis = build_turbojet_performance(
-        network,
-        initial_Rline,
-        initial_turb_PR,
-        initial_RPM,
-        initial_MFR,
-        initial_FAR,
-    )
+    od_analysis = build_turbojet_performance(network, op_point)
 
     od_state, od_system, od_settings = initialize_energy(od_state, system, settings)
     od_state, od_system, od_settings = update_freestream(od_state, od_system, od_settings)
@@ -367,7 +354,7 @@ if __name__ == "__main__":
     system = system_setup()
     settings = eqx.tree_at(
         lambda s: s.analysis.energy,
-        Settings(_DEV_MODE=DEV, DEBUG_MODE=DEBUG, verbose=VERBOSE,
+        ft.Settings(_DEV_MODE=DEV, DEBUG_MODE=DEBUG, verbose=VERBOSE,
                  logging=LoggingSettings(log_dir=test_dir/"ft_logs")),
         JetSettings(design_mode=DESIGN_POINT, statics=STATICS)
     )
@@ -396,8 +383,8 @@ if __name__ == "__main__":
         validation_df.to_csv(data_dir / "DESIGN_validation.csv")
      
     else:
-        des_sys: Aircraft = load_data(data_dir / "turbojet.fts")
-    
+        des_sys: ft.Aircraft = load_data(data_dir / "turbojet.fts")
+
     des_sys = des_sys.update_network_topology()
 
     print("="*80)
@@ -438,18 +425,22 @@ if __name__ == "__main__":
         print("="*80)
         print(" Off Design Point 0 Analysis")
         print("-"*80)
+
+        OD0 = TurbojetOpPoint(
+            mach_number=1e-6,
+            altitude = 0.0,
+            thrust = 11_000 * units.lbf,
+            compressor_Rline = 2.0,
+            turbine_PR = 3.88,
+            rotation_speed = 8197.38 * units.rpm,
+            mass_flow_rate = 70.0,
+            FAR = 0.0168
+        )
         
         OD0_st, OD0_sys, OD0_set = off_design_point(
-            M0=1e-6,
-            alt=0.0,
-            thrust=11_000 * units.lbf,
             system=des_sys,
             settings=settings,
-            initial_Rline=2.0,
-            initial_turb_PR=3.88,
-            initial_RPM=8197.38 * units.rpm,
-            initial_MFR=70.00,
-            initial_FAR=0.0168,
+            op_point=OD0
         )
 
         OD0_df = validate_design_point(
@@ -465,26 +456,30 @@ if __name__ == "__main__":
         print("="*80)
         print(" Off Design Point 1 Analysis")
         print("-"*80)
+
+        OD1 = TurbojetOpPoint(
+            mach_number=0.2,
+            altitude = 5_000 * units.ft,
+            thrust = 8_000 * units.lbf,
+            compressor_Rline = 2.0,
+            turbine_PR = 4.669,
+            rotation_speed = 8197.38 * units.rpm,
+            mass_flow_rate = 168.45 * units.parse('lbm/s'),
+            FAR = 0.0168
+        )
         
         OD1_st, OD1_sys, OD1_set = off_design_point(
-            M0=0.2,
-            alt=5_000 * units.ft,
-            thrust=8_000 * units.lbf,
             system=des_sys,
             settings=settings,
-            initial_Rline= 2.0,
-            initial_turb_PR=4.669,
-            initial_RPM= 8197.38 * units.rpm,
-            initial_MFR= 168.45 * units.parse('lbm/s'),
-            initial_FAR= 0.01680,
+            op_point=OD1
         )
 
-        OD0_df = validate_design_point(
+        OD1_df = validate_design_point(
             data_dir / "turbojet_OD1.json",
             OD1_st,
             point_name="Off Design 1"
         )
-        OD0_df.to_csv(data_dir / "OD1_validation.csv")
+        OD1_df.to_csv(data_dir / "OD1_validation.csv")
 
     
     
