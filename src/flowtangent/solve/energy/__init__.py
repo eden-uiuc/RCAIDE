@@ -7,7 +7,8 @@
 #  IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
 
-from ._energy_network import build_PACT_analysis as PACTAnalysis  # noqa: N812
+from ._energy_network import PACTAnalysis
+
 from .jets import (
     JetSettings,
     build_turbofan_design,

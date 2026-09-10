@@ -12,11 +12,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    pass
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
     from .. import Settings, State, System
+    from . import JacobianMap
 
 import contextlib
 import io
@@ -235,7 +232,7 @@ class Variable(Module):
     """
 
     state_path: ftu.TreePath = ftu.static_field(ftu.TreePath)
-    initial_value: Optional[ftu.TimeScalar | ftu.ScalarFloat] = None
+    initial_value: Optional[ftu.TimeScalar | ftu.ScalarFloat] = ftu.field(None)
     bounds: tuple[ftu.ScalarFloat, ftu.ScalarFloat] = ftu.static_field((-1e6, 1e6))
 
     scaling: Literal[
@@ -360,7 +357,6 @@ class Residual(Module):
 
 
 class ImplicitAnalysis(Process):
-    name: str = ftu.field("Implicit Analysis")
 
     analyze: Process = ftu.field(Process)
     solver: Any | str = ftu.method_field(optx.LevenbergMarquardt)
@@ -372,14 +368,42 @@ class ImplicitAnalysis(Process):
     def __init__(
         self,
         analyze: Process = Process(name="Implicit Analysis Forward Pass"),
+        name: ftu.NameType = "ImplicitAnalysis",
         solver: Any | str = optx.LevenbergMarquardt,
         solver_options: Optional[dict] = None,
         variables: tuple[Variable, ...] = (),
         residuals: tuple[Residual, ...] = (),
-        **kwds,
+        *,
+        initial_step: int = 0,
+        _initial_state: Optional[State] = None,
+        _initial_system: Optional[System] = None,
+        _initial_settings: Optional[Settings] = None,
+        _val_and_jac_fn: Optional[Callable] = None,
+        _cached_grad_map: Optional[JacobianMap] = None,
+        _filter_map: Optional[dict] = None,
+        
     ) -> None:
-        super().__init__(**kwds)
 
+        # Standard field assignments
+        self.name = name
+        self.function = ftu.null_step
+        self.initial_step = initial_step
+        self._initial_state = _initial_state
+        self._initial_system = _initial_system
+        self._initial_settings = _initial_settings
+        self._val_and_jac_fn = _val_and_jac_fn
+        self._cached_grad_map = _cached_grad_map
+
+        # Handle mutable dictionary default safely
+        self._filter_map = (
+            _filter_map
+            if _filter_map is not None
+            else {
+                "energy": r"state\.energy\.nodes\.\[*\].",
+            }
+        )
+
+        # Implicit specific attributes
         self.analyze = analyze
         self.solver = solver
         self.solver_options = solver_options
@@ -604,42 +628,19 @@ class ImplicitAnalysis(Process):
         system: System,
         settings: Settings,
     ):
-        
-        # MOVED TO PROCESS BASE CLASS
-        # # Partition inputs to avoid tracing the entire state and system trees
-        # active_paths = [p.split(":")[0].strip() for p in self.analyze.full_io]
-        # active_ids = set()
 
-        # ctx = {"state": state, "system": system}
-        # for io_str in active_paths:
-        #     try:
-        #         target_obj = eval(io_str, {}, ctx)
-        #         leaves = jax.tree_util.tree_leaves(target_obj)
-        #         for leaf in leaves:
-        #             if eqx.is_array_like(leaf):
-        #                 active_ids.add(id(leaf))
-        #     except Exception as e:
-        #         warnings.warn(f"Failed to evaluate IO dependency '{io_str}': {e}")
-
-        # dyn_state, stat_state, state_mask = ftu.id_partition(state, active_ids)
-        # dyn_system, stat_system, system_mask = ftu.id_partition(system, active_ids)
-
-        # if settings._DEV_MODE:
-        #     ftu.inspect_leaves(state, state_mask, settings, tree_name="state", depth=3)
-        #     ftu.inspect_leaves(system, system_mask, settings, tree_name="system", depth=3)
+        dyn_state, stat_state, state_mask, dyn_system, stat_system, system_mask = self._partition_inputs(
+            state, system, settings
+        )
 
         # Residual closure defined in _run_solver scope to avoid tracing self argument if it were a bound method
-
-        dyn_state = state
-        dyn_system = system
-
         @eqx.filter_jit
         def get_residuals(variable_values, args):
 
-            full_state, full_system = args
+            r_state, r_system = args
 
-            # full_state = eqx.combine(r_state, stat_state)
-            # full_system = eqx.combine(r_system, stat_system)
+            full_state = eqx.combine(r_state, stat_state)
+            full_system = eqx.combine(r_system, stat_system)
 
             if settings.DEBUG_MODE:
                 global _analysis_stack, _trace_count
@@ -651,11 +652,11 @@ class ImplicitAnalysis(Process):
                 print(f"\n--- {self.name.upper()} PASS {_trace_count[_analysis_stack.index(self.name)]} ---")
 
             variable_state = self._update_variables(full_state, variable_values, settings)
-            updated_r_state, updated_r_system, analysis_settings = self.analyze(variable_state, full_system, settings)
+            analysis_state, analysis_system, analysis_settings = self.analyze(variable_state, full_system, settings)
 
-            res = self._get_residual_array(updated_r_state, analysis_settings)
-            # updated_r_state, _ = eqx.partition(updated_r_state, state_mask)
-            # updated_r_system, _ = eqx.partition(updated_r_system, system_mask)
+            res = self._get_residual_array(analysis_state, analysis_settings)
+            updated_r_state, _ = eqx.partition(analysis_state, state_mask)
+            updated_r_system, _ = eqx.partition(analysis_system, system_mask)
 
             return res, (updated_r_state, updated_r_system)
 
@@ -812,12 +813,9 @@ class ImplicitAnalysis(Process):
                 settings,
                 solver_options,
             )
-        # if settings.numerical.partition_inputs:
-        #     full_state = eqx.combine(f_st, stat_state)
-        #     full_system = eqx.combine(f_sys, stat_system)
-        # else:
-        full_state = f_st
-        full_system = f_sys
+
+        full_state = eqx.combine(f_st, stat_state)
+        full_system = eqx.combine(f_sys, stat_system)
 
         return f_vars, opt_state, full_state, full_system
 
@@ -868,6 +866,15 @@ class ImplicitAnalysis(Process):
 
         return f_st, f_sys, settings
 
+    @property
+    def steps(self): #type: ignore
+        return self.analyze.steps
+
+    def initialize(self, state: State, system: System, settings:Settings):
+        state, system, settings = array_barrier(state, system, settings)
+        state, system, settings = self.initialize_variables(state, system, settings)
+        return state, system, settings
+
     @overload
     def run(
         self,
@@ -875,7 +882,6 @@ class ImplicitAnalysis(Process):
         system: System,
         settings: Settings,
         *,
-        initialize: bool = ...,
         track_history: Literal[True],
     ) -> tuple[State, System, Settings, Process]: ...
 
@@ -886,27 +892,19 @@ class ImplicitAnalysis(Process):
         system: System,
         settings: Settings,
         *,
-        initialize: bool = ...,
         track_history: Literal[False] = ...,
     ) -> tuple[State, System, Settings]: ...
 
-    def run(self, state: State, system: System, settings: Settings, *, initialize=True, track_history: bool = False):
+    def run(self, state: State, system: System, settings: Settings, *, track_history: bool = False):
 
-        if initialize:
-            state, system, settings = array_barrier(state, system, settings)
-            state, system, settings = self.initialize_variables(state, system, settings)
-
-        if not track_history:
-            return self(state, system, settings)
-
-        if settings.verbose:
-            print(
-                f"Residual analysis '{self.name}' called with track_history enabled. "
-                "History returned will be single forward pass with final input values."
-            )
+        state, system, settings = self.initialize(state, system, settings)
 
         r_st, r_sys, r_setts = self(state, system, settings)
-        f_st, f_sys, f_setts, history = self.analyze.run(
-            r_st, r_sys, r_setts, initialize=initialize, track_history=True
-        )
-        return f_st, f_sys, f_setts, history
+
+        if not track_history:
+            return r_st, r_sys, r_setts
+        else:
+            f_st, f_sys, f_setts, history = self.analyze.run(
+                r_st, r_sys, r_setts, track_history=True
+            )
+            return f_st, f_sys, f_setts, history

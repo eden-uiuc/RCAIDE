@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ... import Aircraft, Process, ProcessStep, Settings, State, System
     from ...components.energy.maps._classes import CompressorMap, TurbineMap
-    from ...components.energy.networks import TurbofanNetwork, TurbojetNetwork
+    from ...components.energy.jets import TurbofanNetwork, TurbojetNetwork
 
 from dataclasses import replace
 
@@ -36,7 +36,7 @@ from ...utils import update
 from .._batched import BatchedAnalysis
 from .._implicit import ImplicitAnalysis, Residual, Variable
 from .._settings import EnergyAnalysisSettings
-from ._energy_network import build_PACT_analysis
+from ._energy_network import PACTAnalysis
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  API Setup
@@ -65,7 +65,7 @@ class JetSettings(EnergyAnalysisSettings):
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-def _design_update(state: State, system: Aircraft, settings: Settings) -> tuple[State, System, Settings, Process]:
+def _design_update(state: State, system: System, settings: Settings) -> tuple[State, System, Settings, Process]:
 
     network: TurbojetNetwork | TurbofanNetwork = system.energy
     engine: TurbojetEngine = network.line.engine
@@ -158,12 +158,12 @@ def _design_update(state: State, system: Aircraft, settings: Settings) -> tuple[
     )
 
     des_state, des_system, des_settings = update_freestream(des_state, des_system, des_settings)
-    base_analysis = build_PACT_analysis(des_system.energy)
+    base_analysis = PACTAnalysis(des_system.energy)
 
     return des_state, des_system, des_settings, base_analysis
 
 
-def build_turbojet_design(state: State, system: Aircraft, settings: Settings) -> tuple[State, Aircraft, Settings]:
+def build_turbojet_design(state: State, system: System, settings: Settings) -> tuple[State, System, Settings, ImplicitAnalysis]:
 
     # Setup test state according to design parameters
 
@@ -354,7 +354,7 @@ def build_turbojet_performance(
 
     return ImplicitAnalysis(
         name="Turbojet Performance",
-        analyze=build_PACT_analysis(network),
+        analyze=PACTAnalysis(network),
         variables=vars,
         residuals=res,
     )
@@ -542,7 +542,7 @@ def build_turbofan_performance(network: TurbofanNetwork):
 
     return ImplicitAnalysis(
         name="Turbofan Performance",
-        analyze=build_PACT_analysis(network),
+        analyze=PACTAnalysis(network),
         variables=vars,
         residuals=res,
     )

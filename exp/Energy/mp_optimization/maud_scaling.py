@@ -1,38 +1,4 @@
-import os
-import sys
-
-def numerical_environment():
-    # 1. JAX Memory/Precision Config (Safe everywhere)
-    os.environ["JAX_ENABLE_X64"] = "True"
-    os.environ['OPENMDAO_REPORTS'] = '0'
-    os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
-    os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
-    os.environ["JAX_PERSISTENT_CACHE_DISABLE"] = "1"
-    os.environ["JAX_PLATFORM_NAME"] = "gpu"
-    
-    # 2. NUMA / Hardware Auto-Detection
-    if sys.platform == "linux":
-        # A simple heuristic: if you have a massive amount of cores, 
-        # it's likely the Threadripper workstation.
-        cpu_count = os.cpu_count() or 1
-        if cpu_count > 16:  # Adjust threshold based on your hardware
-            try:
-                # Bind to the first 16 cores (Node 0) to prevent cross-NUMA memory latency
-                node_0_cores = set(range(16))
-                os.sched_setaffinity(0, node_0_cores)
-                
-                # Tell OpenMP to respect this boundary
-                os.environ["OMP_PROC_BIND"] = "true"
-                os.environ["OMP_PLACES"] = "cores"
-                print(f"Hardware Config: NUMA affinity set to Node 0 (16 cores).")
-            except Exception as e:
-                print(f"Hardware Config Warning: Could not set CPU affinity: {e}")
-
-    cache_path = os.path.expanduser("~/.flowtangent/jax_cache")
-    os.makedirs(cache_path, exist_ok=True)
-    os.environ["JAX_COMPILATION_CACHE_DIR"] = cache_path
-
-numerical_environment()
+import flowtangent as ft
 
 import json
 import time
@@ -64,19 +30,16 @@ warnings.filterwarnings('ignore', category=SolverWarning)
 
 # Import OpenMDAO and FlowTangent models
 from simple_turbojet import Turbojet
-from turbojet_validation import system_setup as ft_turbojet
+from ..PyCycle_Examples.turbojet.turbojet_validation import system_setup as ft_turbojet
 
+from flowtangent import State, Settings, Process
 from flowtangent.utils import TreePath, configure_environment
-from flowtangent.framework import State, Settings, Process
-from flowtangent.core._settings import NumericalSettings, JacobianSettings, JacobianMap
-from flowtangent.framework.analyses.batched import BatchedAnalysis
-from flowtangent.framework.analyses.energy.jets import build_turbojet_design, build_turbojet_performance, JetSettings
-from flowtangent.framework.simulation.initialize import initialize_energy
-from flowtangent.framework.simulation.update import update_freestream
+from flowtangent.solve import NumericalSettings, JacobianSettings, JacobianMap, BatchedAnalysis
+from flowtangent.solve.energy.jets import build_turbojet_design, build_turbojet_performance, JetSettings
+from flowtangent.sim.update import update_freestream
 
 from flowtangent.data import units
-from flowtangent.data.atmospheres import USStandard1976
-from flowtangent.library.components.energy.jets.classes import TurbojetOpPoint
+from flowtangent.components.energy.jets import TurbojetOpPoint
 
 pact_primal_calls = 0
 pact_vjp_calls = 0

@@ -71,6 +71,10 @@ class BatchedAnalysis(Process):
             self.state_inputs = self.state_inputs + var_inputs
             # fmt: on
 
+    @property
+    def steps(self): # type: ignore
+        return self.analyze.steps
+
     def _batch_inputs(self, mode="mesh"):
 
         batch_arrays = []
@@ -138,6 +142,10 @@ class BatchedAnalysis(Process):
         return update(pytree, lambda p: get_all_targets(p, inputs), padded_arrays)
 
     def __call__(self, state: State, system: System, settings: Settings) -> Tuple[State, System, Settings]:
+
+        dyn_state, stat_state, state_mask, dyn_system, stat_system, system_mask = self._partition_inputs(
+            state, system, settings
+        )
 
         batch_size = settings.numerical.batch_size
         batch_mode = settings.numerical.batch_mode

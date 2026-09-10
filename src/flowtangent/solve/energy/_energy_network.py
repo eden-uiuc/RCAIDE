@@ -29,7 +29,6 @@ from ...utils import field, inputs, outputs, parse_io
 
 __all__ = [
     "PACTAnalysis",
-    "build_PACT_analysis",
 ]
 
 
@@ -37,13 +36,69 @@ __all__ = [
 #  Graph Energy Network Analysis
 # ----------------------------------------------------------------------------------------------------------------------
 
+def make_node_function(analysis_network: PACTNetwork, network_id: str):
+    node = analysis_network.nodes[network_id]
+    node_func = node.__class__.transmit
+
+    raw_inputs = getattr(node_func, "_inputs", set())
+    node_inputs = set()
+    for io_str in raw_inputs:
+        node_inputs.update(parse_io(io_str, node))
+
+    raw_outputs = getattr(node_func, "_outputs", set())
+    node_outputs = set()
+    for io_str in raw_outputs:
+        node_outputs.update(parse_io(io_str, node))
+
+    @inputs(*node_inputs)
+    @outputs(*node_outputs)
+    def transmit(state, system, settings):
+        return analysis_network.nodes[network_id].transmit(state, system, settings)
+
+    return transmit
+
+def make_network_function(analysis_network: PACTNetwork):
+    net_func = analysis_network.__class__.transmit
+
+    raw_inputs = getattr(net_func, "_inputs", set())
+    node_inputs = set()
+    for io_str in raw_inputs:
+        node_inputs.update(parse_io(io_str, analysis_network))
+
+    raw_outputs = getattr(net_func, "_outputs", set())
+    node_outputs = set()
+    for io_str in raw_outputs:
+        node_outputs.update(parse_io(io_str, analysis_network))
+
+    @inputs(*node_inputs)
+    @outputs(*node_outputs)
+    def net_transmit(state, system, settings):
+        return analysis_network.transmit(state, system, settings)
+
+    return net_transmit
+
 
 class PACTAnalysis(Process):
-    analysis_network: PACTNetwork = field(PACTNetwork)
 
     def __init__(self, analysis_network: PACTNetwork, **kwargs):
         super().__init__(**kwargs)
-        self.analysis_network = analysis_network
+
+        node_steps = tuple(
+            ProcessStep(
+                name=f"{ID}",
+                function=make_node_function(analysis_network, ID),
+            )
+            for ID in analysis_network._execution_order
+        )
+
+        net_step = ProcessStep(
+                name=f"{analysis_network.network_id}",
+                function=make_network_function(analysis_network),
+            )
+
+        full_steps = node_steps + (net_step,)
+
+        return super().__init__(steps=full_steps, **kwargs)
 
     def graph(self, **kwargs) -> nx.DiGraph:
 
@@ -59,72 +114,3 @@ class PACTAnalysis(Process):
                 G.add_edge(input_idx, e_idx, domain=domain)
 
         return G
-
-
-def build_PACT_analysis(network: PACTAnalysis):
-
-    analysis_network = network.compute_topology()
-
-    def make_node_function(network_id: str):
-        node = analysis_network.nodes[network_id]
-        node_func = node.__class__.transmit
-
-        raw_inputs = getattr(node_func, "_inputs", set())
-        node_inputs = set()
-        for io_str in raw_inputs:
-            node_inputs.update(parse_io(io_str, node))
-
-        raw_outputs = getattr(node_func, "_outputs", set())
-        node_outputs = set()
-        for io_str in raw_outputs:
-            node_outputs.update(parse_io(io_str, node))
-
-        @inputs(*node_inputs)
-        @outputs(*node_outputs)
-        def transmit(state, system, settings):
-            return analysis_network.nodes[network_id].transmit(state, system, settings)
-
-        return transmit
-
-    def make_network_function():
-        net_func = analysis_network.__class__.transmit
-
-        raw_inputs = getattr(net_func, "_inputs", set())
-        node_inputs = set()
-        for io_str in raw_inputs:
-            node_inputs.update(parse_io(io_str, analysis_network))
-
-        raw_outputs = getattr(net_func, "_outputs", set())
-        node_outputs = set()
-        for io_str in raw_outputs:
-            node_outputs.update(parse_io(io_str, analysis_network))
-
-        @inputs(*node_inputs)
-        @outputs(*node_outputs)
-        def net_transmit(state, system, settings):
-            return analysis_network.transmit(state, system, settings)
-
-        return net_transmit
-
-    node_steps = tuple(
-        ProcessStep(
-            name=f"{ID}",
-            function=make_node_function(ID),
-        )
-        for ID in analysis_network._execution_order
-    )
-
-    net_step = ProcessStep(
-        name=f"{analysis_network.network_id}",
-        function=make_network_function(),
-    )
-
-    full_steps = node_steps + (net_step,)
-
-    network_analysis = PACTAnalysis(
-        name=f"{network.name} Analysis",
-        analysis_network=analysis_network,
-        steps=full_steps,
-    )
-
-    return network_analysis

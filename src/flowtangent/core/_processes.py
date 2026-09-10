@@ -63,7 +63,6 @@ from ..utils import (
     is_array_like,
     id_partition,
     inspect_leaves,
-    combine,
 )
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -72,8 +71,7 @@ from ..utils import (
 
 
 class ProcessStep(Module):
-    name: str = static_field("Process Step")
-    function: ProcessFunc = method_field(null_step)
+    function: ProcessFunc = static_field(null_step)
 
     _state_delta: Optional[State] = field(None)
     _system_delta: Optional[System] = field(None)
@@ -81,15 +79,18 @@ class ProcessStep(Module):
 
     def __init__(
         self,
-        name: NameType = "Process Step",
-        function: ProcessFunc | ProcessStep = null_step,
+        function: ProcessFunc  = null_step,
+        name: NameType = None,
+        *,
         _state_delta: Optional[State] = None,
         _system_delta: Optional[System] = None,
         _settings_delta: Optional[Settings] = None,
     ):
-
         self.function = function
-        self.name = name
+        if name is not None:
+            self.name = name
+        else:
+            self.name = self.function.__name__
         self._state_delta = _state_delta
         self._system_delta = _system_delta
         self._settings_delta = _settings_delta
@@ -232,15 +233,16 @@ def array_barrier(state: State, system: System, settings: Settings):
 
 
 class Process(ProcessStep):
-    name: str = static_field("Process")
     steps: tuple[ProcessStep, ...] = ()
 
-    initialize: ProcessFunc = method_field(null_step)
     initial_step: int = field(0, static=True)
 
     _initial_state: Optional[State] = field(None)
     _initial_system: Optional[System] = field(None)
     _initial_settings: Optional[Settings] = field(None)
+
+    _state_mask: Optional[Any] = field(None)
+    _state_mask: Optional[Any] = field(None)
 
     _val_and_jac_fn: Optional[Callable] = method_field(None)
     _cached_grad_map: Optional[JacobianMap] = static_field(None)
@@ -250,7 +252,7 @@ class Process(ProcessStep):
         self,
         steps: Sequence[ProcessStep | ProcessFunc] = (),
         name: NameType = "Process",
-        initialize: ProcessFunc = null_step,
+        *,
         initial_step: int = 0,
         _initial_state: Optional[State] = None,
         _initial_system: Optional[System] = None,
@@ -260,17 +262,9 @@ class Process(ProcessStep):
         _filter_map: Optional[dict] = None,
     ):
         # Initialize the parent ProcessStep
-        super().__init__(
-            function=null_step,
-            name=name,
-            _state_delta=None,
-            _system_delta=None,
-            _settings_delta=None,
-        )
+        super().__init__(name=name)
 
         # Standard field assignments
-        self.name = name
-        self.initialize = initialize
         self.initial_step = initial_step
         self._initial_state = _initial_state
         self._initial_system = _initial_system
@@ -462,9 +456,38 @@ class Process(ProcessStep):
 
         return batched_jacrev_fn
 
+    def _partition_inputs(self, state: State, system: System, settings: Settings):
+        active_paths = [p.split(":")[0].strip() for p in self.full_io]
+        active_ids = set()
+
+        ctx = {"state": state, "system": system}
+        for io_str in active_paths:
+            try:
+                target_obj = eval(io_str, {}, ctx)
+                leaves = jax.tree_util.tree_leaves(target_obj)
+                for leaf in leaves:
+                    if is_array_like(leaf):
+                        active_ids.add(id(leaf))
+            except Exception as e:
+                warnings.warn(f"Failed to evaluate IO dependency '{io_str}': {e}")
+
+        dyn_state, stat_state, state_mask = id_partition(state, active_ids)
+        dyn_system, stat_system, system_mask = id_partition(system, active_ids)
+
+        if settings._DEV_MODE:
+            inspect_leaves(state, state_mask, settings, tree_name="state", depth=3)
+            inspect_leaves(system, system_mask, settings, tree_name="system", depth=3)
+
+        return dyn_state, stat_state, state_mask, dyn_system, stat_system, system_mask
+
+    def initialize(self, state: State, system: System, settings: Settings):
+        state, system, settings = array_barrier(state, system, settings)
+        return state, system, settings
+
+
     @overload
     def run(
-        self, state: State, system: System, settings: Settings, *, initialize: bool = ..., track_history: Literal[True]
+        self, state: State, system: System, settings: Settings, *, track_history: Literal[True]
     ) -> tuple[State, System, Settings, Process]: ...
 
     @overload
@@ -474,54 +497,18 @@ class Process(ProcessStep):
         system: System,
         settings: Settings,
         *,
-        initialize: bool = ...,
         track_history: Literal[False] = ...,
     ) -> tuple[State, System, Settings]: ...
 
     def run(
-        self, state: State, system: System, settings: Settings, *, initialize: bool = True, track_history: bool = False
+        self, state: State, system: System, settings: Settings, *, track_history: bool = False
     ):
 
-        state, system, settings = array_barrier(state, system, settings)
-
-        if initialize:
-            state, system, settings = self.initialize(state, system, settings)
-
-        if settings.numerical.partition_inputs:
-            active_paths = [p.split(":")[0].strip() for p in self.analyze.full_io]
-            active_ids = set()
-    
-            ctx = {"state": state, "system": system}
-            for io_str in active_paths:
-                try:
-                    target_obj = eval(io_str, {}, ctx)
-                    leaves = jax.tree_util.tree_leaves(target_obj)
-                    for leaf in leaves:
-                        if is_array_like(leaf):
-                            active_ids.add(id(leaf))
-                except Exception as e:
-                    warnings.warn(f"Failed to evaluate IO dependency '{io_str}': {e}")
-    
-            dyn_state, stat_state, state_mask = id_partition(state, active_ids)
-            dyn_system, stat_system, system_mask = id_partition(system, active_ids)
-
-            if settings._DEV_MODE:
-                inspect_leaves(state, state_mask, settings, tree_name="state", depth=3)
-                inspect_leaves(system, system_mask, settings, tree_name="system", depth=3)
-        else:
-            dyn_state = state
-            state_mask = state
-            dyn_system = system
-            system_mask = system
+        state, system, settings = self.initialize(state, system, settings)
 
         # Direct call if not tracking history
         if not track_history:
-            f_st, f_sys, f_setts = self(dyn_state, dyn_system, settings)
-            if settings.numerical.partition_inputs:
-                f_st = combine(f_st, state_mask)
-                f_sys = combine(f_st, system_mask)
-
-            return f_st, f_sys, f_setts
+            return self(state, system, settings)
         else:
             f_st, f_sys, f_setts, raw_hist = self._run_with_raw_history(state, system, settings)
 
@@ -553,10 +540,6 @@ class Process(ProcessStep):
                     ),
                     is_leaf=lambda x: x is None,
                 )
-
-                if settings.numerical.partition_inputs:
-                    f_st = combine(f_st, state_mask)
-                    f_sys = combine(f_st, system_mask)
 
                 return f_st, f_sys, f_setts, logged_process
 

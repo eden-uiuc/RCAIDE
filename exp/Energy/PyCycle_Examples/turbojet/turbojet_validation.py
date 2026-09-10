@@ -12,6 +12,7 @@ from dataclasses import replace
 
 
 from flowtangent.utils import save_data, load_data, format_array, configure_environment, LoggingSettings, update
+from flowtangent.solve import BatchedAnalysis
 
 from flowtangent.data import units
 from flowtangent.components.energy.jets import TurbojetEngine, TurbojetOpPoint, TurbojetLine, TurbojetNetwork, JetNetParameters, JetKinematics
@@ -19,14 +20,17 @@ from flowtangent.solve.energy.jets import build_turbojet_design, build_turbojet_
 from flowtangent.sim.initialize import initialize_energy
 from flowtangent.sim.update import update_freestream
 
+
+
 # Control Board
 DEV = False
-DEBUG = False
+DEBUG = True
 VERBOSE = True
 
 DESIGN_POINT = True
-OFF_DESIGN_0 = True
-OFF_DESIGN_1 = True
+OFF_DESIGN_0 = False
+OFF_DESIGN_1 = False
+BATCHED_OD1  = False
 
 def system_setup():
 
@@ -97,17 +101,12 @@ def off_design_point(
     atmo = des.atmosphere
     a0 = atmo.compute_speed_of_sound(alt)
 
-    od_state = eqx.tree_at(
-        lambda s: (
-            s.frames.inertial.position_vector,
-            s.freestream.mach_number,
-            s.frames.inertial.velocity_vector,
-        ),
-        ft.State().expand_time(1),
+    od_state = update(
+        ft.State().expand_time(),
         (
-            jnp.array([[0., 0., -alt]]),
-            jnp.atleast_2d(M0),
-            jnp.atleast_2d(jnp.array([[(a0 * M0).item(), 0.0, 0.0]])),
+            ("frames.inertial.position_vector", jnp.array([[0., 0., -alt]])),
+            ("freestream.mach_number", jnp.atleast_2d(M0)),
+            ("frames.inertial.velocity_vector", jnp.atleast_2d(jnp.array([[(a0 * M0).item(), 0.0, 0.0]]))),
         ),
     )
 
@@ -129,6 +128,48 @@ def off_design_point(
 
     od_thermal.to_csv(data_dir / f"{op_point.name}_thermal.csv")
     od_static.to_csv(data_dir / f"{op_point.name}_static.csv")
+
+    return od_state, od_system, od_settings
+
+def batched_off_design(
+    system: ft.Aircraft,
+    settings: ft.Settings,
+    op_point: TurbojetOpPoint        
+):
+
+    print("="*80)
+    print(f" {op_point.name} Analysis")
+    print("-"*80)
+
+    network: TurbojetNetwork = system.energy
+    des: JetNetParameters = network.design_parameters
+
+    alt = op_point.altitude
+    M0 = op_point.mach_number
+    thrust = op_point.thrust
+
+    atmo = des.atmosphere
+    a0 = atmo.compute_speed_of_sound(alt)
+
+    od_state = update(
+        ft.State().expand_time(),
+        (
+            ("frames.inertial.position_vector", jnp.array([[0., 0., -alt]])),
+            ("freestream.mach_number", jnp.atleast_2d(M0)),
+            ("frames.inertial.velocity_vector", jnp.atleast_2d(jnp.array([[(a0 * M0).item(), 0.0, 0.0]]))),
+        ),
+    )
+
+    od_analysis = build_turbojet_performance(network, op_point)
+    batched_od = BatchedAnalysis(name=f"Batched {op_point.name} Analysis", analyze=od_analysis)
+
+    od_state, od_system, od_settings = initialize_energy(od_state, system, settings)
+    od_state, od_system, od_settings = update_freestream(od_state, od_system, od_settings)
+    od_state = update(od_state, "energy.target_thrust", jnp.atleast_2d(thrust))
+
+    new_settings = JetSettings(design_mode=False, statics=od_settings.analysis.energy.statics)
+    od_settings = update(od_settings, "analysis.energy", new_settings)
+    od_state, od_system, od_settings = batched_od.run(od_state, od_system, od_settings)
 
     return od_state, od_system, od_settings
 
@@ -272,7 +313,7 @@ if __name__ == "__main__":
             settings=settings,
         )
 
-        des_st, des_sys, des_set = des_analysis.run(des_st, des_sys, des_set, initialize=True)
+        des_st, des_sys, des_set = des_analysis.run(des_st, des_sys, des_set) # type: ignore
 
         des_sys = des_sys.replace_subcomponent(des_sys.energy.sync_and_clear_nodes())
 
