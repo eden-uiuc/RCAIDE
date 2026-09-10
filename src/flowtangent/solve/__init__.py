@@ -21,7 +21,7 @@ from ._settings import (
     JacobianSettings,
     AnalysisSettings,
     EnergyAnalysisSettings,
-    MassAnalysisSettings
+    MassAnalysisSettings,
 )
 
 
@@ -45,5 +45,5 @@ __all__ = [
     # Submodules
     "energy",
     "aero",
-    "mass"
+    "mass",
 ]

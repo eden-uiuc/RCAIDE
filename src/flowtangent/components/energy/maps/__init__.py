@@ -4,5 +4,5 @@ from . import _data as data
 __all__ = [
     "CompressorMap",
     "TurbineMap",
-    "data"
+    "data",
 ]

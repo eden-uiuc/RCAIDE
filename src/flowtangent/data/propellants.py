@@ -30,13 +30,12 @@ class PropellantTemperatures(Module):
 
 
 class Propellant(Module):
-
     oxidizer: Gas = field(Gas)
 
     density: float = static_field(0.0)
-    specific_energy: float =        static_field(0.0)
-    energy_density: float =         static_field(0.0)
-    enthalpy_of_formation: float =  static_field(0.0)
+    specific_energy: float = static_field(0.0)
+    energy_density: float = static_field(0.0)
+    enthalpy_of_formation: float = static_field(0.0)
 
     max_mass_fraction: MaxPropellantMassFractions = field(MaxPropellantMassFractions)
     temperatures: PropellantTemperatures = field(PropellantTemperatures)
@@ -65,7 +64,7 @@ class JetA(Propellant):
 
     # Specific energy is higher than reference value (43.15 MJ/kg) due to stoichiometric burn assumption
     specific_energy: float = static_field(42.7984e6 * units.parse("J/kg"))
-    energy_density: float =  static_field(35.3e6 * units.parse("J/m**3"))
+    energy_density: float = static_field(35.3e6 * units.parse("J/m**3"))
 
     max_mass_fraction: MaxPropellantMassFractions = static_field(_JetAFractions)
 

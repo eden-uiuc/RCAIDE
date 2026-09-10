@@ -23,13 +23,13 @@ _ = cast(Any, _Placeholder())
 
 # FT Metatypes
 NameType = Union[str, None]
-TreePathLike = Union[TreePath, str, tuple[tuple|str|TreePath, Any, Optional[slice]]]
+TreePathLike = Union[TreePath, str, tuple[tuple | str | TreePath, Any, Optional[slice]]]
 
 # --- Scalars (Accepts JAX 0D arrays or Python primitives) ---
 # Perfect for Variable bounds, constants, and initial conditions
-ScalarFloat = Union[Float[Array, ""], Float[Array, '1'], float]
-ScalarInt = Union[Int[Array, ""], Float[Array, '1'], int]
-ScalarBool = Union[Bool[Array, ""], Float[Array, '1'], bool]
+ScalarFloat = Union[Float[Array, ""], Float[Array, "1"], float]
+ScalarInt = Union[Int[Array, ""], Float[Array, "1"], int]
+ScalarBool = Union[Bool[Array, ""], Float[Array, "1"], bool]
 
 # --- Time Series (N_time) ---
 # Standard arrays for component states and ports
@@ -51,5 +51,5 @@ __all__ = [
     "TimeScalar",
     "TimeVector3",
     "AnyFloatArray",
-    "AnyArray"
+    "AnyArray",
 ]

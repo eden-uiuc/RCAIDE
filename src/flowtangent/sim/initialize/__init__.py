@@ -13,5 +13,5 @@ __all__ = [
     "initialize_inertial_position",
     "initialize_mass",
     "initialize_planetary_position",
-    "initialize_time"
+    "initialize_time",
 ]

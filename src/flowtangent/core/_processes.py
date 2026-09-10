@@ -30,6 +30,7 @@ from typing import (
 if TYPE_CHECKING:
     from .. import Settings, State, System
     from ..solve import JacobianMap
+
     ProcessFunc: TypeAlias = Callable[[State, System, Settings], Tuple[State, System, Settings]]
 
 import inspect
@@ -186,6 +187,7 @@ class ProcessStep(Module):
 # ----------------------------------------------------------------------------------------------------------------------
 #  Process Class
 # ----------------------------------------------------------------------------------------------------------------------
+
 
 def array_barrier(state: State, system: System, settings: Settings):
     """

@@ -33,6 +33,7 @@ from jax.tree_util import (
 # FLOWTANGENT WRAPPERS
 # -----------------------------------------------------------------------------
 
+
 @overload
 def update(obj: Any, where_or_updates: Callable, val: Any, **kwargs) -> Any: ...
 
@@ -179,6 +180,7 @@ class TreePath:
     def _snip_lead(self):
         return update(self, lambda p: p.path, self.path[1:])
 
+
 def get_actual_path(obj: Any, path: str | tuple | TreePath) -> TreePath:
     "Walks object to convert virtual aliases to canonical paths."
     path_obj = TreePath.cast(path)
@@ -206,8 +208,9 @@ def get_actual_path(obj: Any, path: str | tuple | TreePath) -> TreePath:
                     "illegal inside jit/vmap. Use canonical PyTree structure instead."
                 )
 
-            is_virtual = (hasattr(current, "_bookkeeping") and key in current._bookkeeping) or \
-                         any(getattr(sc, "field_name", None) == key for sc in getattr(current, "subcomponents", []))
+            is_virtual = (hasattr(current, "_bookkeeping") and key in current._bookkeeping) or any(
+                getattr(sc, "field_name", None) == key for sc in getattr(current, "subcomponents", [])
+            )
 
             if not is_virtual:
                 raise AttributeError(f"'{current.__class__.__name__}' has no real or virtual attribute '{key}'")
@@ -218,7 +221,7 @@ def get_actual_path(obj: Any, path: str | tuple | TreePath) -> TreePath:
 
             for remaining_key in path_obj.path[i:]:
                 if isinstance(remaining_key, int) or isinstance(target, dict):
-                    target = target[remaining_key] #type: ignore
+                    target = target[remaining_key]  # type: ignore
                 else:
                     target = getattr(target, remaining_key)
                 if isinstance(target, eqx.Module):
@@ -267,6 +270,7 @@ def get_actual_path(obj: Any, path: str | tuple | TreePath) -> TreePath:
             break
 
     return TreePath(path=tuple(actual_keys), path_slice=path_obj.path_slice)
+
 
 def get_parent_target(obj: Any, path: str | tuple | TreePath) -> Any:
     """Gets the full PyTree leaf, ignoring the slice."""

@@ -65,21 +65,19 @@ class PACTInput(Module):
 
     # Custom init to reorder arguments
     def __init__(
-            self,
-            domain: GraphDomain = "flow",
-            network_id: str = "",
-            primary: bool = False,
-            name: NameType = "",
-            _assigned: bool = False,
-        ) -> None:
+        self,
+        domain: GraphDomain = "flow",
+        network_id: str = "",
+        primary: bool = False,
+        name: NameType = "",
+        _assigned: bool = False,
+    ) -> None:
 
-            self.domain = domain
-            self.network_id = network_id
-            self.name = ' '.join(self.network_id.split('.')).title() + f" {domain}".title() + " Outputs"
-            self.primary = primary
-            self._assigned = _assigned
-
-
+        self.domain = domain
+        self.network_id = network_id
+        self.name = " ".join(self.network_id.split(".")).title() + f" {domain}".title() + " Outputs"
+        self.primary = primary
+        self._assigned = _assigned
 
     # Define iter to make castable to tuple as (self,)
     def __iter__(self):

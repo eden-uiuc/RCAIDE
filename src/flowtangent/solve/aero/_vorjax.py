@@ -44,7 +44,7 @@ from ...utils import Module, TreePath, field, io, method_field, static_field, up
 #  API Setup
 # ----------------------------------------------------------------------------------------------------------------------
 
-__all__ =[
+__all__ = [
     "VORJAX",
     "VORJAXSettings",
 ]

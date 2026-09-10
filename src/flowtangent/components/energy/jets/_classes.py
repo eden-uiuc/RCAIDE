@@ -51,7 +51,6 @@ from ..nodes import BleedFlow, FlowNode, FlowOpPoint, FuelTank, PACTInput, PACTN
 
 
 class Inlet(FlowNode):
-
     @io.inputs(
         "state.freestream",
         "state.energy.mass_flow_rate",
@@ -146,7 +145,6 @@ def _alpha_c(Nc, Nc_design):
 
 
 class Compressor(FlowNode):
-
     inputs: tuple | PACTInput = field(PACTInput("flow", "inlet"), static=True)
 
     map: CompressorMap = field(map_data.AXI5)
@@ -405,7 +403,6 @@ def _burner_performance(
 
 
 class Burner(FlowNode):
-
     inputs: tuple | PACTInput = field(PACTInput("flow", "compressor"), static=True)
     fuel: Propellant = field(JetA)
 
@@ -520,7 +517,6 @@ class Burner(FlowNode):
 
 
 class Turbine(FlowNode):
-
     map: TurbineMap = field(map_data.LPT2269)
 
     alpha_schedule: Callable = field(lambda Np, Np_des: jnp.full_like(Np, 1.0), as_value=True, static=True)
@@ -1062,7 +1058,6 @@ class Nozzle(FlowNode):
 
 
 class Turboshaft(PACTNode):
-
     inputs: tuple | PACTInput = (
         PACTInput("mechanical", "compressor"),
         PACTInput("mechanical", "turbine"),
@@ -1787,6 +1782,7 @@ def TurbofanEngine(**kwargs):
         **kwargs,
     )
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #  Lines
 # ----------------------------------------------------------------------------------------------------------------------
@@ -1901,6 +1897,7 @@ def TurbofanLine(**kwargs):
         kwargs["subcomponents"] = _TurbofanLineSetup()
 
     return TurbojetLine(**kwargs)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  Turbojet Energy Networks

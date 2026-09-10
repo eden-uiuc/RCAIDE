@@ -23,7 +23,6 @@ from ...utils.typing import TimeScalar, TimeVector3, _
 
 
 class Frame(StateData):
-
     transform_to_inertial: TimeVector3 = _
 
     total_force_vector: TimeVector3 = _
@@ -31,7 +30,6 @@ class Frame(StateData):
 
 
 class Inertial(Frame):
-
     position_vector: TimeVector3 = _
 
     velocity_vector: TimeVector3 = _
@@ -47,7 +45,6 @@ class Inertial(Frame):
 
 
 class Body(Frame):
-
     inertial_rotations: TimeVector3 = _
     thrust_force_vector: TimeVector3 = _
     moment_vector: TimeVector3 = _

@@ -38,7 +38,6 @@ class ComponentCoeffs(StateData):
 
 
 class LiftCoeffs(StateData):
-
     total: TimeScalar = _
 
     inviscid: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Inviscid Lift"))
@@ -49,7 +48,6 @@ class LiftCoeffs(StateData):
 
 
 class InducedDrag(StateData):
-
     total: TimeScalar = _
 
     inviscid: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Inviscid Induced Drag"))
@@ -59,7 +57,6 @@ class InducedDrag(StateData):
 
 
 class DragCoeffs(StateData):
-
     total: TimeScalar = _
 
     parasite: ComponentCoeffs = field(lambda: ComponentCoeffs(name="Parasite Drag"))
@@ -74,7 +71,6 @@ class DragCoeffs(StateData):
 
 
 class MomentCoeffs(StateData):
-
     pitch: TimeScalar = _
     roll: TimeScalar = _
     yaw: TimeScalar = _
@@ -84,7 +80,6 @@ class MomentCoeffs(StateData):
 
 
 class AeroCoefficients(StateData):
-
     lift: LiftCoeffs = field(LiftCoeffs)
     drag: DragCoeffs = field(DragCoeffs)
 
@@ -101,7 +96,6 @@ class AeroCoefficients(StateData):
 
 
 class AeroAngles(StateData):
-
     alpha: TimeScalar = _  # Y-axis / angle of attack
     beta: TimeScalar = _  # Z-axis / sideslip angle
     phi: TimeScalar = _  # X-axis / roll angle

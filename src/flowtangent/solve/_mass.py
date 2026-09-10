@@ -14,6 +14,7 @@ __all__ = [
 
 # Settings
 
+
 class ReductionFactors(Module):
     main_wing: float = 0.0
     fuselage: float = 0.0
@@ -28,6 +29,7 @@ class SizingFractions(Module):
 class MassAnalysisSettings(Module):
     reduction_factors: ReductionFactors = field(ReductionFactors)
     sizing_fractions: SizingFractions = field(SizingFractions)
+
 
 # Transport Mass Analysis
 

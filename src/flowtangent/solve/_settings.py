@@ -28,16 +28,16 @@ class AnalysisSettings[E_Type: EnergyAnalysisSettings](Module):
 
 
 class JacobianMap(Module):
-    inputs: tuple[TreePath, ...]            = static_field(())
-    outputs: tuple[TreePath, ...]           = static_field(())
+    inputs: tuple[TreePath, ...] = static_field(())
+    outputs: tuple[TreePath, ...] = static_field(())
 
-    state_inputs: tuple[TreePath, ...]      = static_field(())
-    state_outputs: tuple[TreePath, ...]     = static_field(())
+    state_inputs: tuple[TreePath, ...] = static_field(())
+    state_outputs: tuple[TreePath, ...] = static_field(())
 
-    system_inputs: tuple[TreePath, ...]     = static_field(())
-    system_outputs: tuple[TreePath, ...]    = static_field(())
+    system_inputs: tuple[TreePath, ...] = static_field(())
+    system_outputs: tuple[TreePath, ...] = static_field(())
 
-    _n_st:  int = static_field(0)
+    _n_st: int = static_field(0)
     _n_sys: int = static_field(0)
 
     def __init__(

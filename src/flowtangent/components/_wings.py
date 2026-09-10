@@ -69,7 +69,6 @@ class WingSegment(Component):
 
 
 class ControlSurface(Component):
-
     span_fraction_start: float = 0.0
     span_fraction_end: float = 0.0
 

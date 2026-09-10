@@ -57,7 +57,7 @@ from . import plots as plots
 from .core._settings import Settings
 
 __all__ = [
-    #FlowTangent Classes
+    # FlowTangent Classes
     "Module",
     "State",
     "System",
@@ -75,7 +75,7 @@ __all__ = [
     "null_step",
     "units",
     "array_barrier",
-    #Analyses
+    # Analyses
     "BatchedAnalysis",
     "ImplicitAnalysis",
     "PACTAnalysis",

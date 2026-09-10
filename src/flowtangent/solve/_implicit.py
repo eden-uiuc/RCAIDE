@@ -221,6 +221,7 @@ def analyze_compute_graph(func, *args):
 #  Variables and Residuals
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 class Variable(Module):
     """
     State variable scaled for root-finding and optimization solvers.
@@ -318,7 +319,7 @@ class Variable(Module):
             if self.initial_value is None:
                 raise ValueError(f"Variable '{self.name}' uses 'linear' scaling but has no initial_value.")
             if jnp.any(self.initial_value == 0.0):
-                 raise ValueError(f"Variable '{self.name}' cannot use 'linear' scaling with an initial_value of 0.")
+                raise ValueError(f"Variable '{self.name}' cannot use 'linear' scaling with an initial_value of 0.")
 
         if self.initial_value is not None:
             safe_init = jnp.clip(self.initial_value, self.bounds[0] * 1.10, self.bounds[1] * 0.90)
@@ -331,6 +332,7 @@ class Variable(Module):
                 lambda: jax.debug.print(f"Warning: initial_value for '{self.name}' was outside bounds and clipped."),
                 lambda: None,
             )
+
 
 class Residual(Module):
     state_path: Optional[ftu.TreePathLike] = ftu.static_field(None)
@@ -349,7 +351,7 @@ class Residual(Module):
         if self.state_path is not None:
             return ftu.get_target(state, ftu.TreePath.cast(self.state_path))
         else:
-            return self.value_func(state) #type: ignore
+            return self.value_func(state)  # type: ignore
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -714,7 +716,7 @@ class ImplicitAnalysis(Process):
             t0 = time.time()
 
             fwd_fn = lambda x: get_residuals(x, (dyn_state, dyn_system))  # noqa: E731
-            fwd_lowered = eqx.filter_jit(fwd_fn).lower(variable_values) #type: ignore
+            fwd_lowered = eqx.filter_jit(fwd_fn).lower(variable_values)  # type: ignore
             print(f" - Forward Lowering Time: {time.time() - t0:.2f} seconds")
 
             fwd_hlo_text = fwd_lowered.as_text()
@@ -732,7 +734,7 @@ class ImplicitAnalysis(Process):
             print("\n2. Tracing Jacobian & Lowering to HLO...")
             t0 = time.time()
             jac_fn = lambda x: jax.jacrev(fwd_fn, has_aux=True)(x)  # noqa: E731
-            jac_lowered = eqx.filter_jit(jac_fn).lower(variable_values) #type: ignore
+            jac_lowered = eqx.filter_jit(jac_fn).lower(variable_values)  # type: ignore
             print(f" - Jacobian Lowering Time: {time.time() - t0:.2f} seconds")
 
             jac_hlo_text = jac_lowered.as_text()
@@ -755,12 +757,12 @@ class ImplicitAnalysis(Process):
                 t0 = time.time()
                 run_fn = lambda c, st, sy: optx.root_find(  # noqa: E731
                     fn=get_residuals,
-                    solver=self.solver(**solver_options), #type: ignore
+                    solver=self.solver(**solver_options),  # type: ignore
                     y0=c,
                     args=(st, sy),
                     max_steps=settings.numerical.max_evaluations,
                 )
-                solver_lowered = eqx.filter_jit(run_fn).lower(variable_values, dyn_state, dyn_system) #type: ignore
+                solver_lowered = eqx.filter_jit(run_fn).lower(variable_values, dyn_state, dyn_system)  # type: ignore
                 print(f" - Solver Lowering Time : {time.time() - t0:.2f} seconds")
 
                 # 2. Measure the Graph Size

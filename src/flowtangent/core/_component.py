@@ -142,7 +142,12 @@ class Component(Module):
     #     )
 
     def __repr__(self):
-        repr_str = getattr(self, "name", self.__class__.__name__) + " - Subcomponents: (" + ", ".join([getattr(sc, "name", "Unknown Subcomponent") for sc in self.subcomponents]) + ")"
+        repr_str = (
+            getattr(self, "name", self.__class__.__name__)
+            + " - Subcomponents: ("
+            + ", ".join([getattr(sc, "name", "Unknown Subcomponent") for sc in self.subcomponents])
+            + ")"
+        )
         return repr_str
 
     def __getitem__(self, item):

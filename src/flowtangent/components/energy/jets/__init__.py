@@ -18,10 +18,11 @@ from ._classes import (
     TurbojetNetwork,
     TurbofanLine,
     TurbofanNetwork,
-    JetNetParameters
+    JetNetParameters,
 )
 
 from . import _data as data
+
 __all__ = [
     "Inlet",
     "Compressor",

@@ -47,7 +47,7 @@ __all__ = [
     "build_turbofan_design",
     "build_turbojet_design",
     "build_turbojet_performance",
-    "build_turbofan_performance"
+    "build_turbofan_performance",
 ]
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -333,12 +333,12 @@ def build_turbojet_performance(
 
     # Residual Setup -----------------------------------------------------------
 
-    d_m_nozz = Residual(name="Mass Flow Rate",      state_path="energy.residual.mass_flow_rate")
-    d_power = Residual(name="Power Imbalance",      state_path="energy.residual.power")
-    d_thrust = Residual(name="Thrust",              state_path="energy.residual.thrust")
-    d_Wc = Residual(name="Compressor Mass Flow",    state_path="energy.residual.compressor_Wc")
-    d_Wp = Residual(name="Turbine Mass Flow",       state_path="energy.residual.turbine_Wp")
-    d_area = Residual(name="Throat Area",           state_path="energy.residual.area")
+    d_m_nozz = Residual(name="Mass Flow Rate", state_path="energy.residual.mass_flow_rate")
+    d_power = Residual(name="Power Imbalance", state_path="energy.residual.power")
+    d_thrust = Residual(name="Thrust", state_path="energy.residual.thrust")
+    d_Wc = Residual(name="Compressor Mass Flow", state_path="energy.residual.compressor_Wc")
+    d_Wp = Residual(name="Turbine Mass Flow", state_path="energy.residual.turbine_Wp")
+    d_area = Residual(name="Throat Area", state_path="energy.residual.area")
 
     # Variable Setup -----------------------------------------------------------
 

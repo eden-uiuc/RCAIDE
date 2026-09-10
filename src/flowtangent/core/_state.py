@@ -31,7 +31,6 @@ from ._state_data import (
 
 
 class State[EnergyType: NetworkState](StateData):
-
     initials: Optional[Module] = None
     time: Time = field(Time)
 
@@ -39,7 +38,7 @@ class State[EnergyType: NetworkState](StateData):
     freestream: Freestream = field(Freestream)
 
     mass: Mass = field(Mass)
-    energy: EnergyType = field(NetworkState) #type: ignore
+    energy: EnergyType = field(NetworkState)  # type: ignore
     aerodynamics: Aerodynamics = field(Aerodynamics)
     stability: StabilityData = field(StabilityData)
 

@@ -29,7 +29,7 @@ from ...utils import field, inputs, outputs, parse_io
 
 __all__ = [
     "PACTAnalysis",
-    "build_PACT_analysis"
+    "build_PACT_analysis",
 ]
 
 

@@ -220,9 +220,11 @@ def load_data(filename: str | Path) -> Any:
     )
     return obj
 
+
 # ----------------------------------------------------------
 # Logging
 # ----------------------------------------------------------
+
 
 class JAXCompileFilter(logging.Filter):
     def __init__(self, name: str = "", whitelist: Optional[tuple[str]] = None) -> None:

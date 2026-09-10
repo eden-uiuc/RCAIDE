@@ -27,7 +27,7 @@ import jax
 # Flowtangent imports
 from ...data import units
 from ...data.atmospheres import USStandard1976
-from ...utils import Module, field, static_field, update
+from ...utils import Module, field, static_field, update, NameType
 from .lines import PACTLine
 from .nodes import BleedFlow, GraphDomain, PACTNode
 
@@ -105,14 +105,12 @@ def _resolve_namespaces(node, parent_prefix=""):
 
 
 class PACTNetwork[DesignType: NetworkParameters](PACTNode):
-
-    name: str = static_field("Network")
+    name: NameType = static_field("Network")
     network_id: str = static_field("network")
 
     nodes: dict[str, "PACTNode"] = field(dict)
     domains: tuple[GraphDomain, ...] = static_field(tuple)
-    design_parameters: DesignType = field(NetworkParameters) #type: ignore
-
+    design_parameters: DesignType = field(NetworkParameters)  # type: ignore
 
     _bookkeeping: dict = static_field(lambda: {"lines": PACTLine})
     _execution_order: tuple[str, ...] = static_field(tuple)
@@ -228,4 +226,3 @@ class PACTNetwork[DesignType: NetworkParameters](PACTNode):
             nodes={},
             _execution_order=(),
         )
-

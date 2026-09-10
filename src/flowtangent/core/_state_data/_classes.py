@@ -29,7 +29,6 @@ def _is_static_node(node):
 
 
 class StateData(Module, metaclass=StateDataMeta):
-
     @property
     def substates(self) -> tuple:
         return tuple(

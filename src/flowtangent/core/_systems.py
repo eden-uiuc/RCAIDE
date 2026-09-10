@@ -45,7 +45,6 @@ class VehicleEnvelope(Module):
 
 
 class System(Component):
-
     configurations: Component = field(lambda: Component(name="Configurations"))
 
 
