@@ -37,9 +37,10 @@ class Settings(Module):
     numerical: NumericalSettings = field(NumericalSettings)
 
     logging: LoggingSettings = field(LoggingSettings)
-
-    DEBUG_MODE: bool = static_field(False)
     verbose: bool = static_field(False)
-    JAX_device_index: int = static_field(0)
 
     _DEV_MODE: bool = static_field(False)
+    DEBUG_MODE: bool = static_field(False)
+    JAX_device_index: int = static_field(0)
+
+    

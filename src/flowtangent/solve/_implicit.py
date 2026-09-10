@@ -604,37 +604,42 @@ class ImplicitAnalysis(Process):
         system: System,
         settings: Settings,
     ):
+        
+        # MOVED TO PROCESS BASE CLASS
+        # # Partition inputs to avoid tracing the entire state and system trees
+        # active_paths = [p.split(":")[0].strip() for p in self.analyze.full_io]
+        # active_ids = set()
 
-        # Partition inputs to avoid tracing the entire state and system trees
-        active_paths = [p.split(":")[0].strip() for p in self.analyze.full_io]
-        active_ids = set()
+        # ctx = {"state": state, "system": system}
+        # for io_str in active_paths:
+        #     try:
+        #         target_obj = eval(io_str, {}, ctx)
+        #         leaves = jax.tree_util.tree_leaves(target_obj)
+        #         for leaf in leaves:
+        #             if eqx.is_array_like(leaf):
+        #                 active_ids.add(id(leaf))
+        #     except Exception as e:
+        #         warnings.warn(f"Failed to evaluate IO dependency '{io_str}': {e}")
 
-        ctx = {"state": state, "system": system}
-        for io_str in active_paths:
-            try:
-                target_obj = eval(io_str, {}, ctx)
-                leaves = jax.tree_util.tree_leaves(target_obj)
-                for leaf in leaves:
-                    if eqx.is_array_like(leaf):
-                        active_ids.add(id(leaf))
-            except Exception as e:
-                warnings.warn(f"Failed to evaluate IO dependency '{io_str}': {e}")
+        # dyn_state, stat_state, state_mask = ftu.id_partition(state, active_ids)
+        # dyn_system, stat_system, system_mask = ftu.id_partition(system, active_ids)
 
-        dyn_state, stat_state, state_mask = ftu.id_partition(state, active_ids)
-        dyn_system, stat_system, system_mask = ftu.id_partition(system, active_ids)
-
-        if settings._DEV_MODE:
-            ftu.inspect_leaves(state, state_mask, settings, tree_name="state", depth=3)
-            ftu.inspect_leaves(system, system_mask, settings, tree_name="system", depth=3)
+        # if settings._DEV_MODE:
+        #     ftu.inspect_leaves(state, state_mask, settings, tree_name="state", depth=3)
+        #     ftu.inspect_leaves(system, system_mask, settings, tree_name="system", depth=3)
 
         # Residual closure defined in _run_solver scope to avoid tracing self argument if it were a bound method
+
+        dyn_state = state
+        dyn_system = system
+
         @eqx.filter_jit
         def get_residuals(variable_values, args):
 
-            r_state, r_system = args
+            full_state, full_system = args
 
-            full_state = eqx.combine(r_state, stat_state)
-            full_system = eqx.combine(r_system, stat_system)
+            # full_state = eqx.combine(r_state, stat_state)
+            # full_system = eqx.combine(r_system, stat_system)
 
             if settings.DEBUG_MODE:
                 global _analysis_stack, _trace_count
@@ -646,11 +651,11 @@ class ImplicitAnalysis(Process):
                 print(f"\n--- {self.name.upper()} PASS {_trace_count[_analysis_stack.index(self.name)]} ---")
 
             variable_state = self._update_variables(full_state, variable_values, settings)
-            analysis_state, analysis_system, analysis_settings = self.analyze(variable_state, full_system, settings)
+            updated_r_state, updated_r_system, analysis_settings = self.analyze(variable_state, full_system, settings)
 
-            res = self._get_residual_array(analysis_state, analysis_settings)
-            updated_r_state, _ = eqx.partition(analysis_state, state_mask)
-            updated_r_system, _ = eqx.partition(analysis_system, system_mask)
+            res = self._get_residual_array(updated_r_state, analysis_settings)
+            # updated_r_state, _ = eqx.partition(updated_r_state, state_mask)
+            # updated_r_system, _ = eqx.partition(updated_r_system, system_mask)
 
             return res, (updated_r_state, updated_r_system)
 
@@ -807,9 +812,12 @@ class ImplicitAnalysis(Process):
                 settings,
                 solver_options,
             )
-
-        full_state = eqx.combine(f_st, stat_state)
-        full_system = eqx.combine(f_sys, stat_system)
+        # if settings.numerical.partition_inputs:
+        #     full_state = eqx.combine(f_st, stat_state)
+        #     full_system = eqx.combine(f_sys, stat_system)
+        # else:
+        full_state = f_st
+        full_system = f_sys
 
         return f_vars, opt_state, full_state, full_system
 

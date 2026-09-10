@@ -5,14 +5,14 @@ import jax.numpy as jnp
 import numpy as np
 
 from .. import Module, TreePath, field, static_field, update
-from ..utils import get_all_parents, get_all_targets
+from ..utils import get_all_parents, get_all_targets, static_field
 from ._mass import MassAnalysisSettings
 
 # Energy Analysis --------------------------------------------------------------
 
 
 class EnergyAnalysisSettings(Module):
-    report_units: Literal["SI", "Imperial"] = field("SI", static=True)
+    report_units: Literal["SI", "Imperial"] = static_field("SI")
 
     build_network: bool = field(True)
     clear_nodes: bool = field(True)
@@ -142,24 +142,25 @@ class JacobianMap(Module):
 
 
 class JacobianSettings(Module):
-    calculate: bool = field(False, static=True)
-    couple_time: bool = field(True, static=True)
-    mapping: Optional[JacobianMap] = field(None, static=True)
+    calculate: bool =   static_field(False)
+    couple_time: bool = static_field(True)
+    mapping: Optional[JacobianMap] = static_field(None)
 
 
 class NumericalSettings(Module):
-    relative_tolerance: float = field(1e-5, static=True)
-    absolute_tolerance: float = field(1e-5, static=True)
+    relative_tolerance: float = static_field(1e-5)
+    absolute_tolerance: float = static_field(1e-5)
 
-    max_evaluations: int = field(100, static=True)
-    step_size: float | None = field(None, static=True)
+    max_evaluations: int = static_field(100)
+    step_size: float | None = static_field(None)
 
-    batch_size: int = field(1, static=True)
-    batch_mode: Literal["zip", "mesh"] = field("zip", static=True)
+    batch_size: int = static_field(1)
+    batch_mode: Literal["zip", "mesh"] = static_field("zip")
 
-    number_of_control_points: int = field(1, static=True)
-    maximum_graph_complexity: int = field(1e6, static=True)
+    partition_inputs: bool = static_field(True)
+    sum_residuals: bool = static_field(False)
 
-    sum_residuals: bool = field(False, static=True)
+    number_of_control_points: int = static_field(1)
+    maximum_graph_complexity: int = static_field(int(1e6))
 
-    jacobian: JacobianSettings = field(JacobianSettings, static=True)
+    jacobian: JacobianSettings = static_field(JacobianSettings)

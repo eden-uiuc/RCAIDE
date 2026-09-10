@@ -60,6 +60,10 @@ from ..utils import (
     null_step,
     static_field,
     update,
+    is_array_like,
+    id_partition,
+    inspect_leaves,
+    combine,
 )
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -483,41 +487,78 @@ class Process(ProcessStep):
         if initialize:
             state, system, settings = self.initialize(state, system, settings)
 
+        if settings.numerical.partition_inputs:
+            active_paths = [p.split(":")[0].strip() for p in self.analyze.full_io]
+            active_ids = set()
+    
+            ctx = {"state": state, "system": system}
+            for io_str in active_paths:
+                try:
+                    target_obj = eval(io_str, {}, ctx)
+                    leaves = jax.tree_util.tree_leaves(target_obj)
+                    for leaf in leaves:
+                        if is_array_like(leaf):
+                            active_ids.add(id(leaf))
+                except Exception as e:
+                    warnings.warn(f"Failed to evaluate IO dependency '{io_str}': {e}")
+    
+            dyn_state, stat_state, state_mask = id_partition(state, active_ids)
+            dyn_system, stat_system, system_mask = id_partition(system, active_ids)
+
+            if settings._DEV_MODE:
+                inspect_leaves(state, state_mask, settings, tree_name="state", depth=3)
+                inspect_leaves(system, system_mask, settings, tree_name="system", depth=3)
+        else:
+            dyn_state = state
+            state_mask = state
+            dyn_system = system
+            system_mask = system
+
         # Direct call if not tracking history
         if not track_history:
-            return self(state, system, settings)
+            f_st, f_sys, f_setts = self(dyn_state, dyn_system, settings)
+            if settings.numerical.partition_inputs:
+                f_st = combine(f_st, state_mask)
+                f_sys = combine(f_st, system_mask)
 
-        f_st, f_sys, f_setts, raw_hist = self._run_with_raw_history(state, system, settings)
+            return f_st, f_sys, f_setts
+        else:
+            f_st, f_sys, f_setts, raw_hist = self._run_with_raw_history(state, system, settings)
 
-        logged_process = None
-        logged_steps = []
 
-        for i, step in enumerate(self.steps[self.initial_step :]):
-            logged_step = update(
-                step,
-                (
-                    ("state_delta", compute_tree_delta(raw_hist[i + 1][0], raw_hist[i][0])),
-                    ("system_delta", compute_tree_delta(raw_hist[i + 1][1], raw_hist[i][1])),
-                    ("settings_delta", compute_tree_delta(raw_hist[i + 1][2], raw_hist[i][2])),
-                ),
-            )
-            logged_steps.append(logged_step)
+            logged_process = None
+            logged_steps = []
 
-        logged_process = update(
-            self,
-            (
-                ("steps", tuple(logged_steps)),
-                ("initial_state", state),
-                ("initial_system", system),
-                ("initial_settings", settings),
-                ("state_delta", compute_tree_delta(f_st, state)),
-                ("system_delta", compute_tree_delta(f_sys, system)),
-                ("settings_delta", compute_tree_delta(f_setts, settings)),
-            ),
-            is_leaf=lambda x: x is None,
-        )
+            for i, step in enumerate(self.steps[self.initial_step :]):
+                logged_step = update(
+                    step,
+                    (
+                        ("state_delta", compute_tree_delta(raw_hist[i + 1][0], raw_hist[i][0])),
+                        ("system_delta", compute_tree_delta(raw_hist[i + 1][1], raw_hist[i][1])),
+                        ("settings_delta", compute_tree_delta(raw_hist[i + 1][2], raw_hist[i][2])),
+                    ),
+                )
+                logged_steps.append(logged_step)
 
-        return f_st, f_sys, f_setts, logged_process
+                logged_process = update(
+                    self,
+                    (
+                        ("steps", tuple(logged_steps)),
+                        ("initial_state", state),
+                        ("initial_system", system),
+                        ("initial_settings", settings),
+                        ("state_delta", compute_tree_delta(f_st, state)),
+                        ("system_delta", compute_tree_delta(f_sys, system)),
+                        ("settings_delta", compute_tree_delta(f_setts, settings)),
+                    ),
+                    is_leaf=lambda x: x is None,
+                )
+
+                if settings.numerical.partition_inputs:
+                    f_st = combine(f_st, state_mask)
+                    f_sys = combine(f_st, system_mask)
+
+                return f_st, f_sys, f_setts, logged_process
 
     def append(self, step: ProcessStep | Process):
         new_steps = self.steps + (step,)
