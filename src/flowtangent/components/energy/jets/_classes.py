@@ -1201,7 +1201,7 @@ class JetKinematics(Module):
 
 
 class TurbojetOpPoint[KinType: JetKinematics | FanKinematics](FlowOpPoint):
-    name: str = field("TOC", static=True)  # Top-of-Climb design point by default
+    name: NameType = field("SLS", static=True)  # Sea-Level-Static operation point
 
     # Performance Parameters
     thrust: ScalarFloat = 0.0
@@ -1237,7 +1237,7 @@ class TurbojetOpPoint[KinType: JetKinematics | FanKinematics](FlowOpPoint):
     turbine_PR: ScalarFloat = 5.0  # noqa: N815
     power: ScalarFloat = 2e7 * units.W
 
-    exit_mach_numbers: KinType = field(JetKinematics, static=True)
+    station_mach_numbers: KinType = static_field(JetKinematics)
 
     def update_state(self, state: State):
         a0 = state.freestream.atmosphere.compute_speed_of_sound(self.altitude)
@@ -1769,7 +1769,7 @@ class TurbofanDesign(TurbojetOpPoint[FanKinematics]):
     HPT_PR: ScalarFloat = 5.0
     LPT_PR: ScalarFloat = 3.0
 
-    exit_mach_numbers: FanKinematics = field(FanKinematics, static=True)
+    station_mach_numbers: FanKinematics = field(FanKinematics, static=True)
 
 
 def TurbofanEngine(**kwargs):

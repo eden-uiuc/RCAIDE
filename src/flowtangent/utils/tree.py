@@ -6,10 +6,10 @@ if TYPE_CHECKING:
     from ..core._settings import Settings
 
 import os
+from collections import deque
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from collections import deque
 
 import equinox as eqx
 import jax
@@ -61,24 +61,24 @@ def update(obj, where_or_updates, val=None, **kwargs):
     else:
         if isinstance(where_or_updates, TreePath):
             paths = [where_or_updates]
-            
+
         elif isinstance(where_or_updates, str):
             paths = [TreePath.cast(where_or_updates)]
-            
+
         elif isinstance(where_or_updates, (list, set)):
             paths = [TreePath.cast(u) for u in where_or_updates]
-            
+
         elif isinstance(where_or_updates, tuple):
-            # The Ultimate Ambiguity: Is this ONE update spec `("path", val)`, 
+            # The Ultimate Ambiguity: Is this ONE update spec `("path", val)`,
             # or a tuple of multiple update specs `(("path1", val1), ("path2", val2))`?
             try:
                 # Try treating it as a single update spec first
                 paths = [TreePath.cast(where_or_updates)]
             except TypeError:
-                # If that fails (e.g. the first element isn't a valid path), 
+                # If that fails (e.g. the first element isn't a valid path),
                 # it MUST be a tuple containing multiple update specs.
                 paths = [TreePath.cast(u) for u in where_or_updates]
-                
+
         else:
             raise TypeError("update() requires a lambda, a string path, a TreePath, a tuple, or a sequence.")
 
@@ -86,7 +86,7 @@ def update(obj, where_or_updates, val=None, **kwargs):
     actual_paths = [get_actual_path(obj, p) for p in paths]
     where_fn = partial(get_all_targets, input_map=actual_paths)
     vals = tuple(p.value for p in paths)
-    
+
     return eqx.tree_at(where_fn, obj, vals, **kwargs)
 
 
@@ -105,10 +105,10 @@ class TreePath:
         """Strictly casts strings, path tuples, or update tuples into a TreePath."""
         if isinstance(item, cls):
             return item
-            
+
         if isinstance(item, str):
             return cls(path=item, value=default_val)
-            
+
         if isinstance(item, tuple):
             # Helper to check if something is strictly a path (str, or tuple of str/int)
             def is_path(p):
@@ -117,11 +117,11 @@ class TreePath:
             # Case A: Two-element update tuple -> (path, value)
             if len(item) == 2 and is_path(item[0]):
                 return cls(path=item[0], value=item[1])
-                
+
             # Case B: Three-element update tuple -> (path, value, slice)
             if len(item) == 3 and is_path(item[0]) and isinstance(item[2], slice):
                 return cls(path=item[0], value=item[1], path_slice=item[2])
-                
+
             # Case C: The tuple IS the path (e.g. ("subcomponents", 0))
             if is_path(item):
                 return cls(path=item, value=default_val)
@@ -228,21 +228,21 @@ def get_actual_path(obj: Any, path: str | tuple | TreePath) -> TreePath:
                     suffix.append(remaining_key)
 
             target_id = id(anchor_obj)
-            
+
             # BFS to find where this target physically lives in the canonical tree
             def bfs(start_node):
                 # Queue stores tuples of (current_object, path_to_object)
                 queue = deque([(start_node, [])])
-                
+
                 while queue:
                     curr, current_path = queue.popleft()
-                    
+
                     if id(curr) == target_id:
                         return current_path
-                        
+
                     if isinstance(curr, type) or callable(curr):
                         continue
-                        
+
                     if hasattr(curr, "__dataclass_fields__"):
                         for f in curr.__dataclass_fields__:
                             try:
@@ -265,7 +265,7 @@ def get_actual_path(obj: Any, path: str | tuple | TreePath) -> TreePath:
             actual_keys.extend(suffix)
 
             break
-        
+
     return TreePath(path=tuple(actual_keys), path_slice=path_obj.path_slice)
 
 def get_parent_target(obj: Any, path: str | tuple | TreePath) -> Any:

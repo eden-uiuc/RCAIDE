@@ -460,11 +460,11 @@ class ImplicitAnalysis(Process):
             print("-" * 65)
             for residual in active_residuals:
                 if residual.state_path is not None:
-                    print(f"- {residual.name}; path: {residual.state_path}")
+                    print(f"- {residual.name:<{pad}}| path: {residual.state_path}")
                 elif residual.value_func is not None:
-                    print(f"- {residual.name}; func: {residual.get_value.__name__}")
+                    print(f"- {residual.name:<{pad}}| func: {residual.value_func.__name__}")
                 else:
-                    print(f"- {residual.name}")
+                    print(f"- {residual.name:<{pad}}| WARNING: NO PATH OR FUNCTION SET")
             print("=" * 70)
             print("\n")
 
@@ -852,8 +852,9 @@ class ImplicitAnalysis(Process):
             pprint(opt_state)
             print(f"\n{'=' * 70}")
 
+        if settings.DEBUG_MODE:
+            del _trace_count[_analysis_stack.index(self.name)]
         del _analysis_stack[-1]
-        del _trace_count[-1]
 
         return f_st, f_sys, settings
 

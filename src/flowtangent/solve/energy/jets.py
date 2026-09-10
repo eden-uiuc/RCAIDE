@@ -94,7 +94,7 @@ def _design_update(state: State, system: Aircraft, settings: Settings) -> tuple[
 
     statics = settings.analysis.energy.statics
     if statics:
-        MN_dict = vars(des.exit_mach_numbers)
+        MN_dict = vars(des.station_mach_numbers)
         _ = MN_dict.pop("name", None)
         for node in MN_dict:
             engine = update(engine, lambda e: getattr(e, node).design_parameters.exit_mach_number, MN_dict[node])
@@ -333,17 +333,12 @@ def build_turbojet_performance(
 
     # Residual Setup -----------------------------------------------------------
 
-    d_m_nozz = Residual(name="Mass Flow Rate", value_func=lambda s: s.energy.residual.mass_flow_rate)
-
-    d_power = Residual(name="Power Imbalance", value_func=lambda s: s.energy.residual.power)
-
-    d_thrust = Residual(name="Thrust", value_func=lambda s: s.energy.residual.thrust)
-
-    d_Wc = Residual(name="Compressor Mass Flow", value_func=lambda s: s.energy.residual.compressor_Wc)
-
-    d_Wp = Residual(name="Turbine Mass Flow", value_func=lambda s: s.energy.residual.turbine_Wp)
-
-    d_area = Residual(name="Throat Area", value_func=lambda s: s.energy.residual.area)
+    d_m_nozz = Residual(name="Mass Flow Rate",      state_path="energy.residual.mass_flow_rate")
+    d_power = Residual(name="Power Imbalance",      state_path="energy.residual.power")
+    d_thrust = Residual(name="Thrust",              state_path="energy.residual.thrust")
+    d_Wc = Residual(name="Compressor Mass Flow",    state_path="energy.residual.compressor_Wc")
+    d_Wp = Residual(name="Turbine Mass Flow",       state_path="energy.residual.turbine_Wp")
+    d_area = Residual(name="Throat Area",           state_path="energy.residual.area")
 
     # Variable Setup -----------------------------------------------------------
 

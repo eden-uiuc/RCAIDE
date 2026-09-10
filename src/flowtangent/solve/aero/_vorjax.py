@@ -30,16 +30,15 @@ import jax.numpy as jnp
 # package imports
 import sklearn
 
-from ...utils import TreePath, field, method_field, Module, io, update, static_field
 from ...components._wings import Wing, WingSegment, WingSweeps
 from ...core._processes import Process, ProcessStep
 from ...data import units as U  # noqa: N812
 from ...functional.aero.shocks import oblique_shock, theta_beta_mach
 from ...functional.aero.transonic import ensemble_CL_spline, peaked_CL_spline
 from ...sim.initialize import initialize_aerodynamics
+from ...utils import Module, TreePath, field, io, method_field, static_field, update
 
 # FT imports
-from .._batched import BatchedAnalysis
 
 # ----------------------------------------------------------------------------------------------------------------------
 #  API Setup

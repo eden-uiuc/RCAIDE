@@ -14,7 +14,7 @@ from typing import Optional, Self, Sequence
 import jax
 import jax.numpy as jnp
 
-from ...utils import Module, update
+from ...utils import Module
 from ...utils.base import StateDataMeta
 
 # ----------------------------------------------------------------------------------------------------------------------
