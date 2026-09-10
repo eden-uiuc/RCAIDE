@@ -94,7 +94,8 @@ def _design_update(state: State, system: Aircraft, settings: Settings) -> tuple[
 
     statics = settings.analysis.energy.statics
     if statics:
-        MN_dict = des.exit_mach_numbers.as_dict()
+        MN_dict = vars(des.exit_mach_numbers)
+        _ = MN_dict.pop("name", None)
         for node in MN_dict:
             engine = update(engine, lambda e: getattr(e, node).design_parameters.exit_mach_number, MN_dict[node])
 

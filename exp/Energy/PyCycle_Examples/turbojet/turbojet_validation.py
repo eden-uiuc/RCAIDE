@@ -164,7 +164,7 @@ def off_design_point(
 
     return od_state, od_system, od_settings
 
-def validate_design_point(pycycle_json_path, Flowtangent_state, point_name: str="Design"):
+def validate_design_point(pycycle_json_path, ft_state, point_name: str="Design"):
     """
     Loads PyCycle JSON results and compares them against the Flowtangent state.
     """
@@ -195,11 +195,10 @@ def validate_design_point(pycycle_json_path, Flowtangent_state, point_name: str=
         'V':     ('speed', units.ft/units.s),
     }
 
-    # User-defined extraction function
-    def get_Flowtangent_value(state, network_id, prop_tag):
+    def get_ft_value(state, network_id, prop_name):
 
         node = state.energy.nodes[network_id]
-        value = np.asarray(getattr(node.flow, prop_tag))
+        value = np.asarray(getattr(node.flow, prop_name))
         if value.size == 1:
             return value.item()
         else:
@@ -217,22 +216,22 @@ def validate_design_point(pycycle_json_path, Flowtangent_state, point_name: str=
         
         if pyc_prop in property_map:
             prop_tag, pyc_units = property_map[pyc_prop]
-            value = getattr(Flowtangent_state.freestream, prop_tag)
-            Flowtangent_val = np.asarray(value).item()
+            value = getattr(ft_state.freestream, prop_tag)
+            ft_val = np.asarray(value).item()
 
             pyc_val *= pyc_units
-            diff = Flowtangent_val - pyc_val
+            diff = ft_val - pyc_val
 
             if abs(pyc_val) > 1e-12:
                     rel_error = (diff / pyc_val)
             else:
-                rel_error = np.nan if abs(Flowtangent_val) > 1e-12 else 0.0
+                rel_error = np.nan if abs(ft_val) > 1e-12 else 0.0
             
             records.append({
                 'Station': "fc",
                 'Property': pyc_prop,
                 'PyCycle Val': pyc_val,
-                'FlowTan Val': Flowtangent_val,
+                'FlowTan Val': ft_val,
                 'Diff': diff,
                 'Rel. Error': rel_error,
                 'Mag. Error': np.abs(rel_error)
@@ -240,8 +239,8 @@ def validate_design_point(pycycle_json_path, Flowtangent_state, point_name: str=
     
     for pyc_station, pyc_props in pycycle_data.get('flow_stations', {}).items():
         
-        Flowtangent_node_id = station_map.get(pyc_station)
-        if not Flowtangent_node_id:
+        ft_node_id = station_map.get(pyc_station)
+        if not ft_node_id:
             continue
             
         for pyc_prop, pyc_val in pyc_props.items():
@@ -252,29 +251,29 @@ def validate_design_point(pycycle_json_path, Flowtangent_state, point_name: str=
             if pyc_prop == "ht":
                 continue
             
-            Flowtangent_tag, pyc_units = property_map.get(pyc_prop, (None, None))
-            if not Flowtangent_tag or pyc_val is None:
+            ft_name, pyc_units = property_map.get(pyc_prop, (None, None))
+            if not ft_name or pyc_val is None:
                 continue
                 
             # Grab the Flowtangent value
-            Flowtangent_val = get_Flowtangent_value(Flowtangent_state, Flowtangent_node_id, Flowtangent_tag)
-            if Flowtangent_val is not None:
+            ft_val = get_ft_value(ft_state, ft_node_id, ft_name)
+            if ft_val is not None:
                 # Calculate metrics
                 pyc_val *= pyc_units
-                diff = Flowtangent_val - pyc_val
+                diff = ft_val - pyc_val
                 
                 # Protect against divide-by-zero if PyCycle value is exactly 0.0 (like altitude or Mn=0)
                 if abs(pyc_val) > 1e-12:
                     rel_error = (diff / pyc_val)
                 else:
                     # If PyCycle is 0, use absolute difference as the "error" metric visually, or set to NaN
-                    rel_error = np.nan if abs(Flowtangent_val) > 1e-12 else 0.0
+                    rel_error = np.nan if abs(ft_val) > 1e-12 else 0.0
                     
                 records.append({
                     'Station': pyc_station.split('.')[0],
                     'Property': pyc_prop,
                     'PyCycle Val': pyc_val,
-                    'FlowTan Val': Flowtangent_val,
+                    'FlowTan Val': ft_val,
                     'Diff': diff,
                     'Rel. Error': rel_error,
                     'Mag. Error': np.abs(rel_error)
@@ -305,14 +304,14 @@ if __name__ == "__main__":
     
     # Control Board
     DEV = False
-    DEBUG = True
+    DEBUG = False
     VERBOSE = True
 
-    STATICS = False
+    STATICS = True
 
     DESIGN_POINT = True
-    OFF_DESIGN_0 = True
-    OFF_DESIGN_1 = True
+    OFF_DESIGN_0 = False
+    OFF_DESIGN_1 = False
 
     # Build Turbojet------------------------------------------------------------
     test_dir = Path(__file__).resolve().parent

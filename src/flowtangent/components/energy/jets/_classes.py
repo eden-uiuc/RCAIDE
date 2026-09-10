@@ -464,6 +464,8 @@ class Burner(FlowNode):
                     mdot=W_in * (1.0 + FAR),
                 )
 
+                M_out = des_params.exit_mach_number
+
                 updated_system = update(
                     updated_system,
                     lambda s: s.energy.nodes[self.network_id].design_parameters.A_exit,
@@ -503,11 +505,11 @@ class Burner(FlowNode):
         outputs = update(outputs, "fluid", BurnedJetA(FAR))
 
         if statics:
-            outputs = update(outputs, "flow.temperature", jnp.atleast_2d(T_out))
-            outputs = update(outputs, "flow.pressure", jnp.atleast_2d(P_out))
-            outputs = update(outputs, "flow.enthalpy", jnp.atleast_2d(h_out))
-            outputs = update(outputs, "flow.speed", jnp.atleast_2d(u_out))
-            outputs = update(outputs, "flow.mach_number", jnp.atleast_2d(M_out))
+            outputs = update(outputs, "temperature", jnp.atleast_2d(T_out))
+            outputs = update(outputs, "pressure", jnp.atleast_2d(P_out))
+            outputs = update(outputs, "enthalpy", jnp.atleast_2d(h_out))
+            outputs = update(outputs, "speed", jnp.atleast_2d(u_out))
+            outputs = update(outputs, "mach_number", jnp.atleast_2d(M_out))
 
         updated_state = update(state, lambda s: s.energy.nodes[self.network_id].flow, outputs)
 

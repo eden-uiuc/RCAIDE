@@ -268,7 +268,7 @@ class Variable(Module):
     def _logarithmic_unscale(self, val):
         return 10.0**val
 
-    def unscale(self, val: ftu.TimeScalar) -> ftu.TimeScalar:
+    def unscale(self, val: ftu.TimeScalar | ftu.ScalarFloat) -> ftu.TimeScalar | ftu.ScalarFloat:
         func = getattr(self, f"_{self.scaling}_unscale")
         return func(val)
 
@@ -334,7 +334,6 @@ class Variable(Module):
 
 class Residual(Module):
     state_path: Optional[ftu.TreePathLike] = ftu.static_field(None)
-
     value_func: Optional[Callable[["State"], ftu.TimeScalar]] = ftu.method_field(None)
 
     def __post_init__(self):
@@ -346,7 +345,7 @@ class Residual(Module):
         if not has_path and not has_func:
             raise ValueError(f"Residual '{self.name}' must have either a state_path or a value_func defined.")
 
-    def get_value(self, state: "State") -> ftu.TimeScalar:
+    def get_value(self, state: "State") -> ftu.TimeScalar | ftu.ScalarFloat:
         if self.state_path is not None:
             return ftu.get_target(state, ftu.TreePath.cast(self.state_path))
         else:
@@ -446,21 +445,23 @@ class ImplicitAnalysis(Process):
 
             all_names = [v.name for v in active_variables] + [r.name for r in active_residuals]
             # Default to 20 if empty, otherwise add 2 spaces of buffer to the longest name
-            pad = max((len(t) for t in all_names), default=20) + 2
+            pad = max((len(str(t)) for t in all_names), default=20) + 2
 
             print(f"\n{'Active Variables':<{pad + 2}}| {'Init. Values':<13}| Bounds")
             print("-" * 65)
             for variable in active_variables:
                 print(
                     f"- {variable.name:<{pad}}| "
-                    "{ftu.format_array(variable.initial_value, width=12):>12} | "
-                    "{ftu.format_array(jnp.asarray(variable.bounds))}"
+                    f"{ftu.format_array(variable.initial_value, width=12):>12} | "
+                    f"{ftu.format_array(jnp.asarray(variable.bounds))}"
                 )
 
             print("\nActive Residuals")
             print("-" * 65)
             for residual in active_residuals:
-                if residual.get_value.__name__ != "<lambda>":
+                if residual.state_path is not None:
+                    print(f"- {residual.name}; path: {residual.state_path}")
+                elif residual.value_func is not None:
                     print(f"- {residual.name}; func: {residual.get_value.__name__}")
                 else:
                     print(f"- {residual.name}")
@@ -480,7 +481,7 @@ class ImplicitAnalysis(Process):
 
         for var in self.variables:
             solver_logit = variable_values[var_idx : var_idx + N]
-            new_val = var.scale(solver_logit[:N])
+            new_val = var.unscale(solver_logit[:N])
             var_state = update(
                 var_state,
                 lambda s: ftu.get_target(s, var.state_path),
@@ -851,8 +852,8 @@ class ImplicitAnalysis(Process):
             pprint(opt_state)
             print(f"\n{'=' * 70}")
 
-        # del _analysis_stack[-1]
-        # del _trace_count[-1]
+        del _analysis_stack[-1]
+        del _trace_count[-1]
 
         return f_st, f_sys, settings
 
