@@ -629,7 +629,7 @@ class ImplicitAnalysis(Process):
                 if _trace_count[_analysis_stack.index(self.name)] > 1:
                     diff_args((variable_values, full_state, full_system, settings))
                 _trace_count[_analysis_stack.index(self.name)] += 1
-                print(f"\n--- {self.name.upper()} PASS {_trace_count[_analysis_stack.index(self.name)]} ---")
+                print(f"\n--- {str(self.name).upper()} PASS {_trace_count[_analysis_stack.index(self.name)]} ---")
 
             variable_state = self._update_variables(full_state, variable_values, settings)
             analysis_state, analysis_system, analysis_settings = self.analyze(variable_state, full_system, settings)
@@ -785,7 +785,7 @@ class ImplicitAnalysis(Process):
             else:
                 run_fn = self._run_optx_solver
 
-            f_vars, opt_state, f_st, f_sys = run_fn(
+            f_vars, opt_state, _sol_st, _sol_sys = run_fn(
                 get_residuals,
                 variable_values,
                 state,
@@ -793,6 +793,9 @@ class ImplicitAnalysis(Process):
                 settings,
                 solver_options,
             )
+
+            # Closeout pass (mandatory for adjoints not passing through variables)
+            _, (f_st, f_sys) = get_residuals(f_vars, (dyn_state, dyn_system))
 
         full_state = eqx.combine(f_st, stat_state)
         full_system = eqx.combine(f_sys, stat_system)

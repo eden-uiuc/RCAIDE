@@ -17,6 +17,7 @@ import jax
 import jax.numpy as jnp
 import equinox as eqx
 
+from functools import partial
 from tqdm import tqdm
 from pathlib import Path
 from dataclasses import replace
@@ -119,7 +120,7 @@ def get_jac_memory(system):
             
     return None
 
-def run_monolithic_benchmark(N_points):
+def run_monolithic_benchmark(N_points, dense: bool):
     """
     Builds the PyCycle problem, converges it, and times the global adjoint solve.
     Tracks Setup, Compile (0.0s), and Execution (Forward + Adjoint) times.
@@ -136,7 +137,7 @@ def run_monolithic_benchmark(N_points):
     
     # Add the scalable multi-point cycle
     mp_turbojet = prob.model.add_subsystem('mp_turbojet', MAUD_Monolithic(N_points=N_points), promotes=['*'])
-    mp_turbojet.options['assembled_jac_type'] = 'dense'
+    mp_turbojet.options['assembled_jac_type'] = 'dense' if dense else 'csc'
     
     # Add Objective: Average TSFC across all N points
     eq_str = 'avg_tsfc = (' + ' + '.join([f'tsfc_{i}' for i in range(N_points)]) + f') / {N_points}'
@@ -150,7 +151,7 @@ def run_monolithic_benchmark(N_points):
 
     # Force the monolithic matrix assembly for the global adjoint
     prob.model.linear_solver = om.DirectSolver(assemble_jac=True)
-    prob.model.options['assembled_jac_type'] = 'dense'
+    prob.model.options['assembled_jac_type'] = 'dense' if dense else 'csc'
     
     prob.setup(check=False, mode='rev')
 
@@ -346,6 +347,7 @@ design_node.defvjp(des_fwd, des_bwd)
 prob_od = om.Problem()
 prob_od.model.add_subsystem('od', Turbojet(design=False), promotes=['*'])
 prob_od.model.linear_solver = om.DirectSolver(assemble_jac=True)
+prob_od.model.options['assembled_jac_type'] = 'dense'
 
 prob_od.model.nonlinear_solver = om.NewtonSolver(solve_subsystems=True)
 prob_od.model.nonlinear_solver.options['maxiter'] = 50
@@ -357,6 +359,7 @@ prob_od.model.nonlinear_solver.add_recorder(om.SqliteRecorder(test_dir / "solver
 prob_od.model.nonlinear_solver.recording_options['record_abs_error'] = True
 prob_od.model.nonlinear_solver.recording_options['record_rel_error'] = True
 prob_od.model.nonlinear_solver.linesearch.options['iprint'] = -1
+
 
 prob_od.setup(check=False, mode='rev')
 prob_od.set_solver_print(level=-1)
@@ -1095,10 +1098,10 @@ def execute_benchmark(name: str, func, N_array: list, cache_file: Path) -> dict:
                 metrics['jac_calls'].append(res[8])
 
     # Print Formatted Output
-    print(f"{'N Points':<10} | {'Mem (MB)':<10} | {'J.Mem (MB)':<10} | {'Setup (s)':<10} | {'Comp (s)':<10} | {'Exec (s)':<10} | {'TSFC':<10} | {'Grad':<15} | {'Primal':<10} | {'Jacobian ':<10}")
+    print(f"{'N Points':<10} | {'Mem (MB)':<10} | {'J.Mem (MB)':<10} | {'Setup (s)':<10} | {'Comp (s)':<10} | {'Exec (s)':<10} | {'TSFC':<10} | {'Grad':<10} | {'Primal':<10} | {'Jacobian ':<10}")
     print("-" * 130)
     for i in range(len(metrics['N_array'])):
-        print(f"{metrics['N_array'][i]:<10} | {metrics['total_mem'][i]:<10.1f} | {metrics['jac_mem'][i]:<10.1f} | {metrics['setup_time'][i]:<10.2f} | {metrics['comp_time'][i]:<10.2f} | {metrics['exec_time'][i]:<10.2f} | {metrics['tsfc'][i]:<10.2f} | {metrics['grad'][i]:<15.4f} | {metrics['func_calls'][i]:<10d}  | {metrics['jac_calls'][i]:<10d}")
+        print(f"{metrics['N_array'][i]:<10} | {metrics['total_mem'][i]:<10.1f} | {metrics['jac_mem'][i]:<10.1f} | {metrics['setup_time'][i]:<10.2f} | {metrics['comp_time'][i]:<10.2f} | {metrics['exec_time'][i]:<10.2f} | {metrics['tsfc'][i]:<10.4f} | {metrics['grad'][i]:<10.4f} | {metrics['func_calls'][i]:<10d}  | {metrics['jac_calls'][i]:<10d}")
 
     save_results(cache_file, name, metrics)
     
@@ -1137,10 +1140,11 @@ def Compare_Architectures(N_array: list[int], fig_filename: str | Path):
     
     # Easily toggle architectures by commenting them out
     architectures = [
-        ("MAUD Monolithic", run_monolithic_benchmark, 'r-o'),
-        ("Hybrid PACT", run_pact_hybrid_benchmark, 'b-o'),
-        ("Python PACT", run_pact_python_benchmark, 'm-o'),
-        ("FlowTangent GPU", run_flowtangent_benchmark, 'g-o')
+        ("MAUD-Dense", partial(run_monolithic_benchmark, dense=True), 'r-o'),
+        ("MAUD-Sparse", partial(run_monolithic_benchmark, dense=False), 'm-x'),
+        ("PACT-Python", run_pact_python_benchmark, 'b-o'),
+        ("PACT-Hybrid", run_pact_hybrid_benchmark, 'c-x'),
+        ("FlowTangent CPU", run_flowtangent_benchmark, 'g-o')
         # ("MAUD Opaque AD", run_maud_opaque_ad_benchmark, 'g-o'),
         # ("MAUD Opaque FD", run_maud_opaque_fd_benchmark, 'm-o'),
     ]
@@ -1190,7 +1194,10 @@ def Compare_Architectures(N_array: list[int], fig_filename: str | Path):
 
 if __name__ == "__main__":
     N_array = [1,
-            #    2, 5, 10, 20, 30, 40, 50
+               2, 5, 10,
+            # 20, 30,
+            # 40, 50,
+            # 100
                ]
     fig_fn = test_dir / 'architecture_scaling_benchmark.png'
     Compare_Architectures(N_array, fig_fn)
