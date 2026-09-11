@@ -1984,9 +1984,9 @@ class SupersonicSettings(Module):
     cross_section_type: str = field("Fixed", static=True)
     wave_drag_type: str = field("Raymer", static=True)
 
-    def __post_init__(self):
+    def __check_init__(self):
         if self.peak_mach_number is not None:
-            object.__setattr__(self, "_transonic_CL_blender", field(peaked_CL_spline, as_value=True, static=True))
+            object.__setattr__(self, "_transonic_CL_blender", peaked_CL_spline)
 
     def transonic_CL_blender(self, M, val_sub, val_sup):
         return self._transonic_CL_blender(

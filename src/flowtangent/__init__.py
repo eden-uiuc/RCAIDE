@@ -7,18 +7,11 @@
 #  IMPORT
 # ----------------------------------------------------------------------------------------------------------------------
 
-from .utils.backend import initialize_jax_cache
-
-initialize_jax_cache(
-    cache_dir="~/.flowtangent/jax_cache",
-    max_size_gb=2.0,
-    max_age_days=30,
-)
-
 # 1. Early Boot (Must happen first)
 from .utils.backend import numerical_environment, initialize_jax_cache
 
 numerical_environment()
+initialize_jax_cache()
 
 # Framework Hoists
 from .core._state import State

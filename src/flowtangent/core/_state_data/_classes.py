@@ -49,14 +49,7 @@ class StateData(Module, metaclass=StateDataMeta):
     def __iter__(self):
         return iter(self.substates)
 
-    def expand_time(self, N: Optional[int] = None):
-
-        if N is None:
-            if hasattr(self, "time"):
-                if hasattr(self.time, "N"):
-                    N = self.time.N
-            else:
-                N = 1
+    def expand_time(self, N: int = 1):
 
         def _expand(leaf):
             if isinstance(leaf, (jax.Array)):

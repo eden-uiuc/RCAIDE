@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .. import Settings, State, System
-    from . import JacobianMap
 
 import contextlib
 import io
@@ -232,7 +231,7 @@ class Variable(Module):
     """
 
     state_path: ftu.TreePath = ftu.static_field(ftu.TreePath)
-    initial_value: Optional[ftu.TimeScalar | ftu.ScalarFloat] = ftu.field(None)
+    initial_value: ftu.TimeScalar | ftu.ScalarFloat = ftu.field(1.0)
     bounds: tuple[ftu.ScalarFloat, ftu.ScalarFloat] = ftu.static_field((-1e6, 1e6))
 
     scaling: Literal[
@@ -374,12 +373,9 @@ class ImplicitAnalysis(Process):
         variables: tuple[Variable, ...] = (),
         residuals: tuple[Residual, ...] = (),
         *,
-        initial_step: int = 0,
         _initial_state: Optional[State] = None,
         _initial_system: Optional[System] = None,
         _initial_settings: Optional[Settings] = None,
-        _val_and_jac_fn: Optional[Callable] = None,
-        _cached_grad_map: Optional[JacobianMap] = None,
         _filter_map: Optional[dict] = None,
         
     ) -> None:
@@ -387,12 +383,10 @@ class ImplicitAnalysis(Process):
         # Standard field assignments
         self.name = name
         self.function = ftu.null_step
-        self.initial_step = initial_step
+        self.initial_step = 0
         self._initial_state = _initial_state
         self._initial_system = _initial_system
         self._initial_settings = _initial_settings
-        self._val_and_jac_fn = _val_and_jac_fn
-        self._cached_grad_map = _cached_grad_map
 
         # Handle mutable dictionary default safely
         self._filter_map = (
@@ -522,21 +516,7 @@ class ImplicitAnalysis(Process):
 
         for var in self.variables:
             n_cp = state.time.N
-
-            # All variable values are normalized by their initial value, so set initial variable value to 1.0
-            # Values are rescaled in update_variables when actually added to state
-            if var.initial_value is not None:
-                # fmt: off
-                var_values.append(jnp.full(
-                        (n_cp, 1),
-                        var.scale(var.initial_value))
-                    )
-                # fmt: on
-            else:
-                raise ValueError(
-                    f"Variable {var.name} has no initial value: {var.initial_value}. "
-                    "Must be a float or an array of size matching the number of control points."
-                )
+            var_values.append(jnp.full((n_cp, 1), var.scale(var.initial_value)))
 
         var_state = self._update_variables(state, jnp.concatenate(var_values, axis=0), settings)
 

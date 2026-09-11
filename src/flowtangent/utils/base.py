@@ -21,17 +21,17 @@ if typing.TYPE_CHECKING:
 
     # Overload 1: If passed a class/callable, Pylance binds it to 'default_factory'
     @typing.overload
-    def field(default_factory: typing.Callable[[], T], as_value: bool = False, **kwargs) -> T: ...
+    def field(default_factory: typing.Callable[[], T], as_func: bool = False, **kwargs) -> T: ...
 
     # Overload 2: If passed a standard value, Pylance binds it to 'default'
     @typing.overload
-    def field(default: T, as_value: bool = False, **kwargs) -> T: ...
+    def field(default: T, as_func: bool = False, **kwargs) -> T: ...
 
 
-def field(initializer: typing.Any = None, as_value: bool = False, **kwargs):
+def field(initializer: typing.Any = None, as_func: bool = False, **kwargs):
     """Smart wrapper for eqx.field that auto-routes default vs default_factory."""
-    if as_value:
-        return eqx.field(default=initializer, **kwargs)
+    if as_func:
+        return eqx.field(default_factory=lambda: initializer, **kwargs)
     if callable(initializer):
         return eqx.field(default_factory=initializer, **kwargs)
     if isinstance(initializer, (list, dict, set)):
@@ -49,7 +49,7 @@ def static_field(*args, **kwargs):
 
 
 def method_field(*args, **kwargs):
-    return field(*args, as_value=True, static=True, **kwargs)
+    return field(*args, as_func=True, static=True, **kwargs)
 
 
 def empty_array(shape: tuple | int = 0, dtype: Any = float, **kwargs):
@@ -85,8 +85,12 @@ class Module(eqx.Module):
                 )
         FLOWTANGENT_REGISTRY[cls.__name__] = cls
 
+        dataclass_fields = getattr(cls, "__dataclass_fields__", {})
+
         # Auto-apply jaxtyped to all standard methods that have type annotations
         for attr_name, attr_value in cls.__dict__.items():
+            if attr_name in dataclass_fields:
+                continue # Skip dataclass defaults
             # Skip dunder methods (__init__, __call__, etc.) to avoid breaking Equinox
             if inspect.isfunction(attr_value) and not attr_name.startswith("__"):
                 annotations = getattr(attr_value, "__annotations__", {})

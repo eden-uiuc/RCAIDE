@@ -15,7 +15,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
-from equinox import combine, is_array, is_array_like, partition
+from equinox import combine, is_array, is_array_like, partition, Partial
 
 # -----------------------------------------------------------------------------
 # UPSTREAM FACADE IMPORTS
@@ -149,9 +149,7 @@ class TreePath:
             parsed_path = path.split(".")
         elif isinstance(path, tuple):
             for p in path:
-                if isinstance(p, str):
-                    parsed_path.extend(p.split("."))
-                elif isinstance(p, int):
+                if isinstance(p, str | int):
                     parsed_path.append(p)
                 else:
                     raise ValueError(f"Path elements must be strings or ints, got {type(p)}")
@@ -477,6 +475,7 @@ def scan_for_invalid_JAX_types(pytree, name: Optional[str] = None) -> None:
 # -----------------------------------------------------------------------------
 __all__ = [
     # JAX & Equinox Native
+    "Partial",
     "tree_map",
     "tree_flatten",
     "tree_unflatten",

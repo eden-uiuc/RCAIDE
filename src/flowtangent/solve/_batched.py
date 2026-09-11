@@ -9,11 +9,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
-
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Sequence, Tuple
 
 if TYPE_CHECKING:
@@ -25,6 +20,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
+from dataclasses import replace
 
 import equinox as eqx
 import jax
@@ -36,7 +32,7 @@ from numcodecs import Blosc
 from tqdm import tqdm, trange
 
 from .. import Process, State, System
-from ..utils import TreePath, field, get_all_targets, update
+from ..utils import TreePath, field, get_all_targets, update, null_step
 from ._implicit import ImplicitAnalysis
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -48,27 +44,48 @@ class BatchedAnalysis(Process):
     name: str = field("Batched Analysis")
 
     analyze: Process = field(Process)
-    state_inputs: tuple[TreePath, ...] = field(())
+    batch_inputs: tuple[TreePath, ...] = field(())
 
     def __init__(
         self,
-        name: str = "Batched Analysis",
         analyze: Process = Process(name="Batched Analysis"),
-        state_inputs: tuple[TreePath, ...] = (),
+        batch_inputs: tuple[TreePath, ...] = (),
+        name: str = "Batched Analysis",
+        *,
+        _initial_state: Optional[State] = None,
+        _initial_system: Optional[System] = None,
+        _initial_settings: Optional[Settings] = None,
+        _filter_map: Optional[dict] = None,
     ):
-        super().__init__(name=name)
 
+        self.name = name
+        self.function = null_step
+        self.initial_step = 0
+
+        self._initial_state = _initial_state
+        self._initial_system = _initial_system
+        self._initial_settings = _initial_settings
+
+        # Handle mutable dictionary default safely
+        self._filter_map = (
+            _filter_map
+            if _filter_map is not None
+            else {
+                "energy": r"state\.energy\.nodes\.\[*\].",
+            }
+        )
+        
         self.analyze = analyze
 
         if not isinstance(self.analyze, ImplicitAnalysis):
-            self.state_inputs = state_inputs
+            self.batch_inputs = batch_inputs
         else:
             vars = self.analyze.variables
             # fmt: off
             var_inputs = tuple(TreePath(
                 path=v.state_path.path,
                 value=jnp.atleast_3d(v.initial_value)) for v in vars)
-            self.state_inputs = self.state_inputs + var_inputs
+            self.batch_inputs = self.batch_inputs + var_inputs
             # fmt: on
 
     @property
@@ -79,7 +96,7 @@ class BatchedAnalysis(Process):
 
         batch_arrays = []
 
-        raw_arrays = [jnp.atleast_1d(jnp.array(p.value)) for p in self.state_inputs]
+        raw_arrays = [jnp.atleast_1d(jnp.array(p.value)) for p in self.batch_inputs]
 
         if mode == "zip":
             input_size = raw_arrays[0].shape[0]
@@ -111,22 +128,21 @@ class BatchedAnalysis(Process):
         else:
             raise ValueError("Batch mode must be 'zip' or 'mesh'.")
 
-        total_states = batch_arrays[0].shape[0]
-        name_groups = [p.name.split(".") for p in self.state_inputs]
-        leading_state = [int(g[0] == "state") for g in name_groups]
-        state_names = [".".join(g[slice(leading_state[i], None)]) for i, g in enumerate(name_groups)]
+        total_size = batch_arrays[0].shape[0]
+        state_inputs = []
+        system_inputs = []
 
-        state_inputs = tuple(
-            TreePath(
-                name=p.name,
-                path=state_names[idx],
-                path_slice=p.path_slice,
-                value=batch_arrays[idx],
-            )
-            for idx, p in enumerate(self.state_inputs)
-        )
+        for i, p in enumerate(self.batch_inputs):
+            path_tup = p.path
+            if path_tup[0] == "state":
+                state_inputs.append(replace(p, path=path_tup[1:], value=batch_arrays[i]))
+            elif path_tup[0] == "system":
+                system_inputs.append(replace(p, path=path_tup[1:], value=batch_arrays[i]))
+            else:
+                # Default fallback: assume state variable if no prefix
+                state_inputs.append(replace(p, value=batch_arrays[i]))
 
-        return state_inputs, total_states
+        return state_inputs, system_inputs, total_size
 
     @staticmethod
     def _update_inputs(pytree: State | System, idx: int, batch_size: int, inputs: Sequence[TreePath]):
@@ -143,14 +159,10 @@ class BatchedAnalysis(Process):
 
     def __call__(self, state: State, system: System, settings: Settings) -> Tuple[State, System, Settings]:
 
-        dyn_state, stat_state, state_mask, dyn_system, stat_system, system_mask = self._partition_inputs(
-            state, system, settings
-        )
-
         batch_size = settings.numerical.batch_size
         batch_mode = settings.numerical.batch_mode
 
-        state_inputs, total_states = self._batch_inputs(batch_mode)
+        state_inputs, _, total_states = self._batch_inputs(batch_mode)
 
         batch_state = state.expand_batch(batch_size)
         batch_axes = batch_state.get_vmap_axes()
@@ -162,10 +174,15 @@ class BatchedAnalysis(Process):
         else:
             pbar = trange(0, total_states, batch_size, desc=self.name, leave=False)
 
+        if not settings.DEBUG_MODE and not settings._DEV_MODE:
+            analyis_settings = replace(settings, verbose=False)
+        else:
+            analyis_settings = settings
+
         batch_states = []
         for batch_idx in pbar:
             updated_state = self._update_inputs(batch_state, batch_idx, batch_size, state_inputs)
-            b_st, _, _ = batch_analyze(updated_state, system, settings)
+            b_st, _, _ = batch_analyze(updated_state, system, analyis_settings)
             actual_size = min(batch_size, total_states - batch_idx)
             if actual_size < batch_size:
                 b_st = b_st.truncate(actual_size)

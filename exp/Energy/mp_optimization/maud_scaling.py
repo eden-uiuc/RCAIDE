@@ -1,3 +1,5 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 import flowtangent as ft
 
 import json
@@ -30,16 +32,18 @@ warnings.filterwarnings('ignore', category=SolverWarning)
 
 # Import OpenMDAO and FlowTangent models
 from simple_turbojet import Turbojet
-from ..PyCycle_Examples.turbojet.turbojet_validation import system_setup as ft_turbojet
+from turbojet_validation import system_setup as ft_turbojet
 
 from flowtangent import State, Settings, Process
-from flowtangent.utils import TreePath, configure_environment
+from flowtangent.utils import TreePath, configure_environment, update
 from flowtangent.solve import NumericalSettings, JacobianSettings, JacobianMap, BatchedAnalysis
 from flowtangent.solve.energy.jets import build_turbojet_design, build_turbojet_performance, JetSettings
 from flowtangent.sim.update import update_freestream
 
 from flowtangent.data import units
 from flowtangent.components.energy.jets import TurbojetOpPoint
+
+from flowtangent.core._processes import array_barrier
 
 pact_primal_calls = 0
 pact_vjp_calls = 0
@@ -884,7 +888,7 @@ def run_flowtangent_benchmark(N_points):
     system = ft_turbojet()
     settings = eqx.tree_at(
         lambda s: (s.analysis.energy, s.numerical),
-        Settings(DEBUG_MODE=True),
+        Settings(DEBUG_MODE=False),
         (
             JetSettings(design_mode=True, statics=False),
             NumericalSettings(
@@ -924,13 +928,15 @@ def run_flowtangent_benchmark(N_points):
     # Off-Design Point Setup -------------------------------
 
     od = TurbojetOpPoint(
-        altitude=5_000 * units.ft,
+        name="Off Design",
         mach_number=0.2,
+        altitude=5_000 * units.ft,
         thrust=8_000 * units.lbf,
-        mass_flow_rate=168.453135137 * units.parse('lbm/s'),
-        rotation_speed=8197.38 * units.rpm,
-        turbine_PR=4.669,
-        FAR=0.0168
+        compressor_Rline = 2.0,
+        turbine_PR = 4.669,
+        rotation_speed = 8197.38 * units.rpm,
+        mass_flow_rate = 168.45 * units.parse('lbm/s'),
+        FAR = 0.0168
     )
 
     od_state = od.update_state(des_state)
@@ -941,30 +947,43 @@ def run_flowtangent_benchmark(N_points):
 
     def design_handover(swap_state, swap_system, swap_settings):
     
-            updated_settings = eqx.tree_at(
-                lambda s: s.analysis.energy,
-                swap_settings,
-                replace(swap_settings.analysis.energy, design_mode=False)
-            )
+        updated_settings = update(
+            swap_settings,
+            "analysis.energy",
+            replace(swap_settings.analysis.energy, design_mode=False)
+        )
+        
+        return swap_state, swap_system, updated_settings
 
-            new_state, new_system, new_settings = od_node.initialize(od_state, swap_system, updated_settings)
-            
-            return new_state, new_system, new_settings
+    def batch_average_TSFC(batch_state, batch_system, batch_settings):
+        avg_TSFC = jnp.atleast_3d(jnp.mean(batch_state.energy.nodes['network.line.engine'].fuel.TSFC))
+
+        avg_state = update(
+            batch_state,
+            lambda b: b.energy.nodes['network.line.engine'].fuel.TSFC,
+            avg_TSFC
+        )
+
+        return avg_state, batch_system, batch_settings
+
 
     pact_process = Process(
         name='PACT Benchmark',
-        steps=(design_node, design_handover, od_node),
-        initialize=design_node.initialize_controls
+        steps=(
+                design_node.initialize_variables,
+                design_node,
+                design_handover,
+                od_node,
+                batch_average_TSFC,
+            ),
         )
 
-    def cycle_objective(comp_pr):
-        f_st, f_sys, f_set = pact_process.run(des_state, des_system, des_settings)
-        return f_st.process_jacobian
+    des_state, des_system, des_settings = array_barrier(des_state, des_system, des_settings)
 
     t_setup_end = time.perf_counter()
 
-    if des_settings.DEBUG_MODE:
-        debug_tsfc = cycle_objective(1000.0)
+    if settings.DEBUG_MODE:
+        full_debug = pact_process(des_state, des_system, des_settings)
 
     #---------------------------------------------------------------------------
     # Compilation
@@ -972,17 +991,21 @@ def run_flowtangent_benchmark(N_points):
 
     t_comp_start = time.perf_counter()
     grad_func = jax.jit(pact_process.__call__)
-    _ = grad_func.lower(des_state, des_system, des_settings).compile()
+    compiled_func = grad_func.lower(des_state, des_system, des_settings).compile()
     t_comp_end = time.perf_counter()
+
+    mem_analysis = compiled_func.memory_analysis()
+    peak_algo_vram = mem_analysis.temp_size_in_bytes
+    vram_mb = peak_algo_vram / (1024 * 1024)
 
     #---------------------------------------------------------------------------
     # Execution
     #---------------------------------------------------------------------------
 
     t_exec_start = time.perf_counter()
-    f_st, f_sys, f_set = pact_process.run(des_state, des_system, des_settings)
+    f_st, f_sys, f_set = grad_func(des_state, des_system, des_settings)
     grad = f_st.process_jacobian / units.parse('lbm/(hr*lbf)')
-    mean_tsfc = f_st.energy.nodes['network.line.engine'].fuel.TSFC
+    mean_tsfc = f_st.energy.nodes['network.line.engine'].fuel.TSFC / units.parse('lbm/(hr*lbf)')
     mean_tsfc.block_until_ready()
     t_exec_end = time.perf_counter()
 
@@ -1002,13 +1025,13 @@ def run_flowtangent_benchmark(N_points):
     
     # Cast JAX arrays back to standard Python floats for the summary table
     return (
-        peak_mem_mb, 
+        vram_mb, 
         jac_mem_mb, 
         t_setup, 
         t_comp, 
         t_exec, 
-        float(mean_tsfc), 
-        float(grad[0] if grad.ndim > 0 else grad), 
+        float(mean_tsfc.item()), 
+        float(grad.item() if grad.ndim > 0 else grad), 
         primal_calls, 
         jac_calls
     )
@@ -1042,14 +1065,20 @@ def execute_benchmark(name: str, func, N_array: list, cache_file: Path) -> dict:
     
     if metrics:
         print(f"\n{'='*130}\n {name.upper()} BENCHMARK LOADED FROM CACHE\n{'-'*130}")
-    else:
-        print(f"\n{'='*130}\n EXECUTING {name.upper()} BENCHMARK\n{'-'*130}")
-        
-        # Initialize empty arrays
+    else:       
+
+        print(f"Running {name} warmup pass...")
+        warmup_res = func(1)
+        del warmup_res
+        gc.collect()
+        jax.clear_caches()
+        print(f"{name} warmup pass complete.")
+
+         # Initialize empty arrays
         metrics = {k: [] for k in ['N_array', 'total_mem', 'jac_mem', 'setup_time', 'comp_time', 'exec_time', 'tsfc', 'grad', 'func_calls', 'jac_calls']}
         metrics['N_array'] = N_array
-        
-        _ = func(1) # Eat the cold-start penalty
+
+        print(f"\n{'='*130}\n EXECUTING {name.upper()} BENCHMARK\n{'-'*130}")
         
         with tqdm(N_array, leave=False) as pbar:
             for N in pbar:
@@ -1069,7 +1098,7 @@ def execute_benchmark(name: str, func, N_array: list, cache_file: Path) -> dict:
     print(f"{'N Points':<10} | {'Mem (MB)':<10} | {'J.Mem (MB)':<10} | {'Setup (s)':<10} | {'Comp (s)':<10} | {'Exec (s)':<10} | {'TSFC':<10} | {'Grad':<15} | {'Primal':<10} | {'Jacobian ':<10}")
     print("-" * 130)
     for i in range(len(metrics['N_array'])):
-        print(f"{metrics['N_array'][i]:<10} | {metrics['total_mem'][i]:<10.1f} | {metrics['jac_mem'][i]:<10.1f} | {metrics['setup_time'][i]:<10.2f} | {metrics['comp_time'][i]:<10.2f} | {metrics['exec_time'][i]:<10.2f} | {metrics['tsfc'][i]:<10.2f} | {metrics['grad'][i]:<15.6f} | {metrics['func_calls'][i]:<10d}  | {metrics['jac_calls'][i]:<10d}")
+        print(f"{metrics['N_array'][i]:<10} | {metrics['total_mem'][i]:<10.1f} | {metrics['jac_mem'][i]:<10.1f} | {metrics['setup_time'][i]:<10.2f} | {metrics['comp_time'][i]:<10.2f} | {metrics['exec_time'][i]:<10.2f} | {metrics['tsfc'][i]:<10.2f} | {metrics['grad'][i]:<15.4f} | {metrics['func_calls'][i]:<10d}  | {metrics['jac_calls'][i]:<10d}")
 
     save_results(cache_file, name, metrics)
     

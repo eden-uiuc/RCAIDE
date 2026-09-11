@@ -52,53 +52,49 @@ class JacobianMap(Module):
         self.inputs = tuple(TreePath(i) for i in inputs)
         self.outputs = tuple(TreePath(o) for o in outputs)
 
-        _filter_in = lambda str: tuple(p for p in self.inputs if p.path[0].lower() == str)  # noqa: E731
-        _filter_out = lambda str: tuple(p for p in self.inputs if p.path[0].lower() == str)  # noqa: E731
+        _filter_in = lambda s: tuple(p for p in self.inputs if p.path[0].lower() == s)
+        _filter_out = lambda s: tuple(p for p in self.outputs if p.path[0].lower() == s) 
 
-        # fmt: off
         self.state_inputs   = _filter_in("state") if state_inputs is None else state_inputs
         self.system_inputs  = _filter_in("system") if system_inputs is None else system_inputs
         self.state_outputs  = _filter_out("state") if state_outputs is None else state_outputs
         self.system_outputs = _filter_out("system") if system_outputs is None else system_outputs
-        # fmt: on
 
         self._n_st = len(self.state_inputs)
         self._n_sys = len(self.system_inputs)
 
     def flatten_inputs(self, base_state, base_system):
-        # Dynamically detect B from the base state (if any arrays are 3D)
-        arr = next((l for l in jax.tree_util.tree_leaves(base_state) if isinstance(l, (jax.Array, np.ndarray))), None)
-        has_B = arr is not None and arr.ndim == 3
-        B = arr.shape[0] if has_B else None
+        # Helper to find leading dimensions (e.g., B and T) safely
+        def _get_leading(tree):
+            arr = next((l for l in jax.tree_util.tree_leaves(tree) if isinstance(l, (jax.Array, np.ndarray))), None)
+            return arr.shape[:-1] if arr is not None else ()
 
         flat_st = []
         if self._n_st > 0:
             st_in = get_all_targets(base_state, self.state_inputs)
-            flat_st = [x.reshape(B, -1) if has_B else x.reshape(-1) for x in st_in]
-        flat_st_array = jnp.concatenate(flat_st, axis=-1) if flat_st else jnp.empty((B, 0) if has_B else (0,))
+            # FIX 2: Preserve leading dims, flatten trailing
+            flat_st = [x.reshape(*x.shape[:-1], -1) for x in st_in]
+        flat_st_array = jnp.concatenate(flat_st, axis=-1) if flat_st else jnp.empty((*_get_leading(base_state), 0))
 
         flat_sys = []
         if self._n_sys > 0:
             sys_in = get_all_targets(base_system, self.system_inputs)
-            flat_sys = [x.reshape(-1) for x in sys_in]
-        flat_sys_array = jnp.concatenate(flat_sys, axis=-1) if flat_sys else jnp.empty((0,))
+            flat_sys = [x.reshape(*x.shape[:-1], -1) for x in sys_in]
+        flat_sys_array = jnp.concatenate(flat_sys, axis=-1) if flat_sys else jnp.empty((*_get_leading(base_system), 0))
 
         return flat_st_array, flat_sys_array
 
     def update_inputs(self, flat_st, flat_sys, base_state, base_system):
-        has_B = flat_st.ndim == 2
-        B = flat_st.shape[0] if has_B else None
-
         st, sys = base_state, base_system
 
-        # Update State
         if self._n_st > 0:
             st_in = get_all_targets(st, self.state_inputs)
-            shapes = [x.shape[1:] if has_B else x.shape for x in st_in]
-            sizes = [int(np.prod(s)) if s else 1 for s in shapes]
+            shapes = [x.shape for x in st_in]
+            sizes = [x.shape[-1] for x in st_in] # Number of features per array
 
+            # Split along the feature axis
             splits = jnp.split(flat_st, np.cumsum(sizes)[:-1], axis=-1)
-            new_slices = [s.reshape((B,) + shp) if has_B else s.reshape(shp) for s, shp in zip(splits, shapes)]
+            new_slices = [s.reshape(shp) for s, shp in zip(splits, shapes)]
 
             parents = get_all_parents(st, self.state_inputs)
             updated = [
@@ -107,11 +103,10 @@ class JacobianMap(Module):
             ]
             st = update(st, lambda t: get_all_parents(t, self.state_inputs), tuple(updated))
 
-        # Update System
         if self._n_sys > 0:
             sys_in = get_all_targets(sys, self.system_inputs)
             shapes = [x.shape for x in sys_in]
-            sizes = [int(np.prod(s)) if s else 1 for s in shapes]
+            sizes = [x.shape[-1] for x in sys_in]
 
             splits = jnp.split(flat_sys, np.cumsum(sizes)[:-1], axis=-1)
             new_slices = [s.reshape(shp) for s, shp in zip(splits, shapes)]
@@ -132,14 +127,11 @@ class JacobianMap(Module):
         if self.system_outputs:
             outputs.extend(get_all_targets(f_sys, self.system_outputs))
 
-        has_B = outputs[0].ndim == 3
-        B = outputs[0].shape[0] if has_B else None
+        if not outputs:
+            return jnp.empty((0,))
 
-        if has_B:
-            return jnp.concatenate([out.reshape(B, -1) for out in outputs], axis=-1)
-        else:
-            return jnp.concatenate([out.reshape(-1) for out in outputs], axis=-1)
-
+        # Concatenate along the feature dimension, preserving B and T dynamically
+        return jnp.concatenate([out.reshape(*out.shape[:-1], -1) for out in outputs], axis=-1)
 
 class JacobianSettings(Module):
     calculate: bool =   static_field(False)
@@ -163,4 +155,4 @@ class NumericalSettings(Module):
     number_of_control_points: int = static_field(1)
     maximum_graph_complexity: int = static_field(int(1e6))
 
-    jacobian: JacobianSettings = static_field(JacobianSettings)
+    jacobian: JacobianSettings = field(JacobianSettings)

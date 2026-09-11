@@ -46,17 +46,18 @@ from datetime import datetime
 import jax
 import jax.numpy as jnp
 import networkx as nx
-import numpy as np  # Used only for OptimizerInterface class w/ legacy optimizers
+import numpy as np
 
 from ..utils import (
     MERMAID_STYLES,
     Module,
     NameType,
     TreePath,
+    Partial,
     compute_tree_delta,
     field,
-    get_target,
     method_field,
+    get_target,
     null_step,
     static_field,
     update,
@@ -71,7 +72,7 @@ from ..utils import (
 
 
 class ProcessStep(Module):
-    function: ProcessFunc = static_field(null_step)
+    function: ProcessFunc = field(null_step)
 
     _state_delta: Optional[State] = field(None)
     _system_delta: Optional[System] = field(None)
@@ -79,13 +80,14 @@ class ProcessStep(Module):
 
     def __init__(
         self,
-        function: ProcessFunc  = null_step,
+        function: ProcessFunc | ProcessStep  = null_step,
         name: NameType = None,
         *,
         _state_delta: Optional[State] = None,
         _system_delta: Optional[System] = None,
         _settings_delta: Optional[Settings] = None,
     ):
+        
         self.function = function
         if name is not None:
             self.name = name
@@ -96,20 +98,19 @@ class ProcessStep(Module):
         self._settings_delta = _settings_delta
 
     @classmethod
-    def from_function(cls, step: Any) -> ProcessStep:
+    def cast(cls, step: Callable) -> ProcessStep:
         if isinstance(step, ProcessStep):
             return step
-        elif callable(step):
-            step_name = getattr(step, "__name__", "Unnamed Function")
-            sig = inspect.signature(step)
-            if len(sig.parameters) != 3:
-                raise ValueError(
-                    f"Process functions must take and return (State, System, Settings). "
-                    f"Found function '{step_name}' with signature '{sig}'."
-                )
-            return cls(name=step_name, function=step)
-        else:
-            raise ValueError(f"Cannot create a ProcessStep from instance of '{type(step)}'.")
+
+        safe_step = step if isinstance(step, Partial) else Partial(step)
+        step_name = getattr(safe_step.func, "__name__", "Unnamed Function")
+        sig = inspect.signature(safe_step.func)
+        if len(sig.parameters) != 3:
+            raise ValueError(
+                f"Process functions must take and return (State, System, Settings). "
+                f"Found function '{step_name}' with signature '{sig}'."
+            )
+        return cls(name=step_name, function=safe_step)
 
     def _profile_complexity(self, state: State, system: System, settings: Settings, top_n=5):
         try:
@@ -241,11 +242,6 @@ class Process(ProcessStep):
     _initial_system: Optional[System] = field(None)
     _initial_settings: Optional[Settings] = field(None)
 
-    _state_mask: Optional[Any] = field(None)
-    _state_mask: Optional[Any] = field(None)
-
-    _val_and_jac_fn: Optional[Callable] = method_field(None)
-    _cached_grad_map: Optional[JacobianMap] = static_field(None)
     _filter_map: dict = field(lambda _: {"energy": r"state\.energy\.nodes\.\[*\]."}, static=True)
 
     def __init__(
@@ -257,8 +253,6 @@ class Process(ProcessStep):
         _initial_state: Optional[State] = None,
         _initial_system: Optional[System] = None,
         _initial_settings: Optional[Settings] = None,
-        _val_and_jac_fn: Optional[Callable] = None,
-        _cached_grad_map: Optional[JacobianMap] = None,
         _filter_map: Optional[dict] = None,
     ):
         # Initialize the parent ProcessStep
@@ -269,8 +263,6 @@ class Process(ProcessStep):
         self._initial_state = _initial_state
         self._initial_system = _initial_system
         self._initial_settings = _initial_settings
-        self._val_and_jac_fn = _val_and_jac_fn
-        self._cached_grad_map = _cached_grad_map
 
         # Handle mutable dictionary default safely
         self._filter_map = (
@@ -281,7 +273,7 @@ class Process(ProcessStep):
             }
         )
 
-        self.steps = tuple(ProcessStep.from_function(step) for step in steps)
+        self.steps = tuple(ProcessStep.cast(step) for step in steps)
 
     def __getitem__(self, item):
         if isinstance(item, str):
@@ -357,19 +349,18 @@ class Process(ProcessStep):
         return state, system, settings, tuple(history)
 
     def _build_value_and_jacobian(self, grad_map: JacobianMap):
+
         def objective_fn(flat_st, flat_sys, base_state, base_system, base_settings):
             st, sys = grad_map.update_inputs(flat_st, flat_sys, base_state, base_system)
 
             # Prevent recursion by temporarily disabling the Jacobian flag
-            inner_num = replace(base_settings.numerical, calculate_jacobian=False)
-            inner_setts = replace(base_settings, numerical=inner_num)
+            inner_setts = update(base_settings, "numerical.jacobian", replace(base_settings.numerical.jacobian, calculate=False))
 
             f_st, f_sys, f_setts = self(st, sys, inner_setts)
             out_array = grad_map.flatten_outputs(f_st, f_sys, f_setts)
 
             # Restore modified setting
-            restored_num = replace(f_setts.numerical, calculate_jacobian=True)
-            f_setts = replace(f_setts, numerical=restored_num)
+            f_setts = update(f_setts, "numerical.jacobian", replace(f_setts.numerical.jacobian, calculate=True))
 
             return out_array, (f_st, f_sys, f_setts)
 
@@ -380,37 +371,40 @@ class Process(ProcessStep):
 
             is_coupled_time = getattr(base_settings.numerical, "coupled_time_jacobian", False)
 
-            # Determine shapes based on your strict (B, T, F) or (T, F) rules
-            ndim = out_array.ndim
+            # 1. Universally parse leading dimensions (L) instead of rigid B and T
+            L = out_array.shape[:-1]
+            N_L = int(np.prod(L)) if L else 1
             N_o = out_array.shape[-1]
-            has_B = ndim == 3
-
-            B = out_array.shape[0] if has_B else 1
-            T = out_array.shape[1] if has_B else out_array.shape[0]
 
             if not is_coupled_time:
                 # =========================================================
-                # PATH A: FAST BLOCK-DIAGONAL (Independent Time Steps)
-                # Cost: O(N_o) VJP passes
+                # PATH A: FAST BLOCK-DIAGONAL
                 # =========================================================
-                basis_st = jnp.eye(N_o).reshape(N_o, 1, 1, N_o) if has_B else jnp.eye(N_o).reshape(N_o, 1, N_o)
-                basis_st = jnp.broadcast_to(basis_st, (N_o, B, T, N_o) if has_B else (N_o, T, N_o))
+                # Broadcast the basis to match the leading dimensions dynamically
+                basis_st = jnp.broadcast_to(
+                    jnp.eye(N_o).reshape((N_o,) + (1,) * len(L) + (N_o,)), 
+                    (N_o,) + L + (N_o,)
+                )
+                jac_tuple_st = jax.vmap(vjp_fn)(basis_st)
 
-                jac_tuple = jax.vmap(vjp_fn)(basis_st)
-
-                jac_st = jnp.moveaxis(jac_tuple[0], 0, -2)  # -> (B, T, N_o, N_st) or (T, N_o, N_st)
+                N_st = flat_st.shape[-1]
+                if flat_st.shape[:-1] == L:
+                    # Input matches leading dims (e.g. batched state)
+                    jac_st = jnp.moveaxis(jac_tuple_st[0], 0, -2)
+                else:
+                    # Input lacks leading dims (e.g. empty array). Broadcast to match.
+                    jac_st = jnp.broadcast_to(jac_tuple_st[0], L + (N_o, N_st))
 
                 if flat_sys.size > 0:
-                    # System is usually dense across the batch
-                    B_total = B * T
-                    basis_sys = (
-                        jnp.eye(B_total * N_o).reshape(B_total * N_o, B, T, N_o)
-                        if has_B
-                        else jnp.eye(B_total * N_o).reshape(B_total * N_o, T, N_o)
-                    )
-                    jac_sys_tuple = jax.vmap(vjp_fn)(basis_sys)
-
-                    jac_sys = jac_sys_tuple[1].reshape(B, T, N_o, -1) if has_B else jac_sys_tuple[1].reshape(T, N_o, -1)
+                    N_sys = flat_sys.shape[-1]
+                    if flat_sys.shape[:-1] == L:
+                        jac_sys = jnp.moveaxis(jac_tuple_st[1], 0, -2)
+                    else:
+                        # System is unbatched. We need N_L * N_o passes to extract block diagonal.
+                        basis_sys = jnp.eye(N_L * N_o).reshape((N_L * N_o,) + L + (N_o,))
+                        jac_tuple_sys = jax.vmap(vjp_fn)(basis_sys)
+                        jac_sys = jac_tuple_sys[1].reshape(L + (N_o, N_sys))
+                        
                     batched_jacobian = jnp.concatenate([jac_st, jac_sys], axis=-1)
                 else:
                     batched_jacobian = jac_st
@@ -418,37 +412,25 @@ class Process(ProcessStep):
             else:
                 # =========================================================
                 # PATH B: DENSE TEMPORAL (Optimal Control)
-                # Cost: O(T * N_o) VJP passes
                 # =========================================================
-                # We map over (T * N_o) to capture cross-time sensitivities
-                T_No = T * N_o
+                basis_st = jnp.eye(N_L * N_o).reshape((N_L * N_o,) + L + (N_o,))
+                jac_tuple = jax.vmap(vjp_fn)(basis_st)  
 
-                if has_B:
-                    # Independent across batches, fully dense across time
-                    basis_st = jnp.eye(T_No).reshape(T_No, 1, T, N_o)
-                    basis_st = jnp.broadcast_to(basis_st, (T_No, B, T, N_o))
-
-                    jac_tuple = jax.vmap(vjp_fn)(basis_st)  # Output: (T*N_o, B, T, N_st)
-                    jac_st = jnp.moveaxis(jac_tuple[0], 1, 0)  # -> (B, T*N_o, T, N_st)
-                    jac_st = jac_st.reshape(B, T, N_o, T, -1)  # -> (B, T_out, N_o, T_in, N_st)
+                N_st = flat_st.shape[-1]
+                if flat_st.shape[:-1] == L:
+                    # Dense coupling requires cross-referencing input and output leading dims
+                    jac_st = jac_tuple[0].reshape(L + (N_o,) + L + (N_st,))
                 else:
-                    basis_st = jnp.eye(T_No).reshape(T_No, T, N_o)
-                    jac_tuple = jax.vmap(vjp_fn)(basis_st)  # Output: (T*N_o, T, N_st)
-                    jac_st = jac_tuple[0].reshape(T, N_o, T, -1)  # -> (T_out, N_o, T_in, N_st)
+                    jac_st = jac_tuple[0].reshape(L + (N_o, N_st))
 
                 if flat_sys.size > 0:
-                    # System is dense across everything
-                    B_total = B * T if has_B else T
-                    basis_sys = (
-                        jnp.eye(B_total * N_o).reshape(B_total * N_o, B, T, N_o)
-                        if has_B
-                        else jnp.eye(B_total * N_o).reshape(B_total * N_o, T, N_o)
-                    )
-                    jac_sys_tuple = jax.vmap(vjp_fn)(basis_sys)
-
-                    jac_sys = jac_sys_tuple[1].reshape(B, T, N_o, -1) if has_B else jac_sys_tuple[1].reshape(T, N_o, -1)
-                    # Note: Concatenating State with System requires flattening the time dimensions for the solver
-                    batched_jacobian = (jac_st, jac_sys)  # Returned as a tuple for optimal control solvers
+                    N_sys = flat_sys.shape[-1]
+                    if flat_sys.shape[:-1] == L:
+                        jac_sys = jac_tuple[1].reshape(L + (N_o,) + L + (N_sys,))
+                    else:
+                        jac_sys = jac_tuple[1].reshape(L + (N_o, N_sys))
+                        
+                    batched_jacobian = (jac_st, jac_sys)  
                 else:
                     batched_jacobian = jac_st
 

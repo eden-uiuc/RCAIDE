@@ -13,6 +13,7 @@ from .base import(
 # 2. PyTree Facade
 from .tree import (
     TreePath,
+    Partial,
     update,
     get_actual_path,
     get_target,
@@ -74,6 +75,7 @@ __all__ = [
     "empty_array",
     "Module",
     "TreePath",
+    "Partial",
     "update",
     "get_actual_path",
     "get_target",

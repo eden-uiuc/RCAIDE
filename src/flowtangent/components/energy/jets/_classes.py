@@ -35,7 +35,7 @@ from ....data.gases import Air, BurnedJetA, Gas
 from ....data.propellants import JetA, Propellant
 
 # Flowtangent imports
-from ....utils import Module, field, io, static_field, update
+from ....utils import Module, io, field, static_field, method_field, update
 from ....utils.typing import NameType, ScalarFloat
 from ..lines import PACTLine
 from ..maps import _data as map_data
@@ -149,7 +149,7 @@ class Compressor(FlowNode):
 
     map: CompressorMap = field(map_data.AXI5)
 
-    alpha_schedule: Callable = field(_alpha_c, as_value=True, static=True)
+    alpha_schedule: Callable = method_field(_alpha_c)
 
     def __post_init__(self):
         if not isinstance(self.map, CompressorMap):
@@ -519,7 +519,7 @@ class Burner(FlowNode):
 class Turbine(FlowNode):
     map: TurbineMap = field(map_data.LPT2269)
 
-    alpha_schedule: Callable = field(lambda Np, Np_des: jnp.full_like(Np, 1.0), as_value=True, static=True)
+    alpha_schedule: Callable = method_field(lambda Np, Np_des: jnp.full_like(Np, 1.0))
 
     inputs: tuple | PACTInput = static_field(
         (PACTInput("flow", "Burner"),),
